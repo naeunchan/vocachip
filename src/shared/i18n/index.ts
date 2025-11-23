@@ -54,7 +54,7 @@ function resolveDefaultLocale(): Locale {
 	} catch {
 		// Ignore resolution errors and fallback to Korean.
 	}
-	return "en";
+	return "ko";
 }
 
 let activeLocale: Locale = resolveDefaultLocale();

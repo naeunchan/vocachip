@@ -1,5 +1,6 @@
-import React from "react";
 import { render } from "@testing-library/react-native";
+import React from "react";
+
 import { HomeHeader } from "@/screens/Home/components/HomeHeader";
 import { HOME_HEADER_TEXT } from "@/screens/Home/constants";
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+
 import { useAppAppearance } from "@/theme/AppearanceContext";
 
 type LegalDocumentModalProps = {

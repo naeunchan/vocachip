@@ -1,5 +1,6 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
+
 import { createStyles } from "@/screens/Settings/SettingsScreen.styles";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 

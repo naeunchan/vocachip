@@ -1,5 +1,6 @@
 import React from "react";
 import { Text, View } from "react-native";
+
 import { HOME_HEADER_TEXT } from "@/screens/Home/constants";
 import { createHomeHeaderStyles } from "@/screens/Home/styles/HomeHeader.styles";
 import { HomeHeaderProps } from "@/screens/Home/types/HomeHeader.types";

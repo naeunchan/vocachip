@@ -23,4 +23,4 @@ const healthFromEnv = (process.env.EXPO_PUBLIC_AI_HEALTH_URL ?? "").trim();
  * Defaults to `<OPENAI_PROXY_URL>/health` when configured.
  */
 export const AI_HEALTH_URL =
-	healthFromEnv || (OPENAI_PROXY_URL ? `${OPENAI_PROXY_URL.replace(/\/+$/, "")}/health` : "");
+    healthFromEnv || (OPENAI_PROXY_URL ? `${OPENAI_PROXY_URL.replace(/\/+$/, "")}/health` : "");

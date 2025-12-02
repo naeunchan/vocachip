@@ -1,25 +1,25 @@
 name: CI
 
 on:
-  push:
-  pull_request:
+    push:
+    pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Lint
-        run: npm run lint -- --max-warnings=0
-      - name: Test
-        run: npm test -- --watch=false
-      - name: Expo doctor
-        run: npx expo-doctor
-      - name: Build (web export)
-        run: npm run ci:build
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+            - name: Install dependencies
+              run: npm ci
+            - name: Lint
+              run: npm run lint -- --max-warnings=0
+            - name: Test
+              run: npm test -- --watch=false
+            - name: Expo doctor
+              run: npx expo-doctor
+            - name: Build (web export)
+              run: npm run ci:build

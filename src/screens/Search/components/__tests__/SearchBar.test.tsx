@@ -1,41 +1,38 @@
-import React from "react";
 import { fireEvent, render } from "@testing-library/react-native";
+import React from "react";
+
 import { SearchBar } from "@/screens/Search/components/SearchBar";
 
 jest.mock("@expo/vector-icons/Ionicons", () => {
-	const React = require("react");
-	const { Text } = require("react-native");
-	return (props: { name: string }) => <Text>{props.name}</Text>;
+    const React = require("react");
+    const { Text } = require("react-native");
+    return (props: { name: string }) => <Text>{props.name}</Text>;
 });
 
 describe("SearchBar", () => {
-	it("calls onChangeText when typing", () => {
-		const onChangeText = jest.fn();
-		const { getByPlaceholderText } = render(
-			<SearchBar value="" onChangeText={onChangeText} onSubmit={jest.fn()} />,
-		);
+    it("calls onChangeText when typing", () => {
+        const onChangeText = jest.fn();
+        const { getByPlaceholderText } = render(
+            <SearchBar value="" onChangeText={onChangeText} onSubmit={jest.fn()} />,
+        );
 
-		fireEvent.changeText(getByPlaceholderText("검색할 영어 단어를 입력하세요"), "apple");
-		expect(onChangeText).toHaveBeenCalledWith("apple");
-	});
+        fireEvent.changeText(getByPlaceholderText("검색할 영어 단어를 입력하세요"), "apple");
+        expect(onChangeText).toHaveBeenCalledWith("apple");
+    });
 
-	it("clears value when clear button pressed", () => {
-		const onChangeText = jest.fn();
-		const { getByText } = render(
-			<SearchBar value="hello" onChangeText={onChangeText} onSubmit={jest.fn()} />,
-		);
+    it("clears value when clear button pressed", () => {
+        const onChangeText = jest.fn();
+        const { getByText } = render(<SearchBar value="hello" onChangeText={onChangeText} onSubmit={jest.fn()} />);
 
-		fireEvent.press(getByText("지우기"));
-		expect(onChangeText).toHaveBeenCalledWith("");
-	});
+        fireEvent.press(getByText("지우기"));
+        expect(onChangeText).toHaveBeenCalledWith("");
+    });
 
-	it("submits when pressing submit button", () => {
-		const onSubmit = jest.fn();
-		const { getByText } = render(
-			<SearchBar value="world" onChangeText={jest.fn()} onSubmit={onSubmit} />,
-		);
+    it("submits when pressing submit button", () => {
+        const onSubmit = jest.fn();
+        const { getByText } = render(<SearchBar value="world" onChangeText={jest.fn()} onSubmit={onSubmit} />);
 
-		fireEvent.press(getByText("검색"));
-		expect(onSubmit).toHaveBeenCalled();
-	});
+        fireEvent.press(getByText("검색"));
+        expect(onSubmit).toHaveBeenCalled();
+    });
 });

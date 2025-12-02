@@ -1,17 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import { createLoginScreenStyles } from "@/screens/Auth/LoginScreen.styles";
 import { LoginScreenProps } from "@/screens/Auth/LoginScreen.types";
-import { LoginHeader } from "@/screens/Auth/components/LoginHeader";
-import { CredentialFields } from "@/screens/Auth/components/CredentialFields";
-import { RememberMeToggle } from "@/screens/Auth/components/RememberMeToggle";
-import { PrimaryActionButton } from "@/screens/Auth/components/PrimaryActionButton";
-import { GuestButton } from "@/screens/Auth/components/GuestButton";
 import { AuthModeSwitch } from "@/screens/Auth/components/AuthModeSwitch";
+import { CredentialFields } from "@/screens/Auth/components/CredentialFields";
+import { GuestButton } from "@/screens/Auth/components/GuestButton";
+import { LoginHeader } from "@/screens/Auth/components/LoginHeader";
+import { PrimaryActionButton } from "@/screens/Auth/components/PrimaryActionButton";
+import { RememberMeToggle } from "@/screens/Auth/components/RememberMeToggle";
 import { getLoginCopy } from "@/screens/Auth/constants/loginCopy";
-import { useThemedStyles } from "@/theme/useThemedStyles";
 import { t } from "@/shared/i18n";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 export function LoginScreen({
     onLogin,

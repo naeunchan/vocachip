@@ -1,31 +1,31 @@
-import { DictionaryMode, WordResult } from "@/services/dictionary/types";
 import { ExampleUpdate, generateDefinitionExamples } from "@/api/dictionary/exampleGenerator";
 import { fetchDictionaryEntry } from "@/api/dictionary/freeDictionaryClient";
+import { DictionaryMode, WordResult } from "@/services/dictionary/types";
 
 type WordDataResult = {
-	base: WordResult;
-	examplesPromise: Promise<ExampleUpdate[]>;
+    base: WordResult;
+    examplesPromise: Promise<ExampleUpdate[]>;
 };
 
 function validateSearchTerm(searchTerm: string): string {
-	const trimmed = searchTerm.trim().toLowerCase();
-	if (!trimmed) {
-		throw new Error("검색어를 입력해주세요.");
-	}
-	if (!/^[a-z\s'-]+$/.test(trimmed)) {
-		throw new Error("영어 단어만 검색할 수 있어요.");
-	}
-	return trimmed;
+    const trimmed = searchTerm.trim().toLowerCase();
+    if (!trimmed) {
+        throw new Error("검색어를 입력해주세요.");
+    }
+    if (!/^[a-z\s'-]+$/.test(trimmed)) {
+        throw new Error("영어 단어만 검색할 수 있어요.");
+    }
+    return trimmed;
 }
 
 export async function getWordData(searchTerm: string, mode: DictionaryMode): Promise<WordDataResult> {
-	const normalized = validateSearchTerm(searchTerm);
-	const base = await fetchDictionaryEntry(normalized, mode);
+    const normalized = validateSearchTerm(searchTerm);
+    const base = await fetchDictionaryEntry(normalized, mode);
 
-	const examplesPromise = generateDefinitionExamples(base.word, mode, base.meanings);
+    const examplesPromise = generateDefinitionExamples(base.word, mode, base.meanings);
 
-	return {
-		base,
-		examplesPromise,
-	};
+    return {
+        base,
+        examplesPromise,
+    };
 }

@@ -1,3 +1,3 @@
 export type LoadingStateProps = {
-	message: string;
+    message: string;
 };

@@ -1,3 +1,3 @@
 export type HomeHeaderProps = {
-	userName: string;
+    userName: string;
 };

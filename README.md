@@ -3,6 +3,7 @@
 > v1.0.0
 
 ## 주요 기능 (Korean)
+
 - **회원가입 및 로그인**: 구글 계정 규칙을 반영한 아이디/비밀번호 검사와 닉네임 자동 생성으로 안전하고 간편하게 계정을 만들 수 있어요.
 - **게스트 체험 모드**: 로그인 없이도 단어를 자유롭게 검색할 수 있으며, 즐겨찾기 저장은 10개까지 제한되어 있어요.
 - **영영사전 검색**: 영영사전에서 단어 뜻을 조회하고(영한 모드는 준비 중), 오디오 발음은 백엔드 연동 시 사용할 수 있어요.
@@ -12,6 +13,7 @@
 - **설정 화면**: 로그아웃하거나 초기 로그인 화면으로 되돌아갈 수 있어 계정 전환이 쉬워요.
 
 ## Key Features (English)
+
 - **Sign Up & Login**: Enforces Google-style username/password rules, generates a fallback nickname, and keeps authentication simple and secure.
 - **Guest Preview Mode**: Lets new users search freely without logging in while limiting favorites to 10 entries until they sign up.
 - **Dictionary Search**: English-English definitions available; English-Korean mode is coming soon. Pronunciation audio works when a backend proxy is configured.
@@ -21,11 +23,13 @@
 - **Settings Screen**: Provides a dedicated logout button and a quick path back to the login screen for easy account switching.
 
 ## Versioning
+
 - `expo.version` and `ios.buildNumber` move together (e.g., `1.0.1` for the next release).
 - `android.versionCode` starts at `1` and must be incremented for every Play Store upload.
 - Update all three fields before cutting a new store build.
 
 ## Compliance & Security
+
 - Privacy/Terms links live in `src/config/legal.ts` and currently use placeholders; replace with your hosted pages before store submission.
 - Automatic login credentials are stored with SecureStore/Keychain on device; logout clears the secure entry.
 - Optional biometric-gated auto-login is available via device capabilities (toggle in Settings).

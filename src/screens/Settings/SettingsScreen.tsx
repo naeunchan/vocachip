@@ -1,20 +1,20 @@
 import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { Alert, Linking, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { SettingsScreenProps } from "@/screens/Settings/SettingsScreen.types";
-import { createStyles } from "@/screens/Settings/SettingsScreen.styles";
-import { GuestActionCard } from "@/screens/Settings/components/GuestActionCard";
-import { AuthenticatedActions } from "@/screens/Settings/components/AuthenticatedActions";
-import { MISSING_USER_ERROR_MESSAGE } from "@/screens/App/AppScreen.constants";
-import { useThemedStyles } from "@/theme/useThemedStyles";
-import { FONT_SCALE_OPTIONS, THEME_MODE_OPTIONS } from "@/theme/constants";
-import { LEGAL_DOCUMENTS, type LegalDocumentId } from "@/legal/legalDocuments";
-import { LegalDocumentModal } from "@/screens/Settings/components/LegalDocumentModal";
+
 import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@/config/legal";
 import { useAIStatus } from "@/hooks/useAIStatus";
+import { LEGAL_DOCUMENTS, type LegalDocumentId } from "@/legal/legalDocuments";
+import { MISSING_USER_ERROR_MESSAGE } from "@/screens/App/AppScreen.constants";
+import { createStyles } from "@/screens/Settings/SettingsScreen.styles";
+import { SettingsScreenProps } from "@/screens/Settings/SettingsScreen.types";
+import { AuthenticatedActions } from "@/screens/Settings/components/AuthenticatedActions";
+import { GuestActionCard } from "@/screens/Settings/components/GuestActionCard";
+import { LegalDocumentModal } from "@/screens/Settings/components/LegalDocumentModal";
 import { getPreferenceValue, setPreferenceValue } from "@/services/database";
-import { BIOMETRIC_LOGIN_PREFERENCE_KEY } from "@/theme/constants";
 import { t } from "@/shared/i18n";
+import { FONT_SCALE_OPTIONS, THEME_MODE_OPTIONS, BIOMETRIC_LOGIN_PREFERENCE_KEY } from "@/theme/constants";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const SUPPORT_EMAIL = "support@vocationary.app";
 const CONTACT_SUBJECT = "Vocationary 1:1 문의";
@@ -232,7 +232,11 @@ export function SettingsScreen({
                         {renderRow(t("settings.link.terms"), {
                             onPress: () => handleOpenLinkOrDocument(TERMS_OF_SERVICE_URL, "termsOfService"),
                         })}
-                        {renderRow(t("settings.link.legal"), { onPress: () => handleOpenDocument("legalNotice") })}
+                        {renderRow(t("settings.link.legal"), {
+                            onPress: () => {
+                                handleOpenDocument("legalNotice");
+                            },
+                        })}
                         {renderRow(t("settings.link.recovery"), { value: RECOVERY_NOTICE })}
                         {renderRow(t("settings.link.biometric"), {
                             onPress: handleToggleBiometric,

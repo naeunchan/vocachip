@@ -1,4 +1,4 @@
 export type AppHelpModalProps = {
-	visible: boolean;
-	onDismiss: () => void;
+    visible: boolean;
+    onDismiss: () => void;
 };

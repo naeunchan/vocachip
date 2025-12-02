@@ -1,14 +1,16 @@
-import React from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { createSearchScreenStyles } from "@/screens/Search/SearchScreen.styles";
+import { SearchScreenProps } from "@/screens/Search/SearchScreen.types";
 import { SearchBar } from "@/screens/Search/components/SearchBar";
 import { SearchResults } from "@/screens/Search/components/SearchResults";
-import { SearchScreenProps } from "@/screens/Search/SearchScreen.types";
-import { createSearchScreenStyles } from "@/screens/Search/SearchScreen.styles";
-import { useThemedStyles } from "@/theme/useThemedStyles";
-import { useAppAppearance } from "@/theme/AppearanceContext";
+import { DictionaryMode } from "@/services/dictionary/types";
 import { t } from "@/shared/i18n";
+import { useAppAppearance } from "@/theme/AppearanceContext";
+import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const MODE_BUTTONS = [
     {
@@ -150,7 +152,9 @@ export function SearchScreen({
                                 <TouchableOpacity
                                     key={`${entry.term}-${entry.searchedAt}`}
                                     style={styles.historyItem}
-                                    onPress={() => onSelectRecentSearch(entry)}
+                                    onPress={() => {
+                                        onSelectRecentSearch(entry);
+                                    }}
                                     accessibilityRole="button"
                                     accessibilityLabel={`${entry.term} 검색어로 이동`}
                                 >

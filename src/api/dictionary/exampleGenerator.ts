@@ -1,7 +1,8 @@
 import QuickLRU from "quick-lru";
+
+import { OPENAI_FEATURE_ENABLED, OPENAI_PROXY_URL } from "@/config/openAI";
 import { DictionaryMode } from "@/services/dictionary/types";
 import { MeaningEntry } from "@/services/dictionary/types/WordResult";
-import { OPENAI_FEATURE_ENABLED, OPENAI_PROXY_URL } from "@/config/openAI";
 
 export type ExampleUpdate = {
     meaningIndex: number;

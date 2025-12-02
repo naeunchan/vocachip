@@ -1,37 +1,43 @@
 // @ts-check
-const { FlatCompat } = require("@eslint/eslintrc");
-const prettierPlugin = require("eslint-plugin-prettier");
+import { FlatCompat } from "@eslint/eslintrc";
+import prettierPlugin from "eslint-plugin-prettier";
+import path from "node:path";
 
 const compat = new FlatCompat({
-	baseDirectory: __dirname,
+    baseDirectory: path.resolve(),
 });
 
-module.exports = [
-	{
-		ignores: ["node_modules", "dist", "android", "ios"],
-	},
-	...compat.extends("universe/native", "universe/shared/typescript-analysis", "plugin:react-hooks/recommended", "prettier"),
-	{
-		plugins: {
-			prettier: prettierPlugin,
-		},
-		languageOptions: {
-			globals: {
-				jest: "readonly",
-			},
-			parserOptions: {
-				project: "./tsconfig.json",
-				tsconfigRootDir: __dirname,
-			},
-		},
-		rules: {
-			"prettier/prettier": "error",
-			"node/handle-callback-err": "off",
-		},
-		settings: {
-			react: {
-				version: "detect",
-			},
-		},
-	},
+export default [
+    {
+        ignores: ["node_modules", "dist", "android", "ios"],
+    },
+    ...compat.extends(
+        "universe/native",
+        "universe/shared/typescript-analysis",
+        "plugin:react-hooks/recommended",
+        "prettier",
+    ),
+    {
+        plugins: {
+            prettier: prettierPlugin,
+        },
+        languageOptions: {
+            globals: {
+                jest: "readonly",
+            },
+            parserOptions: {
+                project: "./tsconfig.json",
+                tsconfigRootDir: path.resolve(),
+            },
+        },
+        rules: {
+            "prettier/prettier": "error",
+            "node/handle-callback-err": "off",
+        },
+        settings: {
+            react: {
+                version: "detect",
+            },
+        },
+    },
 ];

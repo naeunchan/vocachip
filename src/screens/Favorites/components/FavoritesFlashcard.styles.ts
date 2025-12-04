@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
 
-import type { AppThemeColors } from "@/theme/types";
 import { scaleFont } from "@/theme/utils";
+
+import type { AppThemeColors } from "@/theme/types";
 
 export const createFavoritesFlashcardStyles = (theme: AppThemeColors, fontScale: number) =>
     StyleSheet.create({

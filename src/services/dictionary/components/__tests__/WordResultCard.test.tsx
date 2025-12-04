@@ -2,8 +2,9 @@ import { fireEvent, render } from "@testing-library/react-native";
 import React from "react";
 
 import { WordResultCard } from "@/services/dictionary/components/WordResultCard";
-import type { WordResult } from "@/services/dictionary/types";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
+
+import type { WordResult } from "@/services/dictionary/types";
 
 jest.mock("@expo/vector-icons/Ionicons", () => {
     const React = require("react");

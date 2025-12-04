@@ -1,7 +1,8 @@
 import { Dimensions, StyleSheet } from "react-native";
 
-import type { AppThemeColors } from "@/theme/types";
 import { scaleFont } from "@/theme/utils";
+
+import type { AppThemeColors } from "@/theme/types";
 
 const WINDOW_HEIGHT = Dimensions.get("window").height;
 const CARD_HEIGHT = Math.max(0, WINDOW_HEIGHT - 180);

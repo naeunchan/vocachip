@@ -1,5 +1,6 @@
-import type { AppError } from "@/errors/AppError";
 import { DictionaryMode, WordResult } from "@/services/dictionary/types";
+
+import type { AppError } from "@/errors/AppError";
 import type { SearchHistoryEntry } from "@/services/searchHistory/types";
 
 export type SearchScreenProps = {

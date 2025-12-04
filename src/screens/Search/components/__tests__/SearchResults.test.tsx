@@ -1,9 +1,10 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import React from "react";
 
-import type { AppError } from "@/errors/AppError";
 import { SearchResults } from "@/screens/Search/components/SearchResults";
 import { WordResult } from "@/services/dictionary/types";
+
+import type { AppError } from "@/errors/AppError";
 
 const mockWordResultCard = jest.fn();
 

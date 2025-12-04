@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { useAppAppearance } from "@/theme/AppearanceContext";
+
 import type { AppThemeColors } from "@/theme/types";
 
 export function useThemedStyles<T>(factory: (theme: AppThemeColors, fontScale: number) => T) {

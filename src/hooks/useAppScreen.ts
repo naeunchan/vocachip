@@ -7,10 +7,8 @@ import { fetchDictionaryEntry } from "@/api/dictionary/freeDictionaryClient";
 import { getPronunciationAudio } from "@/api/dictionary/getPronunciationAudio";
 import { getWordData } from "@/api/dictionary/getWordData";
 import { OPENAI_FEATURE_ENABLED } from "@/config/openAI";
-import type { AppError } from "@/errors/AppError";
 import { createAppError, normalizeError } from "@/errors/AppError";
 import { captureAppError, setUserContext } from "@/logging/logger";
-import type { RootTabNavigatorProps } from "@/navigation/RootTabNavigator.types";
 import {
     ACCOUNT_REDIRECT_ERROR_MESSAGE,
     AUDIO_PLAY_ERROR_MESSAGE,
@@ -42,8 +40,6 @@ import {
     TOGGLE_FAVORITE_ERROR_MESSAGE,
     UPDATE_STATUS_ERROR_MESSAGE,
 } from "@/screens/App/AppScreen.constants";
-import type { AppScreenHookResult } from "@/screens/App/AppScreen.types";
-import type { LoginScreenProps } from "@/screens/Auth/LoginScreen.types";
 import { exportBackupToFile, importBackupFromDocument } from "@/services/backup/manualBackup";
 import {
     clearAutoLoginCredentials,
@@ -84,10 +80,15 @@ import {
     THEME_MODE_PREFERENCE_KEY,
     BIOMETRIC_LOGIN_PREFERENCE_KEY,
 } from "@/theme/constants";
-import type { ThemeMode } from "@/theme/types";
 import { playRemoteAudio } from "@/utils/audio";
 import { getEmailValidationError, getGooglePasswordValidationError } from "@/utils/authValidation";
 import { generateRandomDisplayName } from "@/utils/randomDisplayName";
+
+import type { AppError } from "@/errors/AppError";
+import type { RootTabNavigatorProps } from "@/navigation/RootTabNavigator.types";
+import type { AppScreenHookResult } from "@/screens/App/AppScreen.types";
+import type { LoginScreenProps } from "@/screens/Auth/LoginScreen.types";
+import type { ThemeMode } from "@/theme/types";
 
 export function useAppScreen(): AppScreenHookResult {
     const [searchTerm, setSearchTerm] = useState("");

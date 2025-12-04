@@ -1,6 +1,7 @@
 // @ts-check
-const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
+
+const { getDefaultConfig } = require("expo/metro-config");
 
 const baseConfig = getDefaultConfig(path.resolve());
 

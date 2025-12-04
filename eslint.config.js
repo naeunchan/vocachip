@@ -1,5 +1,6 @@
 // @ts-check
 import { FlatCompat } from "@eslint/eslintrc";
+import importPlugin from "eslint-plugin-import";
 import prettierPlugin from "eslint-plugin-prettier";
 import path from "node:path";
 
@@ -9,22 +10,26 @@ const compat = new FlatCompat({
 
 export default [
     {
-        ignores: ["node_modules", "dist", "android", "ios"],
+        ignores: ["node_modules", "dist", "android", "ios", "eslint.config.js"],
     },
     ...compat.extends(
         "universe/native",
         "universe/shared/typescript-analysis",
         "plugin:react-hooks/recommended",
+        "plugin:import/recommended",
+        "plugin:import/typescript",
         "prettier",
     ),
     {
         plugins: {
+            import: importPlugin,
             prettier: prettierPlugin,
         },
         languageOptions: {
             globals: {
                 jest: "readonly",
             },
+            ecmaVersion: "latest",
             parserOptions: {
                 project: "./tsconfig.json",
                 tsconfigRootDir: path.resolve(),
@@ -32,6 +37,14 @@ export default [
         },
         rules: {
             "prettier/prettier": "error",
+            "import/order": [
+                "error",
+                {
+                    groups: ["builtin", "external", "internal", "parent", "sibling", "index", "object", "type"],
+                    "newlines-between": "always",
+                    alphabetize: { order: "asc", caseInsensitive: true },
+                },
+            ],
             "node/handle-callback-err": "off",
             "no-void": "off",
             "react-hooks/exhaustive-deps": "off",
@@ -45,6 +58,14 @@ export default [
         settings: {
             react: {
                 version: "detect",
+            },
+            "import/resolver": {
+                node: {
+                    extensions: [".js", ".jsx", ".ts", ".tsx"],
+                },
+                typescript: {
+                    project: "./tsconfig.json",
+                },
             },
         },
     },

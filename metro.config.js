@@ -18,5 +18,6 @@ module.exports = {
         ...resolver,
         assetExts,
         sourceExts: sourceExts.filter((ext) => ext !== "wasm"),
+        unstable_enablePackageExports: false,
     },
 };

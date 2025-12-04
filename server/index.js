@@ -1,6 +1,6 @@
-const { OpenAI } = require("openai");
 /* eslint-env node */
 /* global __dirname, Buffer */
+const { OpenAI } = require("openai");
 const path = require("path");
 
 const cors = require("cors");

@@ -90,7 +90,7 @@ describe("WordResultCard", () => {
                 onPlayPronunciation={jest.fn()}
                 pronunciationAvailable
                 isFavorite={false}
-                examplesVisible={false}
+                examplesVisible
                 onToggleExamples={onToggleExamples}
             />,
             { wrapper },
@@ -98,6 +98,25 @@ describe("WordResultCard", () => {
 
         fireEvent.press(getByText("예문을 불러오는 중..."));
         expect(onToggleExamples).not.toHaveBeenCalled();
+    });
+
+    it("allows toggling when examples are hidden even if pending", () => {
+        const onToggleExamples = jest.fn();
+        const { getByText } = render(
+            <WordResultCard
+                result={baseResult}
+                onToggleFavorite={jest.fn()}
+                onPlayPronunciation={jest.fn()}
+                pronunciationAvailable
+                isFavorite={false}
+                examplesVisible={false}
+                onToggleExamples={onToggleExamples}
+            />,
+            { wrapper },
+        );
+
+        fireEvent.press(getByText("예문 보기"));
+        expect(onToggleExamples).toHaveBeenCalled();
     });
 
     it("calls onToggleFavorite when pressing star", () => {

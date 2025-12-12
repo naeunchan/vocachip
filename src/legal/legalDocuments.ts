@@ -5,9 +5,8 @@ type LegalDocument = {
     content: string;
 };
 
-const COMPANY_NAME = "Myvoc Labs";
-const CONTACT_EMAIL = "support@vocationary.app";
-const CONTACT_ADDRESS = "서울특별시 성동구 성수동2가 00-00, Myvoc Labs";
+const COMPANY_NAME = "Vocalabs";
+const CONTACT_EMAIL = "vocationary2025@gmail.com";
 
 const PRIVACY_POLICY = `
 본 개인정보 처리방침은 ${COMPANY_NAME}(이하 “회사”)가 제공하는 모바일 애플리케이션 “Vocationary”(이하 “서비스”) 이용과 관련하여 사용자의 개인정보를 어떻게 수집·이용·보관·삭제하는지를 설명합니다.
@@ -84,7 +83,6 @@ const LEGAL_NOTICE = `
 - 서비스명: Vocationary
 - 제공자: ${COMPANY_NAME} (개인/소규모 사업자)
 - 이메일: ${CONTACT_EMAIL}
-- 주소: ${CONTACT_ADDRESS}
 
 2. 고객 문의
 - 앱 내 설정 > 일반 > 1:1 문의 보내기

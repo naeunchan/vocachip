@@ -22,15 +22,12 @@ export function WordResultCard({
     const hasPendingExamples = result.meanings.some((meaning) =>
         meaning.definitions.some((definition) => Boolean(definition.pendingExample)),
     );
+    const loadingExamples = examplesVisible && hasPendingExamples;
     const hasExamples = result.meanings.some((meaning) =>
         meaning.definitions.some((definition) => Boolean(definition.example)),
     );
     const noExamplesAvailable = !hasPendingExamples && !hasExamples;
-    const toggleButtonLabel = hasPendingExamples
-        ? "예문을 불러오는 중..."
-        : examplesVisible
-          ? "예문 숨기기"
-          : "예문 보기";
+    const toggleButtonLabel = loadingExamples ? "예문을 불러오는 중..." : examplesVisible ? "예문 숨기기" : "예문 보기";
     return (
         <View style={styles.resultCard}>
             <View style={styles.resultHeader}>
@@ -99,20 +96,20 @@ export function WordResultCard({
                 ) : null}
             </ScrollView>
             <TouchableOpacity
-                style={[styles.exampleToggleButton, hasPendingExamples ? styles.exampleToggleButtonDisabled : null]}
+                style={[styles.exampleToggleButton, loadingExamples ? styles.exampleToggleButtonDisabled : null]}
                 onPress={onToggleExamples}
-                disabled={hasPendingExamples}
-                activeOpacity={hasPendingExamples ? 1 : 0.9}
+                disabled={loadingExamples}
+                activeOpacity={loadingExamples ? 1 : 0.9}
             >
                 <Ionicons
                     name={examplesVisible ? "chevron-up-outline" : "book-outline"}
                     size={18}
-                    color={hasPendingExamples ? theme.textMuted : theme.accentContrast}
+                    color={loadingExamples ? theme.textMuted : theme.accentContrast}
                 />
                 <Text
                     style={[
                         styles.exampleToggleButtonText,
-                        hasPendingExamples ? styles.exampleToggleButtonTextDisabled : null,
+                        loadingExamples ? styles.exampleToggleButtonTextDisabled : null,
                     ]}
                 >
                     {toggleButtonLabel}

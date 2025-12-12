@@ -137,6 +137,10 @@ async function requestOpenAI(
     const endpointBase = OPENAI_PROXY_URL.replace(/\/+$/, "");
     const requestUrl = `${endpointBase}/dictionary/examples`;
     const prompt = buildPrompt(word, mode, descriptors);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 8000);
 
     try {
         const response = await fetch(requestUrl, {
@@ -150,6 +154,7 @@ async function requestOpenAI(
                 schema: EXAMPLE_SCHEMA,
                 maxTokens: maxOutputTokensFor(descriptors.length),
             }),
+            signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -160,8 +165,14 @@ async function requestOpenAI(
         const items = Array.isArray(data?.items) ? data.items : [];
         return parseCompletionContent(JSON.stringify({ items }));
     } catch (error) {
-        console.warn("예문 생성 프록시 호출 중 문제가 발생했어요.", error);
+        const name = typeof error === "object" && error !== null ? (error as { name?: string }).name : undefined;
+        const isAbort = name === "AbortError" || name === "AbortErrorException";
+        if (!isAbort) {
+            console.warn("예문 생성 프록시 호출 중 문제가 발생했어요.", error);
+        }
         return [];
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 

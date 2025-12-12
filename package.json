@@ -71,6 +71,7 @@
         "jest-expo": "^54.0.13",
         "lint-staged": "^16.2.7",
         "prettier": "^3.7.3",
+        "react-native-dotenv": "^3.4.11",
         "react-test-renderer": "19.1.0",
         "typescript": "~5.9.3"
     },
@@ -89,7 +90,8 @@
             "**/__tests__/**/*.test.ts?(x)"
         ],
         "moduleNameMapper": {
-            "^@/(.*)$": "<rootDir>/src/$1"
+            "^@/(.*)$": "<rootDir>/src/$1",
+            "^react-native-dotenv$": "<rootDir>/__mocks__/react-native-dotenv.js"
         }
     },
     "private": true,

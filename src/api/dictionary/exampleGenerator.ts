@@ -1,6 +1,6 @@
 import QuickLRU from "quick-lru";
 
-import { OPENAI_FEATURE_ENABLED, OPENAI_PROXY_URL } from "@/config/openAI";
+import { OPENAI_FEATURE_ENABLED, OPENAI_PROXY_KEY, OPENAI_PROXY_URL } from "@/config/openAI";
 import { DictionaryMode } from "@/services/dictionary/types";
 import { MeaningEntry } from "@/services/dictionary/types/WordResult";
 
@@ -137,11 +137,18 @@ async function requestOpenAI(
     const endpointBase = OPENAI_PROXY_URL.replace(/\/+$/, "");
     const requestUrl = `${endpointBase}/dictionary/examples`;
     const prompt = buildPrompt(word, mode, descriptors);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+    }, 8000);
 
     try {
         const response = await fetch(requestUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                ...(OPENAI_PROXY_KEY ? { "x-api-key": OPENAI_PROXY_KEY } : {}),
+            },
             body: JSON.stringify({
                 word,
                 mode,
@@ -150,6 +157,7 @@ async function requestOpenAI(
                 schema: EXAMPLE_SCHEMA,
                 maxTokens: maxOutputTokensFor(descriptors.length),
             }),
+            signal: controller.signal,
         });
 
         if (!response.ok) {
@@ -160,8 +168,14 @@ async function requestOpenAI(
         const items = Array.isArray(data?.items) ? data.items : [];
         return parseCompletionContent(JSON.stringify({ items }));
     } catch (error) {
-        console.warn("예문 생성 프록시 호출 중 문제가 발생했어요.", error);
+        const name = typeof error === "object" && error !== null ? (error as { name?: string }).name : undefined;
+        const isAbort = name === "AbortError" || name === "AbortErrorException";
+        if (!isAbort) {
+            console.warn("예문 생성 프록시 호출 중 문제가 발생했어요.", error);
+        }
         return [];
+    } finally {
+        clearTimeout(timeoutId);
     }
 }
 

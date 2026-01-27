@@ -30,80 +30,42 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
             marginBottom: 24,
             lineHeight: scaleFont(22, fontScale),
         },
-        inputLabel: {
-            fontSize: scaleFont(14, fontScale),
-            color: theme.textPrimary,
-            marginBottom: 8,
-            fontWeight: "600",
-        },
-        textInput: {
+        socialButton: {
             borderWidth: 1,
             borderColor: theme.inputBorder,
-            borderRadius: 12,
-            paddingHorizontal: 16,
+            backgroundColor: theme.surface,
             paddingVertical: 12,
-            fontSize: scaleFont(15, fontScale),
-            color: theme.textPrimary,
-            backgroundColor: theme.inputBackground,
-            marginBottom: 16,
-        },
-        button: {
-            backgroundColor: theme.accent,
-            paddingVertical: 14,
             borderRadius: 12,
-            alignItems: "center",
-            marginBottom: 12,
-        },
-        buttonText: {
-            color: theme.accentContrast,
-            fontSize: scaleFont(16, fontScale),
-            fontWeight: "600",
-        },
-        guestButton: {
-            borderWidth: 1,
-            borderColor: theme.accent,
-            borderRadius: 12,
-            paddingVertical: 12,
-            minHeight: 48,
             alignItems: "center",
             justifyContent: "center",
+            marginBottom: 16,
         },
-        guestButtonText: {
-            color: theme.accent,
-            fontSize: scaleFont(16, fontScale),
-            fontWeight: "600",
+        socialButtonText: {
+            color: theme.textPrimary,
+            fontSize: scaleFont(15, fontScale),
+            fontWeight: "700",
         },
-        rememberRow: {
+        socialDividerRow: {
             flexDirection: "row",
             alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
+            gap: 8,
+            marginBottom: 20,
+            marginTop: 4,
         },
-        rememberLabel: {
-            fontSize: scaleFont(14, fontScale),
-            color: theme.textPrimary,
-            fontWeight: "600",
+        socialDividerLine: {
+            flex: 1,
+            height: StyleSheet.hairlineWidth,
+            backgroundColor: theme.border,
         },
-        disabledButton: {
-            opacity: 0.6,
-        },
-        helperText: {
-            fontSize: scaleFont(13, fontScale),
+        socialDividerText: {
             color: theme.textSecondary,
-            marginBottom: 24,
-            lineHeight: scaleFont(18, fontScale),
-        },
-        errorText: {
-            color: theme.danger,
-            fontSize: scaleFont(14, fontScale),
-            marginBottom: 16,
-        },
-        ruleText: {
             fontSize: scaleFont(12, fontScale),
-            color: theme.textMuted,
-            marginTop: -8,
-            marginBottom: 16,
-            lineHeight: scaleFont(16, fontScale),
+            fontWeight: "700",
+        },
+        socialLoadingText: {
+            color: theme.textPrimary,
+            fontSize: scaleFont(15, fontScale),
+            fontWeight: "600",
         },
         modeSwitch: {
             flexDirection: "row",
@@ -121,6 +83,20 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
             color: theme.accent,
             fontWeight: "600",
         },
+        disabledButton: {
+            opacity: 0.6,
+        },
+        helperText: {
+            fontSize: scaleFont(13, fontScale),
+            color: theme.textSecondary,
+            marginBottom: 24,
+            lineHeight: scaleFont(18, fontScale),
+        },
+        errorText: {
+            color: theme.danger,
+            fontSize: scaleFont(14, fontScale),
+            marginBottom: 16,
+        },
         footerNote: {
             fontSize: scaleFont(13, fontScale),
             color: theme.textSecondary,
@@ -132,18 +108,18 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
             alignItems: "center",
             gap: 8,
         },
-        buttonLoadingText: {
-            color: theme.accentContrast,
-            fontSize: scaleFont(16, fontScale),
-            fontWeight: "600",
+        guestButton: {
+            borderWidth: 1,
+            borderColor: theme.accent,
+            borderRadius: 12,
+            paddingVertical: 12,
+            minHeight: 48,
+            alignItems: "center",
+            justifyContent: "center",
         },
-        linkButton: {
-            alignSelf: "center",
-            marginVertical: 12,
-        },
-        linkButtonText: {
-            fontSize: scaleFont(14, fontScale),
+        guestButtonText: {
             color: theme.accent,
+            fontSize: scaleFont(16, fontScale),
             fontWeight: "600",
         },
     });

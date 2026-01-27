@@ -33,6 +33,8 @@ type UserRow = {
     username: string;
     display_name: string | null;
     password_hash: string | null;
+    oauth_provider: string | null;
+    oauth_sub: string | null;
 };
 
 type SessionRow = {
@@ -58,10 +60,21 @@ export type UserRecord = {
     id: number;
     username: string;
     displayName: string | null;
+    oauthProvider?: string | null;
+    oauthSubject?: string | null;
 };
 
 type UserWithPasswordRecord = UserRecord & {
     passwordHash: string | null;
+};
+
+export type OAuthProvider = "google" | "apple";
+
+export type OAuthProfilePayload = {
+    provider: OAuthProvider;
+    subject: string;
+    email: string;
+    displayName?: string | null;
 };
 
 let databasePromise: Promise<SQLiteDatabase> | null = null;
@@ -83,6 +96,8 @@ function mapUserRow(row: UserRow, fallbackDisplayName?: string): UserRecord {
         id: row.id,
         username: row.username,
         displayName: row.display_name ?? fallbackDisplayName ?? null,
+        oauthProvider: row.oauth_provider ?? null,
+        oauthSubject: row.oauth_sub ?? null,
     };
 }
 
@@ -141,10 +156,10 @@ export async function verifyPasswordHash(password: string, storedHash: string | 
     return legacyHash === storedHash;
 }
 
-function generateVerificationCode() {
-    return Math.floor(100000 + Math.random() * 900000)
-        .toString()
-        .padStart(6, "0");
+async function generateVerificationCode() {
+    const bytes = await getRandomBytesAsync(4);
+    const value = Buffer.from(bytes).readUInt32BE(0);
+    return String(value % 1_000_000).padStart(6, "0");
 }
 
 function getVerificationExpiryTimestamp() {
@@ -238,7 +253,7 @@ function serializeSearchHistoryPayload(entries: SearchHistoryEntry[]) {
 export type BackupPayload = {
     version: number;
     exportedAt: string;
-    users: Pick<UserRow, "username" | "display_name" | "password_hash">[];
+    users: Pick<UserRow, "username" | "display_name" | "password_hash" | "oauth_provider" | "oauth_sub">[];
     favorites: Record<string, FavoriteWordEntry[]>;
     searchHistory: SearchHistoryEntry[];
 };
@@ -246,9 +261,9 @@ export type BackupPayload = {
 export async function exportBackup(): Promise<BackupPayload> {
     const db = await getDatabase();
     const timestamp = new Date().toISOString();
-    const users = await db.getAllAsync<Pick<UserRow, "username" | "display_name" | "password_hash">>(
-        "SELECT username, display_name, password_hash FROM users",
-    );
+    const users = await db.getAllAsync<
+        Pick<UserRow, "username" | "display_name" | "password_hash" | "oauth_provider" | "oauth_sub">
+    >("SELECT username, display_name, password_hash, oauth_provider, oauth_sub FROM users");
     const favorites: Record<string, FavoriteWordEntry[]> = {};
 
     for (const user of users) {
@@ -292,10 +307,12 @@ export async function importBackup(payload: BackupPayload) {
             );
             if (!existing) {
                 await tx.runAsync(
-                    "INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, ?)",
+                    "INSERT INTO users (username, display_name, password_hash, oauth_provider, oauth_sub) VALUES (?, ?, ?, ?, ?)",
                     normalizedUsername,
                     user.display_name,
                     user.password_hash,
+                    user.oauth_provider,
+                    user.oauth_sub,
                 );
                 existing = await tx.getFirstAsync<UserRow>(
                     "SELECT id FROM users WHERE username = ?",
@@ -303,9 +320,13 @@ export async function importBackup(payload: BackupPayload) {
                 );
             } else {
                 await tx.runAsync(
-                    "UPDATE users SET display_name = ?, password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    `UPDATE users
+					SET display_name = ?, password_hash = ?, oauth_provider = ?, oauth_sub = ?, updated_at = CURRENT_TIMESTAMP
+					WHERE id = ?`,
                     user.display_name,
                     user.password_hash,
+                    user.oauth_provider,
+                    user.oauth_sub,
                     existing.id,
                 );
             }
@@ -340,6 +361,8 @@ async function initializeDatabaseNative() {
 			username TEXT NOT NULL UNIQUE,
 			display_name TEXT,
 			password_hash TEXT,
+			oauth_provider TEXT,
+			oauth_sub TEXT,
 			created_at TEXT DEFAULT CURRENT_TIMESTAMP,
 			updated_at TEXT
 		);
@@ -349,6 +372,18 @@ async function initializeDatabaseNative() {
     if (!hasPasswordColumn) {
         await db.execAsync("ALTER TABLE users ADD COLUMN password_hash TEXT");
     }
+    const hasOAuthProviderColumn = userColumns.some((column) => column.name === "oauth_provider");
+    if (!hasOAuthProviderColumn) {
+        await db.execAsync("ALTER TABLE users ADD COLUMN oauth_provider TEXT");
+    }
+    const hasOAuthSubColumn = userColumns.some((column) => column.name === "oauth_sub");
+    if (!hasOAuthSubColumn) {
+        await db.execAsync("ALTER TABLE users ADD COLUMN oauth_sub TEXT");
+    }
+    await db.execAsync(`
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_users_oauth_identity
+		ON users(oauth_provider, oauth_sub)
+	`);
     await db.execAsync(`
 		CREATE TABLE IF NOT EXISTS favorites (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -483,6 +518,13 @@ function normalizeUserRows(value: unknown): UserRow[] {
                         : row.password_hash === null
                           ? null
                           : null,
+                oauth_provider:
+                    typeof row.oauth_provider === "string"
+                        ? row.oauth_provider
+                        : row.oauth_provider === null
+                          ? null
+                          : null,
+                oauth_sub: typeof row.oauth_sub === "string" ? row.oauth_sub : row.oauth_sub === null ? null : null,
             };
         })
         .filter((row): row is UserRow => row !== null);
@@ -658,7 +700,7 @@ async function initializeDatabaseWeb() {
 async function findUserByUsernameNative(username: string): Promise<UserWithPasswordRecord | null> {
     const db = await getDatabase();
     const rows = await db.getAllAsync<UserRow>(
-        "SELECT id, username, display_name, password_hash FROM users WHERE username = ? LIMIT 1",
+        "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE username = ? LIMIT 1",
         [username],
     );
 
@@ -680,14 +722,13 @@ async function createUserNative(username: string, password: string, displayName?
     const passwordHash = await hashPassword(password);
     const db = await getDatabase();
 
-    await db.runAsync("INSERT INTO users (username, display_name, password_hash) VALUES (?, ?, ?)", [
-        username,
-        normalizedDisplayName,
-        passwordHash,
-    ]);
+    await db.runAsync(
+        "INSERT INTO users (username, display_name, password_hash, oauth_provider, oauth_sub) VALUES (?, ?, ?, NULL, NULL)",
+        [username, normalizedDisplayName, passwordHash],
+    );
 
     const inserted = await db.getAllAsync<UserRow>(
-        "SELECT id, username, display_name, password_hash FROM users WHERE username = ? LIMIT 1",
+        "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE username = ? LIMIT 1",
         [username],
     );
     if (inserted.length === 0) {
@@ -710,6 +751,8 @@ async function createUserWeb(username: string, password: string, displayName?: s
         username,
         display_name: normalizedDisplayName,
         password_hash: passwordHash,
+        oauth_provider: null,
+        oauth_sub: null,
     };
     const nextState: WebDatabaseState = {
         ...state,
@@ -719,9 +762,156 @@ async function createUserWeb(username: string, password: string, displayName?: s
     return mapUserRow(newUser, normalizedDisplayName);
 }
 
+function resolveOAuthDisplayName(email: string, displayName?: string | null) {
+    const normalized = displayName?.trim();
+    if (normalized) {
+        return normalized;
+    }
+    const [local] = email.split("@");
+    return local || email;
+}
+
+async function upsertOAuthUserNative(profile: OAuthProfilePayload): Promise<UserRecord> {
+    const normalizedEmail = profile.email.trim().toLowerCase();
+    const normalizedSubject = profile.subject.trim();
+    if (!normalizedEmail || !normalizedSubject) {
+        throw new Error("소셜 계정 정보를 확인하지 못했어요.");
+    }
+
+    const normalizedDisplayName = resolveOAuthDisplayName(normalizedEmail, profile.displayName);
+    const db = await getDatabase();
+    return await db.withTransactionAsync(async (tx) => {
+        const existingBySub = await tx.getFirstAsync<UserRow>(
+            "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE oauth_provider = ? AND oauth_sub = ? LIMIT 1",
+            profile.provider,
+            normalizedSubject,
+        );
+        if (existingBySub) {
+            await tx.runAsync(
+                `UPDATE users
+				SET username = ?, display_name = COALESCE(display_name, ?), updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?`,
+                normalizedEmail,
+                normalizedDisplayName,
+                existingBySub.id,
+            );
+            const refreshed = await tx.getFirstAsync<UserRow>(
+                "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE id = ? LIMIT 1",
+                existingBySub.id,
+            );
+            if (!refreshed) {
+                throw new Error("소셜 계정을 갱신하지 못했어요.");
+            }
+            return mapUserRow(refreshed, normalizedDisplayName);
+        }
+
+        const existingByEmail = await tx.getFirstAsync<UserRow>(
+            "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE username = ? LIMIT 1",
+            normalizedEmail,
+        );
+        if (existingByEmail) {
+            if (
+                existingByEmail.oauth_provider &&
+                existingByEmail.oauth_sub &&
+                (existingByEmail.oauth_provider !== profile.provider || existingByEmail.oauth_sub !== normalizedSubject)
+            ) {
+                throw new Error("이미 다른 소셜 계정과 연결된 이메일이에요.");
+            }
+            await tx.runAsync(
+                `UPDATE users
+				SET oauth_provider = ?, oauth_sub = ?, display_name = COALESCE(display_name, ?), updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?`,
+                profile.provider,
+                normalizedSubject,
+                normalizedDisplayName,
+                existingByEmail.id,
+            );
+            const refreshed = await tx.getFirstAsync<UserRow>(
+                "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE id = ? LIMIT 1",
+                existingByEmail.id,
+            );
+            if (!refreshed) {
+                throw new Error("소셜 계정 정보를 불러오지 못했어요.");
+            }
+            return mapUserRow(refreshed, normalizedDisplayName);
+        }
+
+        await tx.runAsync(
+            `INSERT INTO users (username, display_name, password_hash, oauth_provider, oauth_sub)
+			VALUES (?, ?, NULL, ?, ?)`,
+            normalizedEmail,
+            normalizedDisplayName,
+            profile.provider,
+            normalizedSubject,
+        );
+        const created = await tx.getFirstAsync<UserRow>(
+            "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE username = ? LIMIT 1",
+            normalizedEmail,
+        );
+        if (!created) {
+            throw new Error("소셜 계정을 생성하지 못했어요.");
+        }
+        return mapUserRow(created, normalizedDisplayName);
+    });
+}
+
+async function upsertOAuthUserWeb(profile: OAuthProfilePayload): Promise<UserRecord> {
+    const normalizedEmail = profile.email.trim().toLowerCase();
+    const normalizedSubject = profile.subject.trim();
+    if (!normalizedEmail || !normalizedSubject) {
+        throw new Error("소셜 계정 정보를 확인하지 못했어요.");
+    }
+
+    const normalizedDisplayName = resolveOAuthDisplayName(normalizedEmail, profile.displayName);
+    const state = readWebState();
+    const existingBySub = state.users.find(
+        (user) => user.oauth_provider === profile.provider && user.oauth_sub === normalizedSubject,
+    );
+    const existingByEmail = state.users.find((user) => user.username === normalizedEmail);
+    let nextUsers = state.users;
+    let target: UserRow | null = null;
+
+    if (existingBySub) {
+        target = {
+            ...existingBySub,
+            username: normalizedEmail,
+            display_name: existingBySub.display_name ?? normalizedDisplayName,
+        };
+        nextUsers = state.users.map((user) => (user.id === existingBySub.id ? target! : user));
+    } else if (existingByEmail) {
+        if (
+            existingByEmail.oauth_provider &&
+            existingByEmail.oauth_sub &&
+            (existingByEmail.oauth_provider !== profile.provider || existingByEmail.oauth_sub !== normalizedSubject)
+        ) {
+            throw new Error("이미 다른 소셜 계정과 연결된 이메일이에요.");
+        }
+        target = {
+            ...existingByEmail,
+            oauth_provider: profile.provider,
+            oauth_sub: normalizedSubject,
+            display_name: existingByEmail.display_name ?? normalizedDisplayName,
+        };
+        nextUsers = state.users.map((user) => (user.id === existingByEmail.id ? target! : user));
+    } else {
+        target = {
+            id: generateWebUserId(state.users),
+            username: normalizedEmail,
+            display_name: normalizedDisplayName,
+            password_hash: null,
+            oauth_provider: profile.provider,
+            oauth_sub: normalizedSubject,
+        };
+        nextUsers = [...state.users, target];
+    }
+
+    writeWebState({ ...state, users: nextUsers });
+    return mapUserRow(target, normalizedDisplayName);
+}
+
 async function sendEmailVerificationCodeNative(email: string): Promise<EmailVerificationPayload> {
     const db = await getDatabase();
-    const code = generateVerificationCode();
+    const code = await generateVerificationCode();
     const expiresAt = getVerificationExpiryTimestamp();
     await db.runAsync(
         `INSERT INTO email_verifications (email, code, expires_at, verified_at, updated_at)
@@ -734,7 +924,7 @@ async function sendEmailVerificationCodeNative(email: string): Promise<EmailVeri
 
 async function sendEmailVerificationCodeWeb(email: string): Promise<EmailVerificationPayload> {
     const state = readWebState();
-    const code = generateVerificationCode();
+    const code = await generateVerificationCode();
     const expiresAt = getVerificationExpiryTimestamp();
     const timestamp = new Date().toISOString();
     const nextState: WebDatabaseState = {
@@ -901,9 +1091,10 @@ async function updateUserDisplayNameNative(userId: number, displayName: string |
         userId,
     ]);
 
-    const updated = await db.getAllAsync<UserRow>("SELECT id, username, display_name FROM users WHERE id = ? LIMIT 1", [
-        userId,
-    ]);
+    const updated = await db.getAllAsync<UserRow>(
+        "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE id = ? LIMIT 1",
+        [userId],
+    );
     if (updated.length === 0) {
         throw new Error("사용자 정보를 찾을 수 없어요.");
     }
@@ -936,7 +1127,7 @@ async function updateUserPasswordNative(userId: number, password: string) {
         userId,
     ]);
     const rows = await db.getAllAsync<UserRow>(
-        "SELECT id, username, display_name, password_hash FROM users WHERE id = ? LIMIT 1",
+        "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE id = ? LIMIT 1",
         [userId],
     );
     if (rows.length === 0) {
@@ -1105,30 +1296,12 @@ async function saveAutoLoginCredentialsNative(username: string, passwordHash: st
     } catch (error) {
         console.warn("보안 저장소에 자동 로그인을 저장하는 중 문제가 발생했어요.", error);
     }
-
-    const db = await getDatabase();
-    await db.runAsync(
-        `
-			INSERT INTO auto_login (id, username, password_hash, updated_at)
-			VALUES (1, ?, ?, CURRENT_TIMESTAMP)
-			ON CONFLICT(id)
-			DO UPDATE SET username = excluded.username, password_hash = excluded.password_hash, updated_at = CURRENT_TIMESTAMP
-		`,
-        [username, passwordHash],
-    );
 }
 
 async function saveAutoLoginCredentialsWeb(username: string, passwordHash: string) {
-    const state = readWebState();
-    const nextState: WebDatabaseState = {
-        ...state,
-        autoLogin: {
-            username,
-            password_hash: passwordHash,
-            updated_at: new Date().toISOString(),
-        },
-    };
-    writeWebState(nextState);
+    void username;
+    void passwordHash;
+    // Avoid persisting password hashes in web storage.
 }
 
 async function clearAutoLoginCredentialsNative() {
@@ -1164,30 +1337,11 @@ async function getAutoLoginCredentialsNative(): Promise<{ username: string; pass
     } catch (error) {
         console.warn("보안 저장소의 자동 로그인 정보를 불러오지 못했어요.", error);
     }
-
-    const db = await getDatabase();
-    const rows = await db.getAllAsync<{ username: string; password_hash: string }>(
-        "SELECT username, password_hash FROM auto_login WHERE id = 1 LIMIT 1",
-        [],
-    );
-    if (rows.length === 0) {
-        return null;
-    }
-    return {
-        username: rows[0]?.username ?? "",
-        passwordHash: rows[0]?.password_hash ?? "",
-    };
+    return null;
 }
 
 async function getAutoLoginCredentialsWeb(): Promise<{ username: string; passwordHash: string } | null> {
-    const state = readWebState();
-    if (!state.autoLogin) {
-        return null;
-    }
-    return {
-        username: state.autoLogin.username,
-        passwordHash: state.autoLogin.password_hash,
-    };
+    return null;
 }
 
 async function getHasSeenAppHelpNative(): Promise<boolean> {
@@ -1383,7 +1537,7 @@ async function getActiveSessionNative(): Promise<{ isGuest: boolean; user: UserR
     }
 
     const userRows = await db.getAllAsync<UserRow>(
-        "SELECT id, username, display_name FROM users WHERE id = ? LIMIT 1",
+        "SELECT id, username, display_name, password_hash, oauth_provider, oauth_sub FROM users WHERE id = ? LIMIT 1",
         [session.user_id],
     );
 
@@ -1451,6 +1605,13 @@ export async function createUser(username: string, password: string, displayName
         return await createUserWeb(normalizedUsername, password, normalizedDisplayName);
     }
     return await createUserNative(normalizedUsername, password, normalizedDisplayName);
+}
+
+export async function upsertOAuthUser(profile: OAuthProfilePayload) {
+    if (isWeb) {
+        return await upsertOAuthUserWeb(profile);
+    }
+    return await upsertOAuthUserNative(profile);
 }
 
 export async function sendEmailVerificationCode(email: string): Promise<EmailVerificationPayload> {

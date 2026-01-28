@@ -5,11 +5,35 @@ import Constants from "expo-constants";
  * When empty, the app will show the built-in legal modal instead of opening a broken URL.
  */
 const extra = Constants.expoConfig?.extra ?? {};
-export const PRIVACY_POLICY_URL =
-    typeof extra.privacyPolicyUrl === "string" && extra.privacyPolicyUrl.trim().length > 0
-        ? extra.privacyPolicyUrl.trim()
-        : "";
-export const TERMS_OF_SERVICE_URL =
-    typeof extra.termsOfServiceUrl === "string" && extra.termsOfServiceUrl.trim().length > 0
-        ? extra.termsOfServiceUrl.trim()
-        : "";
+
+const BLOCKED_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "example.com"]);
+
+function isPrivateIp(hostname: string) {
+    const match = hostname.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    if (!match) return false;
+    const [a, b] = [Number(match[1]), Number(match[2])];
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+    return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+function sanitizeLegalUrl(input: unknown): string {
+    if (typeof input !== "string") return "";
+    const trimmed = input.trim();
+    if (!trimmed) return "";
+    try {
+        const url = new URL(trimmed);
+        if (url.protocol !== "https:") return "";
+        const host = url.hostname.toLowerCase();
+        if (BLOCKED_HOSTS.has(host) || isPrivateIp(host)) return "";
+        return url.toString();
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * Ensure these are real, hosted HTTPS URLs before release.
+ * If invalid/missing, the app will fallback to in-app legal documents.
+ */
+export const PRIVACY_POLICY_URL = sanitizeLegalUrl(extra.privacyPolicyUrl);
+export const TERMS_OF_SERVICE_URL = sanitizeLegalUrl(extra.termsOfServiceUrl);

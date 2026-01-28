@@ -34,7 +34,8 @@
 
 ## Compliance & Security
 
-- Privacy/Terms links live in `src/config/legal.ts` and currently use placeholders; replace with your hosted pages before store submission.
+- Privacy/Terms links live in `app.json` (Expo `extra`) and are validated in `src/config/legal.ts`.
+  Invalid or non-HTTPS URLs will fallback to the in-app legal documents. Ensure hosted URLs are set before release.
 - Automatic login credentials are stored with SecureStore/Keychain on device; logout clears the secure entry.
 - Optional biometric-gated auto-login is available via device capabilities (toggle in Settings).
 - AI-powered examples/TTS require a backend proxy (`OPENAI_PROXY_URL`). Without it, the UI keeps the feature disabled and surfaces an in-app notice.

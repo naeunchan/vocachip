@@ -1,6 +1,7 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import Constants from "expo-constants";
+import * as LocalAuthentication from "expo-local-authentication";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform } from "react-native";
@@ -88,6 +89,7 @@ import { getGoogleAuthConfig } from "@/services/oauth/google";
 import { isProviderSupported } from "@/services/oauth/providers";
 import { SEARCH_HISTORY_LIMIT, SearchHistoryEntry } from "@/services/searchHistory/types";
 import {
+    BIOMETRIC_LOGIN_PREFERENCE_KEY,
     DEFAULT_FONT_SCALE,
     FONT_SCALE_PREFERENCE_KEY,
     ONBOARDING_PREFERENCE_KEY,
@@ -291,6 +293,28 @@ export function useAppScreen(): AppScreenHookResult {
     useEffect(() => {
         let isMounted = true;
 
+        async function ensureBiometricAuth(): Promise<boolean> {
+            try {
+                const enabled = await getPreferenceValue(BIOMETRIC_LOGIN_PREFERENCE_KEY);
+                if (enabled !== "true") {
+                    return true;
+                }
+                const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+                if (!hasHardware || !isEnrolled) {
+                    return true;
+                }
+                const result = await LocalAuthentication.authenticateAsync({
+                    promptMessage: "생체인증으로 로그인",
+                    cancelLabel: "취소",
+                    fallbackLabel: "암호 입력",
+                });
+                return result.success;
+            } catch {
+                return false;
+            }
+        }
+
         async function bootstrap() {
             let shouldShowHelp = false;
             try {
@@ -350,6 +374,19 @@ export function useAppScreen(): AppScreenHookResult {
                 }
 
                 if (!session.user) {
+                    setIsGuest(false);
+                    setUser(null);
+                    setFavorites([]);
+                    return;
+                }
+
+                const biometricOk = await ensureBiometricAuth();
+                if (!biometricOk) {
+                    await clearSession();
+                    await clearAutoLoginCredentials();
+                    if (!isMounted) {
+                        return;
+                    }
                     setIsGuest(false);
                     setUser(null);
                     setFavorites([]);

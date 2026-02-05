@@ -22,10 +22,14 @@ export default (): ExpoConfig => {
     const profileDefaults = {
         featureAuthUi: !isProduction,
         featureGuestAccountCta: !isProduction,
+        featureBackupRestore: false,
+        featureBiometricAutoLogin: false,
     };
 
     const authUiFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_AUTH_UI);
     const guestCtaFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA);
+    const backupRestoreFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_BACKUP_RESTORE);
+    const biometricAutoLoginFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_BIOMETRIC_AUTO_LOGIN);
 
     const expoConfig: ExpoConfig = {
         ...staticConfig.expo,
@@ -34,6 +38,8 @@ export default (): ExpoConfig => {
             featureProfile: profile,
             featureAuthUi: authUiFromEnv ?? profileDefaults.featureAuthUi,
             featureGuestAccountCta: guestCtaFromEnv ?? profileDefaults.featureGuestAccountCta,
+            featureBackupRestore: backupRestoreFromEnv ?? profileDefaults.featureBackupRestore,
+            featureBiometricAutoLogin: biometricAutoLoginFromEnv ?? profileDefaults.featureBiometricAutoLogin,
         },
     };
 

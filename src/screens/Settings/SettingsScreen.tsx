@@ -3,7 +3,6 @@ import { Alert, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, V
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { FEATURE_FLAGS } from "@/config/featureFlags";
-import { PRIVACY_POLICY_URL, TERMS_OF_SERVICE_URL } from "@/config/legal";
 import { useAIStatus } from "@/hooks/useAIStatus";
 import { LEGAL_DOCUMENTS, type LegalDocumentId } from "@/legal/legalDocuments";
 import { MISSING_USER_ERROR_MESSAGE } from "@/screens/App/AppScreen.constants";
@@ -19,12 +18,12 @@ import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const SUPPORT_EMAIL = "support@vocationary.app";
 const CONTACT_SUBJECT = "Vocationary 1:1 문의";
-const RECOVERY_NOTICE = "비밀번호 복구 불가";
 
 type RowOptions = {
     onPress?: () => void;
     value?: string;
     isLast?: boolean;
+    disabled?: boolean;
 };
 
 export function SettingsScreen({
@@ -48,6 +47,7 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
     const styles = useThemedStyles(createStyles);
     const showGuestAccountCta = isGuest && FEATURE_FLAGS.guestAccountCta;
+    const showBackupRestore = FEATURE_FLAGS.backupRestore;
     const handleLogoutPress = useCallback(() => {
         if (!canLogout) {
             return;
@@ -146,26 +146,6 @@ export function SettingsScreen({
         setActiveDocument(id);
     }, []);
 
-    const handleOpenLinkOrDocument = useCallback(
-        async (url: string | null | undefined, fallback: LegalDocumentId) => {
-            const target = url?.trim();
-            if (target) {
-                try {
-                    const canOpen = await Linking.canOpenURL(target);
-                    if (canOpen) {
-                        await Linking.openURL(target);
-                        return;
-                    }
-                } catch (error) {
-                    console.warn("법적 문서 링크를 여는 중 문제가 발생했어요.", error);
-                }
-                Alert.alert("연결할 수 없어요", "웹에서 정책을 열 수 없습니다. 앱 내 내용을 표시할게요.");
-            }
-            handleOpenDocument(fallback);
-        },
-        [handleOpenDocument],
-    );
-
     const displayName = useMemo(() => {
         if (profileDisplayName && profileDisplayName.trim()) {
             return profileDisplayName;
@@ -189,6 +169,7 @@ export function SettingsScreen({
     );
     const { status: aiStatus } = useAIStatus();
     const [biometricEnabled, setBiometricEnabled] = useState(false);
+    const isBiometricSettingVisible = FEATURE_FLAGS.biometricAutoLogin;
 
     const aiStatusLabel = useMemo(() => {
         switch (aiStatus) {
@@ -225,14 +206,19 @@ export function SettingsScreen({
     }, [biometricEnabled]);
 
     const renderRow = (label: string, options: RowOptions = {}) => {
-        const { onPress, value, isLast = false } = options;
+        const { onPress, value, isLast = false, disabled = false } = options;
+        const isPressable = Boolean(onPress) && !disabled;
         return (
             <TouchableOpacity
                 key={label}
-                activeOpacity={onPress ? 0.6 : 1}
-                disabled={!onPress}
+                activeOpacity={isPressable ? 0.6 : 1}
+                disabled={!isPressable}
                 onPress={onPress}
-                style={[styles.row, !isLast && styles.rowBorder, !onPress && !value && styles.rowDisabled]}
+                style={[
+                    styles.row,
+                    !isLast && styles.rowBorder,
+                    (disabled || (!onPress && !value)) && styles.rowDisabled,
+                ]}
             >
                 <Text style={styles.rowLabel}>{label}</Text>
                 {value ? <Text style={styles.rowValue}>{value}</Text> : <Text style={styles.rowChevron}>›</Text>}
@@ -258,24 +244,21 @@ export function SettingsScreen({
                     <View style={styles.sectionCard}>
                         {renderRow(t("settings.link.tutorial"), { onPress: onShowOnboarding })}
                         {renderRow(t("settings.link.contact"), { onPress: handleContactSupport })}
-                        {renderRow(t("settings.link.privacy"), {
-                            onPress: () => handleOpenLinkOrDocument(PRIVACY_POLICY_URL, "privacyPolicy"),
-                        })}
-                        {renderRow(t("settings.link.terms"), {
-                            onPress: () => handleOpenLinkOrDocument(TERMS_OF_SERVICE_URL, "termsOfService"),
-                        })}
+                        {renderRow(t("settings.link.privacy"), { onPress: () => handleOpenDocument("privacyPolicy") })}
+                        {renderRow(t("settings.link.terms"), { onPress: () => handleOpenDocument("termsOfService") })}
                         {renderRow(t("settings.link.legal"), {
                             onPress: () => {
                                 handleOpenDocument("legalNotice");
                             },
                         })}
-                        {renderRow(t("settings.link.recovery"), { value: RECOVERY_NOTICE })}
-                        {renderRow(t("settings.link.biometric"), {
-                            onPress: handleToggleBiometric,
-                            value: biometricEnabled
-                                ? t("settings.label.biometricOn")
-                                : t("settings.label.biometricOff"),
-                        })}
+                        {isBiometricSettingVisible
+                            ? renderRow(t("settings.link.biometric"), {
+                                  onPress: handleToggleBiometric,
+                                  value: biometricEnabled
+                                      ? t("settings.label.biometricOn")
+                                      : t("settings.label.biometricOff"),
+                              })
+                            : null}
                         {renderRow(t("settings.link.aiStatus"), { value: aiStatusLabel })}
                         {renderRow(t("settings.link.appVersion"), { value: appVersion, isLast: true })}
                     </View>
@@ -296,36 +279,52 @@ export function SettingsScreen({
                     </View>
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>{t("settings.section.backup")}</Text>
-                    <View style={styles.sectionCard}>
-                        {renderRow(t("settings.link.backupExport"), {
-                            onPress: () => {
-                                setBackupAction("export");
-                            },
-                        })}
-                        {renderRow(t("settings.link.backupImport"), {
-                            onPress: () => {
-                                setBackupAction("import");
-                            },
-                            isLast: true,
-                        })}
+                {showBackupRestore ? (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionLabel}>{t("settings.section.backup")}</Text>
+                        <View style={styles.sectionCard}>
+                            {renderRow(t("settings.link.backupExport"), {
+                                onPress: () => {
+                                    setBackupAction("export");
+                                },
+                            })}
+                            {renderRow(t("settings.link.backupImport"), {
+                                onPress: () => {
+                                    setBackupAction("import");
+                                },
+                                isLast: true,
+                            })}
+                        </View>
                     </View>
-                </View>
+                ) : null}
 
-                {showGuestAccountCta ? (
+                {isGuest ? (
                     <View style={styles.section}>
                         <Text style={styles.sectionLabel}>{t("settings.section.account")}</Text>
-                        <GuestActionCard onSignUp={handleSignUpPress} onLogin={handleLoginPress} />
+                        {showGuestAccountCta ? (
+                            <GuestActionCard onSignUp={handleSignUpPress} onLogin={handleLoginPress} />
+                        ) : (
+                            <View style={styles.sectionCard}>
+                                {renderRow(t("settings.link.signUp"), {
+                                    value: t("settings.label.comingSoon"),
+                                    disabled: true,
+                                })}
+                                {renderRow(t("settings.link.login"), {
+                                    value: t("settings.label.comingSoon"),
+                                    disabled: true,
+                                    isLast: true,
+                                })}
+                            </View>
+                        )}
                     </View>
-                ) : !isGuest ? (
+                ) : (
                     <AuthenticatedActions
                         canLogout={canLogout}
                         onLogout={handleLogoutPress}
                         onNavigateProfile={handleNavigateProfile}
                         onNavigateAccountDeletion={handleNavigateAccountDeletion}
                     />
-                ) : null}
+                )}
             </ScrollView>
             {activeDocument ? (
                 <LegalDocumentModal
@@ -337,7 +336,12 @@ export function SettingsScreen({
                     }}
                 />
             ) : null}
-            <Modal visible={backupAction !== null} animationType="fade" transparent onRequestClose={closeBackupModal}>
+            <Modal
+                visible={showBackupRestore && backupAction !== null}
+                animationType="fade"
+                transparent
+                onRequestClose={closeBackupModal}
+            >
                 <View style={styles.backdrop}>
                     <View style={styles.passphraseCard}>
                         <Text style={styles.passphraseTitle}>

@@ -34,10 +34,12 @@
 - Feature flags (client):
     - `EXPO_PUBLIC_FEATURE_AUTH_UI`: enable login/signup mode UI
     - `EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA`: enable guest account conversion card in Settings
-    - If env vars are missing, `app.config.ts` applies profile defaults:
-        - `development`: both `true`
-        - `production`: both `false`
-    - `EAS_BUILD_PROFILE` (or `APP_ENV`) decides the active profile.
+    - `EXPO_PUBLIC_FEATURE_BACKUP_RESTORE`: enable backup/restore section in Settings
+    - `EXPO_PUBLIC_FEATURE_BIOMETRIC_AUTO_LOGIN`: enable biometric auto-login menu in Settings
+        - If env vars are missing, `app.config.ts` applies profile defaults:
+            - `development`: both `true`
+            - `production`: both `false`
+        - `EAS_BUILD_PROFILE` (or `APP_ENV`) decides the active profile.
 
 ## Compliance & Security
 

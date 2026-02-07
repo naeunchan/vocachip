@@ -75,20 +75,18 @@ export function AuthNavigator({ loginProps }: AuthNavigatorProps) {
                             options={{ headerShown: false }}
                             component={SignUpPhoneScreen}
                         />
-                        <Stack.Screen
-                            name="SignUpPassword"
-                            options={{ headerShown: false }}
-                            component={SignUpPasswordScreen}
-                        />
-                        <Stack.Screen name="SignUpSuccess" options={{ headerShown: false }}>
+                        <Stack.Screen name="SignUpPassword" options={{ headerShown: false }}>
                             {(props) => (
-                                <SignUpSuccessScreen
+                                <SignUpPasswordScreen
                                     {...props}
                                     onSignUp={loginProps.onSignUp}
                                     loading={loginProps.loading ?? false}
                                     errorMessage={loginProps.errorMessage}
                                 />
                             )}
+                        </Stack.Screen>
+                        <Stack.Screen name="SignUpSuccess" options={{ headerShown: false }}>
+                            {(props) => <SignUpSuccessScreen {...props} />}
                         </Stack.Screen>
                     </Stack.Navigator>
                 </SignUpFormProvider>

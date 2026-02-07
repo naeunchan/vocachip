@@ -7,16 +7,35 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
     StyleSheet.create({
         safeArea: {
             flex: 1,
-            backgroundColor: theme.background,
+            backgroundColor: withAlpha(theme.background, 0.7),
         },
         scrollContent: {
             flexGrow: 1,
             paddingHorizontal: 24,
             paddingTop: 44,
             paddingBottom: 32,
+            justifyContent: "center",
         },
         content: {
             flex: 1,
+            justifyContent: "center",
+        },
+        hero: {
+            alignItems: "center",
+            marginTop: 80,
+        },
+        logoImage: {
+            width: 72,
+            height: 72,
+            borderRadius: 36,
+            marginBottom: 14,
+        },
+        brandText: {
+            fontSize: scaleFont(34, fontScale),
+            fontWeight: "800",
+            fontFamily: "SB_Aggro_B",
+            color: theme.textPrimary,
+            marginBottom: 6,
         },
         title: {
             fontSize: scaleFont(28, fontScale),
@@ -29,6 +48,7 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
             color: theme.textSecondary,
             marginBottom: 20,
             lineHeight: scaleFont(22, fontScale),
+            textAlign: "center",
         },
         card: {
             backgroundColor: theme.surface,
@@ -85,6 +105,17 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
         socialLoadingText: {
             color: theme.textPrimary,
             fontSize: scaleFont(15, fontScale),
+            fontWeight: "600",
+        },
+        rememberRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginTop: 12,
+        },
+        rememberLabel: {
+            fontSize: scaleFont(13, fontScale),
+            color: theme.textSecondary,
             fontWeight: "600",
         },
         modeSwitch: {
@@ -145,7 +176,7 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
         errorText: {
             color: theme.danger,
             fontSize: scaleFont(14, fontScale),
-            marginBottom: 16,
+            marginBottom: 8,
         },
         button: {
             backgroundColor: theme.accent,
@@ -161,7 +192,8 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
             fontWeight: "700",
         },
         guestSection: {
-            marginTop: 18,
+            marginTop: 24,
+            alignItems: "center",
         },
         dividerRow: {
             flexDirection: "row",
@@ -192,17 +224,27 @@ export const createLoginScreenStyles = (theme: AppThemeColors, fontScale: number
             gap: 8,
         },
         guestButton: {
-            borderWidth: 1,
-            borderColor: theme.accent,
-            borderRadius: 12,
-            paddingVertical: 12,
-            minHeight: 48,
-            alignItems: "center",
-            justifyContent: "center",
+            paddingVertical: 8,
         },
         guestButtonText: {
-            color: theme.accent,
-            fontSize: scaleFont(16, fontScale),
+            color: theme.textSecondary,
+            fontSize: scaleFont(14, fontScale),
             fontWeight: "600",
         },
     });
+
+function withAlpha(hexColor: string, alpha: number) {
+    const normalized = hexColor.replace("#", "");
+    const full =
+        normalized.length === 3
+            ? normalized
+                  .split("")
+                  .map((char) => char + char)
+                  .join("")
+            : normalized;
+    const value = Number.parseInt(full, 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}

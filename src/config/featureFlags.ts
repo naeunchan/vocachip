@@ -1,14 +1,12 @@
 import Constants from "expo-constants";
 
 type AppExtra = {
-    featureAuthUi?: unknown;
     featureGuestAccountCta?: unknown;
     featureBackupRestore?: unknown;
     featureBiometricAutoLogin?: unknown;
 };
 
 type FeatureFlags = {
-    authUi: boolean;
     guestAccountCta: boolean;
     backupRestore: boolean;
     biometricAutoLogin: boolean;
@@ -47,8 +45,6 @@ function resolveFlag(envValue: string | undefined, extraValue: unknown, fallback
 }
 
 export const FEATURE_FLAGS: FeatureFlags = {
-    // Hidden by default until full auth UX is connected.
-    authUi: resolveFlag(process.env.EXPO_PUBLIC_FEATURE_AUTH_UI, extra.featureAuthUi, false),
     // Hidden by default since login/signup path is disabled in current release.
     guestAccountCta: resolveFlag(
         process.env.EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA,

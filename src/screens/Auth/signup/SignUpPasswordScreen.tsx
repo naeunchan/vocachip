@@ -9,21 +9,30 @@ import { PasswordRules } from "@/components/PasswordRules";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { TextField } from "@/components/TextField";
 import { AuthStackParamList } from "@/screens/Auth/AuthNavigator.types";
+import type { LoginScreenProps } from "@/screens/Auth/LoginScreen.types";
 import { getPasswordRuleState, passwordStepSchema, type SignupFormValues } from "@/screens/Auth/signup/signupSchema";
 import { createSignupStyles } from "@/screens/Auth/signup/signupStyles";
+import { normalizeEmail, normalizeName, normalizePhoneInput } from "@/screens/Auth/signup/signupUtils";
+import { useSignupStore } from "@/store/signupStore";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 
-export type SignUpPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, "SignUpPassword">;
+export type SignUpPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, "SignUpPassword"> & {
+    onSignUp: LoginScreenProps["onSignUp"];
+    loading: boolean;
+    errorMessage?: string | null;
+};
 
-export function SignUpPasswordScreen({ navigation }: SignUpPasswordScreenProps) {
+export function SignUpPasswordScreen({ navigation, onSignUp, loading, errorMessage }: SignUpPasswordScreenProps) {
     const styles = useThemedStyles(createSignupStyles);
     const { theme } = useAppAppearance();
     const { control, trigger, setValue } = useFormContext<SignupFormValues>();
     const { errors } = useFormState({ control, name: ["password", "passwordConfirm"] });
     const [secure, setSecure] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [awaitingResult, setAwaitingResult] = useState(false);
     const submitTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { state } = useSignupStore();
 
     const password = useWatch({ control, name: "password" }) ?? "";
     const passwordConfirm = useWatch({ control, name: "passwordConfirm" }) ?? "";
@@ -36,9 +45,16 @@ export function SignUpPasswordScreen({ navigation }: SignUpPasswordScreenProps) 
             return;
         }
         setSubmitting(true);
-        submitTimeoutRef.current = setTimeout(() => {
+        setAwaitingResult(true);
+        submitTimeoutRef.current = setTimeout(async () => {
+            await onSignUp({
+                email: normalizeEmail(state.email),
+                password: state.password,
+                confirmPassword: state.passwordConfirm,
+                fullName: normalizeName(state.name),
+                phoneNumber: normalizePhoneInput(state.phone),
+            });
             setSubmitting(false);
-            navigation.navigate("SignUpSuccess");
         }, 500);
     };
 
@@ -49,6 +65,18 @@ export function SignUpPasswordScreen({ navigation }: SignUpPasswordScreenProps) 
             }
         };
     }, []);
+
+    useEffect(() => {
+        if (!awaitingResult || loading) {
+            return;
+        }
+        if (errorMessage) {
+            setAwaitingResult(false);
+            return;
+        }
+        setAwaitingResult(false);
+        navigation.navigate("SignUpSuccess");
+    }, [awaitingResult, errorMessage, loading, navigation]);
 
     return (
         <View style={styles.safeArea}>
@@ -89,8 +117,14 @@ export function SignUpPasswordScreen({ navigation }: SignUpPasswordScreenProps) 
                         errorText={errors.passwordConfirm?.message}
                     />
                     <PasswordRules state={rules} />
+                    {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
                 </View>
-                <PrimaryButton label="가입 완료" onPress={handleSubmit} disabled={!isValid} loading={submitting} />
+                <PrimaryButton
+                    label="가입 완료"
+                    onPress={handleSubmit}
+                    disabled={!isValid || loading}
+                    loading={submitting || loading}
+                />
             </KeyboardAvoidingView>
         </View>
     );

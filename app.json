@@ -35,7 +35,6 @@
             "versionLabel": "1.0.0",
             "openAIProxyUrl": "https://vocationary.onrender.com",
             "openAIProxyKey": "dev-proxy-key",
-            "featureAuthUi": false,
             "featureGuestAccountCta": false,
             "featureBackupRestore": false,
             "featureBiometricAutoLogin": false,

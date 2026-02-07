@@ -12,8 +12,8 @@ type LoginHeaderProps = {
 export function LoginHeader({ title, subtitle }: LoginHeaderProps) {
     const styles = useThemedStyles(createLoginScreenStyles);
     return (
-        <View>
-            <Text style={styles.title}>{title}</Text>
+        <View style={styles.hero}>
+            <Text style={styles.brandText}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
     );

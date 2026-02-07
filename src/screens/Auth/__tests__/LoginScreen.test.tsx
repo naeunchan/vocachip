@@ -5,6 +5,11 @@ import { Alert } from "react-native";
 import { LoginScreen } from "@/screens/Auth/LoginScreen";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 
+jest.mock("@/services/database", () => ({
+    getPreferenceValue: jest.fn().mockResolvedValue("false"),
+    setPreferenceValue: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock("@expo/vector-icons/MaterialCommunityIcons", () => {
     const React = require("react");
     const { Text } = require("react-native");

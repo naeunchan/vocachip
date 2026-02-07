@@ -9,6 +9,8 @@ type CredentialFieldsProps = {
     username: string;
     password: string;
     loading: boolean;
+    emailError?: string | null;
+    passwordError?: string | null;
     onChangeUsername: (value: string) => void;
     onChangePassword: (value: string) => void;
 };
@@ -17,6 +19,8 @@ export function CredentialFields({
     username,
     password,
     loading,
+    emailError,
+    passwordError,
     onChangeUsername,
     onChangePassword,
 }: CredentialFieldsProps) {
@@ -24,13 +28,12 @@ export function CredentialFields({
     const { theme } = useAppAppearance();
 
     return (
-        <View>
-            <Text style={styles.inputLabel}>이메일</Text>
+        <View style={{ gap: 12 }}>
             <TextInput
                 style={styles.textInput}
                 value={username}
                 onChangeText={onChangeUsername}
-                placeholder="이메일 주소를 입력하세요"
+                placeholder="Email"
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!loading}
@@ -40,13 +43,13 @@ export function CredentialFields({
                 returnKeyType="next"
                 placeholderTextColor={theme.textMuted}
             />
+            <Text style={styles.errorText}>{emailError ?? " "}</Text>
 
-            <Text style={styles.inputLabel}>비밀번호</Text>
             <TextInput
                 style={styles.textInput}
                 value={password}
                 onChangeText={onChangePassword}
-                placeholder="비밀번호를 입력하세요"
+                placeholder="Password"
                 secureTextEntry
                 editable={!loading}
                 autoComplete="password"
@@ -54,6 +57,7 @@ export function CredentialFields({
                 returnKeyType="done"
                 placeholderTextColor={theme.textMuted}
             />
+            <Text style={styles.errorText}>{passwordError ?? " "}</Text>
         </View>
     );
 }

@@ -1,16 +1,19 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { FEATURE_FLAGS } from "@/config/featureFlags";
 import { CredentialFields } from "@/screens/Auth/components/CredentialFields";
 import { GuestButton } from "@/screens/Auth/components/GuestButton";
 import { LoginHeader } from "@/screens/Auth/components/LoginHeader";
 import { PrimaryActionButton } from "@/screens/Auth/components/PrimaryActionButton";
+import { RememberMeToggle } from "@/screens/Auth/components/RememberMeToggle";
 import { getLoginCopy } from "@/screens/Auth/constants/loginCopy";
 import { createLoginScreenStyles } from "@/screens/Auth/LoginScreen.styles";
 import { LoginScreenProps } from "@/screens/Auth/LoginScreen.types";
+import { getPreferenceValue, setPreferenceValue } from "@/services/database";
+import { BIOMETRIC_LOGIN_PREFERENCE_KEY } from "@/theme/constants";
 import { useThemedStyles } from "@/theme/useThemedStyles";
+import { getEmailValidationError } from "@/utils/authValidation";
 
 export function LoginScreen({
     onGuest,
@@ -23,8 +26,32 @@ export function LoginScreen({
     const styles = useThemedStyles(createLoginScreenStyles);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const authUiEnabled = FEATURE_FLAGS.authUi;
     const copy = useMemo(() => getLoginCopy("login"), []);
+    const [biometricEnabled, setBiometricEnabled] = useState(false);
+    const [emailError, setEmailError] = useState<string | null>(null);
+    const [passwordError, setPasswordError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let mounted = true;
+        getPreferenceValue(BIOMETRIC_LOGIN_PREFERENCE_KEY)
+            .then((value) => {
+                if (!mounted) return;
+                setBiometricEnabled(value === "true");
+            })
+            .catch((error) => {
+                console.warn("자동 로그인 설정을 불러오는 중 문제가 발생했어요.", error);
+            });
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const handleToggleBiometric = useCallback((value: boolean) => {
+        setBiometricEnabled(value);
+        void setPreferenceValue(BIOMETRIC_LOGIN_PREFERENCE_KEY, value ? "true" : "false").catch((error) => {
+            console.warn("자동 로그인 설정을 저장하는 중 문제가 발생했어요.", error);
+        });
+    }, []);
 
     const handleGuestPress = useCallback(() => {
         if (loading) {
@@ -40,10 +67,24 @@ export function LoginScreen({
         if (loading) {
             return;
         }
+        const nextEmailError = getEmailValidationError(email);
+        const nextPasswordError = password.trim() ? null : "비밀번호를 입력해주세요.";
+        setEmailError(nextEmailError);
+        setPasswordError(nextPasswordError);
+        if (nextEmailError || nextPasswordError) {
+            return;
+        }
         await onLogin({ email, password });
     }, [email, loading, onLogin, password]);
 
     const isPrimaryDisabled = loading;
+
+    useEffect(() => {
+        if (!errorMessage) {
+            return;
+        }
+        setPasswordError(errorMessage);
+    }, [errorMessage]);
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -52,46 +93,37 @@ export function LoginScreen({
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
+                <LoginHeader title="Vocationary" subtitle={copy.subtitle} />
                 <View style={styles.content}>
-                    <LoginHeader
-                        title={authUiEnabled ? copy.title : "Vocationary"}
-                        subtitle={
-                            authUiEnabled ? copy.subtitle : "게스트 모드로 시작하고 단어 학습을 바로 진행해보세요."
-                        }
-                    />
-
-                    {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-
-                    {authUiEnabled ? (
-                        <View style={styles.card}>
-                            <Text style={styles.cardTitle}>계정 정보</Text>
-                            <CredentialFields
-                                username={email}
-                                password={password}
-                                loading={loading}
-                                onChangeUsername={setEmail}
-                                onChangePassword={setPassword}
-                            />
-                            <PrimaryActionButton
-                                label={copy.primaryButton}
-                                loading={loading}
-                                disabled={isPrimaryDisabled}
-                                onPress={handlePrimaryPress}
-                                mode="login"
-                            />
-                        </View>
-                    ) : null}
+                    <View style={styles.card}>
+                        <CredentialFields
+                            username={email}
+                            password={password}
+                            loading={loading}
+                            emailError={emailError}
+                            passwordError={passwordError}
+                            onChangeUsername={setEmail}
+                            onChangePassword={setPassword}
+                        />
+                        <RememberMeToggle
+                            value={biometricEnabled}
+                            disabled={loading}
+                            onChange={handleToggleBiometric}
+                        />
+                        <PrimaryActionButton
+                            label={copy.primaryButton}
+                            loading={loading}
+                            disabled={isPrimaryDisabled}
+                            onPress={handlePrimaryPress}
+                            mode="login"
+                        />
+                    </View>
 
                     <View style={styles.guestSection}>
-                        <View style={styles.dividerRow}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>또는</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
                         <GuestButton loading={loading} onPress={handleGuestPress} />
                     </View>
 
-                    {authUiEnabled && onOpenSignUpFlow ? (
+                    {onOpenSignUpFlow ? (
                         <TouchableOpacity style={styles.flowLink} onPress={onOpenSignUpFlow} disabled={loading}>
                             <Text style={styles.flowLinkText}>회원가입</Text>
                         </TouchableOpacity>

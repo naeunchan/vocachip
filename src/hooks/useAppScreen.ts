@@ -80,6 +80,7 @@ import {
     BIOMETRIC_LOGIN_PREFERENCE_KEY,
     DEFAULT_FONT_SCALE,
     FONT_SCALE_PREFERENCE_KEY,
+    GUEST_FAVORITES_PREFERENCE_KEY,
     GUEST_USED_PREFERENCE_KEY,
     ONBOARDING_PREFERENCE_KEY,
     THEME_MODE_PREFERENCE_KEY,
@@ -127,6 +128,48 @@ export function useAppScreen(): AppScreenHookResult {
         [],
     );
 
+    const parseGuestFavorites = useCallback((raw: string | null): FavoriteWordEntry[] => {
+        if (!raw) {
+            return [];
+        }
+        try {
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                return [];
+            }
+            return parsed.filter((entry) => entry && typeof entry.word?.word === "string");
+        } catch {
+            return [];
+        }
+    }, []);
+
+    const mergeFavorites = useCallback((base: FavoriteWordEntry[], incoming: FavoriteWordEntry[]) => {
+        const byWord = new Map<string, FavoriteWordEntry>();
+        const pickLatest = (current: FavoriteWordEntry, next: FavoriteWordEntry) => {
+            const currentTime = new Date(current.updatedAt ?? current.createdAt ?? 0).getTime();
+            const nextTime = new Date(next.updatedAt ?? next.createdAt ?? 0).getTime();
+            return nextTime >= currentTime ? next : current;
+        };
+
+        base.forEach((entry) => {
+            byWord.set(entry.word.word, entry);
+        });
+        incoming.forEach((entry) => {
+            const existing = byWord.get(entry.word.word);
+            if (!existing) {
+                byWord.set(entry.word.word, entry);
+            } else {
+                byWord.set(entry.word.word, pickLatest(existing, entry));
+            }
+        });
+
+        return Array.from(byWord.values()).sort((a, b) => {
+            const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+            const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+            return bTime - aTime;
+        });
+    }, []);
+
     const persistSearchHistory = useCallback(
         (entries: SearchHistoryEntry[]) => {
             void saveSearchHistoryEntries(entries).catch((error) => {
@@ -134,6 +177,15 @@ export function useAppScreen(): AppScreenHookResult {
             });
         },
         [saveSearchHistoryEntries],
+    );
+
+    const persistGuestFavorites = useCallback(
+        (entries: FavoriteWordEntry[]) => {
+            void setPreferenceValue(GUEST_FAVORITES_PREFERENCE_KEY, JSON.stringify(entries)).catch((error) => {
+                console.warn("게스트 단어장을 저장하는 중 문제가 발생했어요.", error);
+            });
+        },
+        [setPreferenceValue],
     );
 
     const ensurePhoneticForWord = useCallback(async (word: WordResult) => {
@@ -184,7 +236,7 @@ export function useAppScreen(): AppScreenHookResult {
                     try {
                         await upsertFavoriteForUser(userId, hydratedEntry);
                     } catch (error) {
-                        console.warn("즐겨찾기 발음 기호 업데이트 중 문제가 발생했어요.", error);
+                        console.warn("단어장 발음 기호 업데이트 중 문제가 발생했어요.", error);
                     }
                 }
             }
@@ -357,6 +409,13 @@ export function useAppScreen(): AppScreenHookResult {
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (!isGuest) {
+            return;
+        }
+        persistGuestFavorites(favorites);
+    }, [favorites, isGuest, persistGuestFavorites]);
 
     const updateSearchHistory = useCallback(
         (term: string) => {
@@ -746,14 +805,36 @@ export function useAppScreen(): AppScreenHookResult {
             await setUserSession(userRecord.id);
             const storedFavorites = await getFavoritesByUser(userRecord.id);
             const hydratedFavorites = await hydrateFavorites(storedFavorites, userRecord.id);
+
+            let nextFavorites = hydratedFavorites;
+            let mergedCount = 0;
+            try {
+                const rawGuestFavorites = await getPreferenceValue(GUEST_FAVORITES_PREFERENCE_KEY);
+                const guestFavorites = parseGuestFavorites(rawGuestFavorites);
+                if (guestFavorites.length > 0) {
+                    nextFavorites = mergeFavorites(hydratedFavorites, guestFavorites);
+                    mergedCount = nextFavorites.length - hydratedFavorites.length;
+                    await Promise.all(nextFavorites.map((entry) => upsertFavoriteForUser(userRecord.id, entry)));
+                    await setPreferenceValue(GUEST_FAVORITES_PREFERENCE_KEY, "[]");
+                }
+            } catch (error) {
+                console.warn("게스트 단어장 병합 중 문제가 발생했어요.", error);
+            }
+
             setIsGuest(false);
             setUser(userRecord);
-            setFavorites(hydratedFavorites);
+            setFavorites(nextFavorites);
             setSearchTerm("");
             setResult(null);
             setExamplesVisible(false);
             setError(null);
             setAuthError(null);
+            if (mergedCount > 0) {
+                Alert.alert(
+                    "단어장 병합 완료",
+                    `게스트 단어장 ${mergedCount}개를 계정에 반영했어요. 최신 항목 기준으로 병합되었습니다.`,
+                );
+            }
             try {
                 const [onboardingValue, guestUsedValue] = await Promise.all([
                     getPreferenceValue(ONBOARDING_PREFERENCE_KEY),
@@ -770,7 +851,7 @@ export function useAppScreen(): AppScreenHookResult {
                 setIsOnboardingVisible(true);
             }
         },
-        [hydrateFavorites],
+        [hydrateFavorites, mergeFavorites, parseGuestFavorites, setPreferenceValue, upsertFavoriteForUser],
     );
 
     const handleLogin = useCallback(

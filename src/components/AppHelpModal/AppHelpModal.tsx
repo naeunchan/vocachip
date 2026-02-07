@@ -29,10 +29,10 @@ export function AppHelpModal({ visible, onDismiss }: AppHelpModalProps) {
                             </Text>
                         </View>
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>2. 즐겨찾기와 암기 상태</Text>
+                            <Text style={styles.sectionTitle}>2. 단어장과 암기 상태</Text>
                             <Text style={styles.sectionBody}>
-                                검색 결과에서 `즐겨찾기` 버튼을 누르면 단어가 내 단어장에 저장돼요. 단어의 암기
-                                상태(외울 단어/복습/완료)를 바꿔가며 학습 진척도를 관리해보세요.
+                                검색 결과에서 `단어장` 버튼을 누르면 단어가 내 단어장에 저장돼요. 단어의 암기 상태(외울
+                                단어/복습/완료)를 바꿔가며 학습 진척도를 관리해보세요.
                             </Text>
                         </View>
                         <View style={styles.section}>

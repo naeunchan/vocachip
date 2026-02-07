@@ -1185,7 +1185,7 @@ async function getFavoritesByUserNative(userId: number): Promise<FavoriteWordEnt
                 const parsed = JSON.parse(row.data) as unknown;
                 return normalizeFavoriteEntry(parsed);
             } catch (error) {
-                console.warn("즐겨찾기 데이터를 읽는 중 오류가 발생했어요.", error);
+                console.warn("단어장 데이터를 읽는 중 오류가 발생했어요.", error);
                 return null;
             }
         })
@@ -1201,7 +1201,7 @@ async function getFavoritesByUserWeb(userId: number): Promise<FavoriteWordEntry[
                 const parsed = JSON.parse(favorite.data) as unknown;
                 return normalizeFavoriteEntry(parsed);
             } catch (error) {
-                console.warn("즐겨찾기 데이터를 읽는 중 오류가 발생했어요.", error);
+                console.warn("단어장 데이터를 읽는 중 오류가 발생했어요.", error);
                 return null;
             }
         })

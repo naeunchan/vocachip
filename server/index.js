@@ -19,6 +19,7 @@ const TTS_FORMAT = process.env.OPENAI_TTS_FORMAT || "mp3";
 const API_KEY = process.env.AI_PROXY_KEY || "";
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX = 60;
+const AI_HEALTH_DEGRADED_WINDOW_MS = Number(process.env.AI_HEALTH_DEGRADED_WINDOW_MS) || 10 * 60 * 1000;
 const REQUIRE_FIREBASE_ID_TOKEN = process.env.REQUIRE_FIREBASE_ID_TOKEN === "1";
 const FIREBASE_CLIENT_IDS = (process.env.FIREBASE_CLIENT_IDS || "")
     .split(",")
@@ -27,6 +28,12 @@ const FIREBASE_CLIENT_IDS = (process.env.FIREBASE_CLIENT_IDS || "")
 
 const app = express();
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const aiRuntimeHealth = {
+    lastSuccessAt: 0,
+    lastFailureAt: 0,
+    lastFailureRoute: null,
+    lastFailureMessage: null,
+};
 
 const corsOrigins = (process.env.CORS_ORIGINS || "")
     .split(",")
@@ -174,8 +181,44 @@ function normalizeItems(payload) {
         .filter((item) => item.example);
 }
 
+function markAiSuccess() {
+    aiRuntimeHealth.lastSuccessAt = Date.now();
+}
+
+function markAiFailure(route, error) {
+    aiRuntimeHealth.lastFailureAt = Date.now();
+    aiRuntimeHealth.lastFailureRoute = route;
+    aiRuntimeHealth.lastFailureMessage = error instanceof Error ? error.message : "unknown_error";
+}
+
+function getAiRuntimeHealthStatus() {
+    const now = Date.now();
+    const hasRecentFailure =
+        aiRuntimeHealth.lastFailureAt > 0 && now - aiRuntimeHealth.lastFailureAt <= AI_HEALTH_DEGRADED_WINDOW_MS;
+    const isFailureNewerThanSuccess = aiRuntimeHealth.lastFailureAt > aiRuntimeHealth.lastSuccessAt;
+
+    if (hasRecentFailure && isFailureNewerThanSuccess) {
+        return {
+            status: "degraded",
+            lastSuccessAt: aiRuntimeHealth.lastSuccessAt || null,
+            lastFailureAt: aiRuntimeHealth.lastFailureAt || null,
+            lastFailureRoute: aiRuntimeHealth.lastFailureRoute,
+            lastFailureMessage: aiRuntimeHealth.lastFailureMessage,
+        };
+    }
+
+    return {
+        status: "ok",
+        lastSuccessAt: aiRuntimeHealth.lastSuccessAt || null,
+        lastFailureAt: aiRuntimeHealth.lastFailureAt || null,
+    };
+}
+
 app.get("/health", (_req, res) => {
-    res.json({ status: openai.apiKey ? "ok" : "unconfigured" });
+    if (!openai.apiKey) {
+        return res.json({ status: "unconfigured" });
+    }
+    return res.json(getAiRuntimeHealthStatus());
 });
 
 app.post("/dictionary/examples", rateLimit, requireApiKey, requireFirebaseIdToken, async (req, res) => {
@@ -208,10 +251,12 @@ app.post("/dictionary/examples", rateLimit, requireApiKey, requireFirebaseIdToke
         const content = completion.choices?.[0]?.message?.content ?? "";
         const raw = content ? JSON.parse(content) : { items: [] };
         const items = normalizeItems(raw);
+        markAiSuccess();
 
         return res.json({ items });
     } catch (error) {
         console.error("Failed to generate dictionary examples", error);
+        markAiFailure("/dictionary/examples", error);
         return res.status(500).json({ message: "예문을 생성하지 못했어요." });
     }
 });
@@ -237,12 +282,14 @@ app.post("/dictionary/tts", rateLimit, requireApiKey, requireFirebaseIdToken, as
         });
 
         const buffer = Buffer.from(await audio.arrayBuffer());
+        markAiSuccess();
         return res.json({
             audioBase64: buffer.toString("base64"),
             audioUrl: null,
         });
     } catch (error) {
         console.error("Failed to synthesize audio", error);
+        markAiFailure("/dictionary/tts", error);
         return res.status(500).json({ message: "발음 오디오를 준비하지 못했어요." });
     }
 });

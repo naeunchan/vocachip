@@ -2,16 +2,21 @@ import Constants from "expo-constants";
 
 const extra = Constants.expoConfig?.extra ?? {};
 
-const proxyFromExtra = typeof extra.openAIProxyUrl === "string" ? extra.openAIProxyUrl.trim() : "";
+function normalizeUrl(value: string): string {
+    return value.trim().replace(/\/+$/, "");
+}
+
+const proxyFromExtra = typeof extra.openAIProxyUrl === "string" ? normalizeUrl(extra.openAIProxyUrl) : "";
 const proxyFromEnv = (process.env.EXPO_PUBLIC_OPENAI_PROXY_URL ?? "").trim();
 const proxyKeyFromExtra = typeof extra.openAIProxyKey === "string" ? extra.openAIProxyKey.trim() : "";
 const proxyKeyFromEnv = (process.env.EXPO_PUBLIC_OPENAI_PROXY_KEY ?? "").trim();
+const healthFromExtra = typeof extra.aiHealthUrl === "string" ? normalizeUrl(extra.aiHealthUrl) : "";
 
 /**
  * Backend proxy URL used for AI-powered features (examples/TTS).
  * TODO: Replace the placeholder with your deployed backend endpoint before release.
  */
-export const OPENAI_PROXY_URL = proxyFromEnv || proxyFromExtra;
+export const OPENAI_PROXY_URL = proxyFromEnv ? normalizeUrl(proxyFromEnv) : proxyFromExtra;
 export const OPENAI_PROXY_KEY = proxyKeyFromEnv || proxyKeyFromExtra;
 
 /**
@@ -26,7 +31,9 @@ const healthFromEnv = (process.env.EXPO_PUBLIC_AI_HEALTH_URL ?? "").trim();
  * Defaults to `<OPENAI_PROXY_URL>/health` when configured.
  */
 export const AI_HEALTH_URL =
-    healthFromEnv || (OPENAI_PROXY_URL ? `${OPENAI_PROXY_URL.replace(/\/+$/, "")}/health` : "");
+    (healthFromEnv ? normalizeUrl(healthFromEnv) : "") ||
+    healthFromExtra ||
+    (OPENAI_PROXY_URL ? `${OPENAI_PROXY_URL}/health` : "");
 
 if (__DEV__) {
     const maskedKey =

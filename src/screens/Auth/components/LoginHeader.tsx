@@ -6,7 +6,7 @@ import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type LoginHeaderProps = {
     title: string;
-    subtitle: string;
+    subtitle?: string;
 };
 
 export function LoginHeader({ title, subtitle }: LoginHeaderProps) {
@@ -14,7 +14,7 @@ export function LoginHeader({ title, subtitle }: LoginHeaderProps) {
     return (
         <View style={styles.hero}>
             <Text style={styles.brandText}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
     );
 }

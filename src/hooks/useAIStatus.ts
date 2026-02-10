@@ -11,8 +11,15 @@ type AIStatusResult = {
     refresh: () => void;
 };
 
-async function fetchHealth(): Promise<AIStatus> {
+export function getInitialAIStatus(): AIStatus {
     if (!OPENAI_FEATURE_ENABLED || !AI_HEALTH_URL) {
+        return "unavailable";
+    }
+    return "degraded";
+}
+
+export async function fetchHealth(): Promise<AIStatus> {
+    if (getInitialAIStatus() === "unavailable") {
         return "unavailable";
     }
 
@@ -32,16 +39,13 @@ async function fetchHealth(): Promise<AIStatus> {
 }
 
 export function useAIStatus(): AIStatusResult {
-    const [status, setStatus] = useState<AIStatus>(() => {
-        if (!OPENAI_FEATURE_ENABLED || !AI_HEALTH_URL) return "unavailable";
-        return "degraded";
-    });
+    const [status, setStatus] = useState<AIStatus>(getInitialAIStatus);
     const [lastCheckedAt, setLastCheckedAt] = useState<number | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [refreshToken, setRefreshToken] = useState(0);
 
     useEffect(() => {
-        if (!OPENAI_FEATURE_ENABLED || !AI_HEALTH_URL) {
+        if (getInitialAIStatus() === "unavailable") {
             return;
         }
 

@@ -10,6 +10,11 @@ function parseBoolean(value: string | undefined): boolean | null {
     return null;
 }
 
+function parseString(value: string | undefined): string {
+    if (!value) return "";
+    return value.trim();
+}
+
 function resolveProfile() {
     const profile = (process.env.EAS_BUILD_PROFILE ?? process.env.APP_ENV ?? "").trim().toLowerCase();
     if (profile) return profile;
@@ -28,6 +33,9 @@ export default (): ExpoConfig => {
     const guestCtaFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA);
     const backupRestoreFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_BACKUP_RESTORE);
     const biometricAutoLoginFromEnv = parseBoolean(process.env.EXPO_PUBLIC_FEATURE_BIOMETRIC_AUTO_LOGIN);
+    const openAIProxyUrlFromEnv = parseString(process.env.EXPO_PUBLIC_OPENAI_PROXY_URL);
+    const openAIProxyKeyFromEnv = parseString(process.env.EXPO_PUBLIC_OPENAI_PROXY_KEY);
+    const aiHealthUrlFromEnv = parseString(process.env.EXPO_PUBLIC_AI_HEALTH_URL);
 
     const expoConfig: ExpoConfig = {
         ...staticConfig.expo,
@@ -37,6 +45,9 @@ export default (): ExpoConfig => {
             featureGuestAccountCta: guestCtaFromEnv ?? profileDefaults.featureGuestAccountCta,
             featureBackupRestore: backupRestoreFromEnv ?? profileDefaults.featureBackupRestore,
             featureBiometricAutoLogin: biometricAutoLoginFromEnv ?? profileDefaults.featureBiometricAutoLogin,
+            openAIProxyUrl: openAIProxyUrlFromEnv,
+            openAIProxyKey: openAIProxyKeyFromEnv,
+            aiHealthUrl: aiHealthUrlFromEnv,
         },
     };
 

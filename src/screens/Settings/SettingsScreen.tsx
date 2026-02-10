@@ -175,11 +175,11 @@ export function SettingsScreen({
     const aiStatusLabel = useMemo(() => {
         switch (aiStatus) {
             case "healthy":
-                return "활성";
+                return t("settings.label.aiHealthy");
             case "degraded":
-                return "제한적 (백엔드 확인 필요)";
+                return t("settings.label.aiDegraded");
             default:
-                return "비활성 (백엔드 필요)";
+                return t("settings.label.aiUnavailable");
         }
     }, [aiStatus]);
 

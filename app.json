@@ -33,8 +33,6 @@
         "plugins": ["expo-sqlite", "expo-audio", "expo-secure-store", "sentry-expo", "expo-asset"],
         "extra": {
             "versionLabel": "1.0.0",
-            "openAIProxyUrl": "https://vocationary.onrender.com",
-            "openAIProxyKey": "dev-proxy-key",
             "featureGuestAccountCta": false,
             "featureBackupRestore": false,
             "featureBiometricAutoLogin": false,

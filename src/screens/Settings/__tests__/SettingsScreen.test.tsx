@@ -4,6 +4,8 @@ import { Alert, Linking } from "react-native";
 
 import { SettingsScreen } from "@/screens/Settings/SettingsScreen";
 
+const mockUseAIStatus = jest.fn();
+
 jest.mock("@expo/vector-icons/Ionicons", () => {
     const React = require("react");
     const { Text } = require("react-native");
@@ -19,7 +21,7 @@ jest.mock("@/screens/Settings/components/AuthenticatedActions", () => ({
 }));
 
 jest.mock("@/hooks/useAIStatus", () => ({
-    useAIStatus: () => ({ status: "unavailable", lastCheckedAt: null, refresh: jest.fn() }),
+    useAIStatus: () => mockUseAIStatus(),
 }));
 
 jest.mock("@/services/database", () => {
@@ -53,6 +55,7 @@ describe("SettingsScreen", () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        mockUseAIStatus.mockReturnValue({ status: "unavailable", lastCheckedAt: null, refresh: jest.fn() });
     });
 
     afterEach(() => {
@@ -122,5 +125,26 @@ describe("SettingsScreen", () => {
 
         fireEvent.press(getByText("계정 복구 안내"));
         expect(baseProps.onNavigateRecoveryGuide).toHaveBeenCalled();
+    });
+
+    it("shows unavailable label when AI proxy is not configured", () => {
+        mockUseAIStatus.mockReturnValue({ status: "unavailable", lastCheckedAt: null, refresh: jest.fn() });
+        const { getByText } = render(<SettingsScreen {...baseProps} />);
+
+        expect(getByText("비활성 (백엔드 필요)")).toBeTruthy();
+    });
+
+    it("shows degraded label when AI backend is unstable", () => {
+        mockUseAIStatus.mockReturnValue({ status: "degraded", lastCheckedAt: null, refresh: jest.fn() });
+        const { getByText } = render(<SettingsScreen {...baseProps} />);
+
+        expect(getByText("제한적 (백엔드 확인 필요)")).toBeTruthy();
+    });
+
+    it("shows healthy label when AI backend is healthy", () => {
+        mockUseAIStatus.mockReturnValue({ status: "healthy", lastCheckedAt: null, refresh: jest.fn() });
+        const { getByText } = render(<SettingsScreen {...baseProps} />);
+
+        expect(getByText("활성")).toBeTruthy();
     });
 });

@@ -30,7 +30,13 @@
 
 ## Environment & Security
 
-- Use `.env.example` as a template; never commit real API keys. Set `AI_PROXY_KEY` on the server and pass `EXPO_PUBLIC_OPENAI_PROXY_KEY` to the app so AI routes require authentication.
+- Use `.env` (local only) and never commit real API keys. Configure Expo public vars for client proxy routing:
+    - `EXPO_PUBLIC_OPENAI_PROXY_URL`
+    - `EXPO_PUBLIC_OPENAI_PROXY_KEY`
+    - `EXPO_PUBLIC_AI_HEALTH_URL` (optional; defaults to `<EXPO_PUBLIC_OPENAI_PROXY_URL>/health`)
+- Set server vars separately:
+    - `AI_PROXY_KEY` (server-side request auth)
+    - `OPENAI_API_KEY` (server-side OpenAI access)
 - Feature flags (client):
     - `EXPO_PUBLIC_FEATURE_AUTH_UI`: enable login/signup mode UI
     - `EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA`: enable guest account conversion card in Settings
@@ -47,5 +53,5 @@
   Invalid or non-HTTPS URLs will fallback to the in-app legal documents. Ensure hosted URLs are set before release.
 - Automatic login credentials are stored with SecureStore/Keychain on device; logout clears the secure entry.
 - Optional biometric-gated auto-login is available via device capabilities (toggle in Settings).
-- AI-powered examples/TTS require a backend proxy (`OPENAI_PROXY_URL`). Without it, the UI keeps the feature disabled and surfaces an in-app notice.
+- AI-powered examples/TTS require a backend proxy (`EXPO_PUBLIC_OPENAI_PROXY_URL` + `EXPO_PUBLIC_OPENAI_PROXY_KEY`). Without them, the UI keeps the feature disabled and surfaces an in-app notice.
 - Password reset is not provided; credentials are device-local. Recovery alternatives are guided in-app via `Settings > 계정 복구 안내` and the login recovery entry point.

@@ -176,14 +176,14 @@ fetch_issues() {
     local query
     local variables
     if [ -n "$LINEAR_PROJECT_ID" ]; then
-        query='query($projectId: String!, $first: Int!) { issues(filter:{project:{id:{eq:$projectId}}}, first:$first, orderBy: createdAt) { nodes { id identifier title description url priority createdAt updatedAt state { id name type } labels { nodes { id name } } assignee { id name } } } }'
-        variables="$(jq -cn --arg projectId "$LINEAR_PROJECT_ID" --argjson first 200 '{projectId:$projectId, first:$first}')"
+        query='query($projectId: String!) { issues(filter:{project:{id:{eq:$projectId}}}, first:200, orderBy: createdAt) { nodes { id identifier title description url priority createdAt updatedAt state { id name type } labels { nodes { id name } } assignee { id name } } } }'
+        variables="$(jq -cn --arg projectId "$LINEAR_PROJECT_ID" '{projectId:$projectId}')"
     elif [ -n "$LINEAR_TEAM_ID" ]; then
-        query='query($teamId: String!, $first: Int!) { issues(filter:{team:{id:{eq:$teamId}}}, first:$first, orderBy: createdAt) { nodes { id identifier title description url priority createdAt updatedAt state { id name type } labels { nodes { id name } } assignee { id name } } } }'
-        variables="$(jq -cn --arg teamId "$LINEAR_TEAM_ID" --argjson first 200 '{teamId:$teamId, first:$first}')"
+        query='query($teamId: String!) { issues(filter:{team:{id:{eq:$teamId}}}, first:200, orderBy: createdAt) { nodes { id identifier title description url priority createdAt updatedAt state { id name type } labels { nodes { id name } } assignee { id name } } } }'
+        variables="$(jq -cn --arg teamId "$LINEAR_TEAM_ID" '{teamId:$teamId}')"
     else
-        query='query($first: Int!) { issues(first:$first, orderBy: createdAt) { nodes { id identifier title description url priority createdAt updatedAt state { id name type } labels { nodes { id name } } assignee { id name } } } }'
-        variables="$(jq -cn --argjson first 200 '{first:$first}')"
+        query='query { issues(first:200, orderBy: createdAt) { nodes { id identifier title description url priority createdAt updatedAt state { id name type } labels { nodes { id name } } assignee { id name } } } }'
+        variables="{}"
     fi
 
     linear_graphql "$query" "$variables"

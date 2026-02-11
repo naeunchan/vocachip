@@ -17,7 +17,7 @@ INCLUDE_LABEL="${INCLUDE_LABEL:-}"
 DEFAULT_BRANCH="${DEFAULT_BRANCH:-}"
 MAX_ISSUES="${MAX_ISSUES:-1}"
 DRY_RUN="${DRY_RUN:-false}"
-AUTO_MERGE="${AUTO_MERGE:-true}"
+AUTO_MERGE="${AUTO_MERGE:-false}"
 VERIFY_COMMANDS="${VERIFY_COMMANDS:-npm run lint -- --max-warnings=0 && npm test -- --watch=false}"
 IMPLEMENT_COMMAND="${IMPLEMENT_COMMAND:-}"
 AUTO_FIX_COMMAND="${AUTO_FIX_COMMAND:-}"
@@ -154,8 +154,10 @@ query_workflow_states() {
 }
 
 resolve_state_ids() {
-    local states_json
-    states_json="$(query_workflow_states)"
+    local states_json=""
+    if [ -z "$LINEAR_STATE_DONE" ] || [ -z "$LINEAR_STATE_INPROGRESS" ] || [ -z "$LINEAR_STATE_TODO" ]; then
+        states_json="$(query_workflow_states)"
+    fi
 
     if [ -z "$LINEAR_STATE_DONE" ]; then
         LINEAR_STATE_DONE="$(echo "$states_json" | jq -r '.data.workflowStates.nodes[] | select((.type // "") == "completed" or (.name | ascii_downcase) == "done") | .id' | head -n1)"
@@ -193,15 +195,22 @@ filter_issue_list() {
     local source_json="$1"
     jq \
         --arg doneId "$LINEAR_STATE_DONE" \
+        --arg todoId "$LINEAR_STATE_TODO" \
         --arg target "$TARGET_ISSUE_IDENTIFIER" \
         --arg includeLabel "$INCLUDE_LABEL" \
-        --arg assigneeId "$LINEAR_ASSIGNEE_ID" \
         '
         .data.issues.nodes
         | map(select((.state.id != $doneId) and ((.state.type // "") != "completed") and ((.state.type // "") != "canceled")))
-        | map(select($target == "" or .identifier == $target))
+        | map(select(
+            if $target != "" then
+                .identifier == $target
+            elif $todoId != "" then
+                .state.id == $todoId
+            else
+                (.state.type // "") == "unstarted"
+            end
+        ))
         | map(select($includeLabel == "" or any(.labels.nodes[]?; .name == $includeLabel)))
-        | map(select($assigneeId != "" or (.assignee == null)))
         | sort_by((if .priority == null then 999 else .priority end), .createdAt)
         ' <<<"$source_json"
 }

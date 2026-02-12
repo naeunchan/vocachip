@@ -153,10 +153,61 @@ query_workflow_states() {
     fi
 }
 
+resolve_state_id_from_value() {
+    local states_json="$1"
+    local state_value="$2"
+    local resolved_by_id resolved_by_name
+
+    if [ -z "$state_value" ]; then
+        echo ""
+        return
+    fi
+
+    resolved_by_id="$(echo "$states_json" | jq -r --arg value "$state_value" '.data.workflowStates.nodes[] | select(.id == $value) | .id' | head -n1)"
+    if [ -n "$resolved_by_id" ]; then
+        echo "$resolved_by_id"
+        return
+    fi
+
+    resolved_by_name="$(echo "$states_json" | jq -r --arg value "$state_value" '.data.workflowStates.nodes[] | select((.name | ascii_downcase) == ($value | ascii_downcase)) | .id' | head -n1)"
+    if [ -n "$resolved_by_name" ]; then
+        echo "$resolved_by_name"
+        return
+    fi
+
+    echo ""
+}
+
 resolve_state_ids() {
-    local states_json=""
-    if [ -z "$LINEAR_STATE_DONE" ] || [ -z "$LINEAR_STATE_INPROGRESS" ] || [ -z "$LINEAR_STATE_TODO" ]; then
-        states_json="$(query_workflow_states)"
+    local states_json resolved_state_id
+    states_json="$(query_workflow_states)"
+
+    if [ -n "$LINEAR_STATE_DONE" ]; then
+        resolved_state_id="$(resolve_state_id_from_value "$states_json" "$LINEAR_STATE_DONE")"
+        if [ -n "$resolved_state_id" ]; then
+            LINEAR_STATE_DONE="$resolved_state_id"
+        else
+            log "LINEAR_STATE_DONE value '${LINEAR_STATE_DONE}' not found. Falling back to auto-detection."
+            LINEAR_STATE_DONE=""
+        fi
+    fi
+    if [ -n "$LINEAR_STATE_INPROGRESS" ]; then
+        resolved_state_id="$(resolve_state_id_from_value "$states_json" "$LINEAR_STATE_INPROGRESS")"
+        if [ -n "$resolved_state_id" ]; then
+            LINEAR_STATE_INPROGRESS="$resolved_state_id"
+        else
+            log "LINEAR_STATE_INPROGRESS value '${LINEAR_STATE_INPROGRESS}' not found. Falling back to auto-detection."
+            LINEAR_STATE_INPROGRESS=""
+        fi
+    fi
+    if [ -n "$LINEAR_STATE_TODO" ]; then
+        resolved_state_id="$(resolve_state_id_from_value "$states_json" "$LINEAR_STATE_TODO")"
+        if [ -n "$resolved_state_id" ]; then
+            LINEAR_STATE_TODO="$resolved_state_id"
+        else
+            log "LINEAR_STATE_TODO value '${LINEAR_STATE_TODO}' not found. Falling back to auto-detection."
+            LINEAR_STATE_TODO=""
+        fi
     fi
 
     if [ -z "$LINEAR_STATE_DONE" ]; then
@@ -380,6 +431,10 @@ process_issue() {
     if [ -z "$IMPLEMENT_COMMAND" ]; then
         issue_add_comment "$issue_id" "Automation stopped: IMPLEMENT_COMMAND is not configured. Set IMPLEMENT_COMMAND in workflow env."
         fail "IMPLEMENT_COMMAND is required for automated implementation."
+    fi
+    if [[ "$IMPLEMENT_COMMAND" == *"linear_backlog_e2e.sh"* ]]; then
+        issue_add_comment "$issue_id" "Automation stopped: IMPLEMENT_COMMAND points to linear_backlog_e2e.sh itself. Configure an issue worker command."
+        fail "IMPLEMENT_COMMAND must not call linear_backlog_e2e.sh itself."
     fi
 
     export ISSUE_ID="$issue_id"

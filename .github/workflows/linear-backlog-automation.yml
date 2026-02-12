@@ -40,7 +40,7 @@ on:
             auto_generate_issue_script:
                 description: Auto-generate scripts/automation/issues/<ISSUE_IDENTIFIER>.sh when missing
                 required: true
-                default: false
+                default: true
                 type: boolean
             verify_commands:
                 description: Verification commands (lint/test/build)

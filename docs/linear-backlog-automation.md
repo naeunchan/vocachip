@@ -33,6 +33,9 @@ If workflow state IDs are not provided, the script tries to resolve them automat
     - `verify_commands`: lint/test/build commands
     - `auto_merge`: `true` only after dry-run validation
 
+Default `implement_command` is `scripts/automation/issue_worker.sh`.
+It dispatches to `scripts/automation/issues/<ISSUE_IDENTIFIER>.sh`.
+
 ## Important behavior
 
 - The script enforces clean working tree checks before each issue.
@@ -57,6 +60,6 @@ If workflow state IDs are not provided, the script tries to resolve them automat
 ## Example input commands
 
 ```bash
-implement_command: ./scripts/automation/your_issue_worker.sh
+implement_command: scripts/automation/issue_worker.sh
 verify_commands: npm run lint -- --max-warnings=0 && npm test -- --watch=false
 ```

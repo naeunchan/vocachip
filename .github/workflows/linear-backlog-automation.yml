@@ -28,7 +28,7 @@ on:
             implement_command:
                 description: Command that performs issue implementation
                 required: false
-                default: ""
+                default: scripts/automation/issue_worker.sh
             verify_commands:
                 description: Verification commands (lint/test/build)
                 required: false

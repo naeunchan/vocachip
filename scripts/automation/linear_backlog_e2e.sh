@@ -140,33 +140,34 @@ sync_default_branch() {
 }
 
 ensure_clean_tree() {
-    if [ -n "$(git status --porcelain)" ]; then
+    local dirty
+    # Ignore automation artifacts under .codex when enforcing a clean tree.
+    dirty="$(git status --porcelain -- . ':(exclude).codex/**')"
+    if [ -n "$dirty" ]; then
         fail "working tree is not clean. Commit/stash changes before running automation."
     fi
 }
 
 query_labels() {
-    local query_with_team='query($teamId: String!) { labels(filter:{team:{id:{eq:$teamId}}}, first: 250) { nodes { id name } } }'
-    local query_all='query { labels(first: 250) { nodes { id name } } }'
-    local query_with_team_alt='query($teamId: String!) { issueLabels(filter:{team:{id:{eq:$teamId}}}, first: 250) { nodes { id name } } }'
-    local query_all_alt='query { issueLabels(first: 250) { nodes { id name } } }'
+    local query_with_team_issue_labels='query($teamId: String!) { issueLabels(filter:{team:{id:{eq:$teamId}}}, first: 250) { nodes { id name } } }'
+    local query_all_issue_labels='query { issueLabels(first: 250) { nodes { id name } } }'
+    local query_with_team_labels='query($teamId: String!) { labels(filter:{team:{id:{eq:$teamId}}}, first: 250) { nodes { id name } } }'
+    local query_all_labels='query { labels(first: 250) { nodes { id name } } }'
     local response fallback
     fallback='{"data":{"labels":{"nodes":[]}}}'
     if [ -n "$LINEAR_TEAM_ID" ]; then
-        response="$(linear_graphql "$query_with_team" "$(jq -cn --arg teamId "$LINEAR_TEAM_ID" '{teamId:$teamId}')")" || true
-        if [ -z "$response" ]; then
-            response="$(linear_graphql "$query_with_team_alt" "$(jq -cn --arg teamId "$LINEAR_TEAM_ID" '{teamId:$teamId}')")" || true
-            if [ -n "$response" ]; then
-                response="$(jq -c '{data:{labels:.data.issueLabels}}' <<<"$response")"
-            fi
+        response="$(linear_graphql "$query_with_team_issue_labels" "$(jq -cn --arg teamId "$LINEAR_TEAM_ID" '{teamId:$teamId}')" 2>/dev/null)" || true
+        if [ -n "$response" ]; then
+            response="$(jq -c '{data:{labels:.data.issueLabels}}' <<<"$response")"
+        else
+            response="$(linear_graphql "$query_with_team_labels" "$(jq -cn --arg teamId "$LINEAR_TEAM_ID" '{teamId:$teamId}')" 2>/dev/null)" || true
         fi
     else
-        response="$(linear_graphql "$query_all" "{}")" || true
-        if [ -z "$response" ]; then
-            response="$(linear_graphql "$query_all_alt" "{}")" || true
-            if [ -n "$response" ]; then
-                response="$(jq -c '{data:{labels:.data.issueLabels}}' <<<"$response")"
-            fi
+        response="$(linear_graphql "$query_all_issue_labels" "{}" 2>/dev/null)" || true
+        if [ -n "$response" ]; then
+            response="$(jq -c '{data:{labels:.data.issueLabels}}' <<<"$response")"
+        else
+            response="$(linear_graphql "$query_all_labels" "{}" 2>/dev/null)" || true
         fi
     fi
     if [ -n "$response" ]; then

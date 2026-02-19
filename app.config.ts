@@ -36,6 +36,10 @@ export default (): ExpoConfig => {
     const openAIProxyUrlFromEnv = parseString(process.env.EXPO_PUBLIC_OPENAI_PROXY_URL);
     const openAIProxyKeyFromEnv = parseString(process.env.EXPO_PUBLIC_OPENAI_PROXY_KEY);
     const aiHealthUrlFromEnv = parseString(process.env.EXPO_PUBLIC_AI_HEALTH_URL);
+    const googleExpoClientIdFromEnv = parseString(process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID);
+    const googleIosClientIdFromEnv = parseString(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
+    const googleAndroidClientIdFromEnv = parseString(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID);
+    const googleWebClientIdFromEnv = parseString(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
 
     const expoConfig: ExpoConfig = {
         ...staticConfig.expo,
@@ -48,6 +52,10 @@ export default (): ExpoConfig => {
             openAIProxyUrl: openAIProxyUrlFromEnv,
             openAIProxyKey: openAIProxyKeyFromEnv,
             aiHealthUrl: aiHealthUrlFromEnv,
+            googleExpoClientId: googleExpoClientIdFromEnv,
+            googleIosClientId: googleIosClientIdFromEnv,
+            googleAndroidClientId: googleAndroidClientIdFromEnv,
+            googleWebClientId: googleWebClientIdFromEnv,
         },
     };
 

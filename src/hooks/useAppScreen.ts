@@ -42,6 +42,7 @@ import {
     REMOVE_FAVORITE_ERROR_MESSAGE,
     SIGNUP_DUPLICATE_ERROR_MESSAGE,
     SIGNUP_GENERIC_ERROR_MESSAGE,
+    SOCIAL_LOGIN_GENERIC_ERROR_MESSAGE,
     TOGGLE_FAVORITE_ERROR_MESSAGE,
     UPDATE_STATUS_ERROR_MESSAGE,
 } from "@/screens/App/AppScreen.constants";
@@ -63,6 +64,7 @@ import {
     initializeDatabase,
     isDisplayNameTaken,
     markAppHelpSeen,
+    type OAuthProfilePayload,
     removeFavoriteForUser,
     saveSearchHistoryEntries,
     setGuestSession,
@@ -71,6 +73,7 @@ import {
     updateUserDisplayName,
     updateUserPassword,
     upsertFavoriteForUser,
+    upsertOAuthUser,
     type UserRecord,
     verifyPasswordHash,
 } from "@/services/database";
@@ -990,6 +993,25 @@ export function useAppScreen(): AppScreenHookResult {
         [findUserByUsername, loadUserState, verifyPasswordHash],
     );
 
+    const handleGoogleLogin = useCallback(
+        async (profile: OAuthProfilePayload) => {
+            setAuthLoading(true);
+            setAuthError(null);
+            setSignUpError(null);
+            try {
+                const userRecord = await upsertOAuthUser(profile);
+                await loadUserState(userRecord);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : SOCIAL_LOGIN_GENERIC_ERROR_MESSAGE;
+                setAuthError(message);
+                throw new Error(message);
+            } finally {
+                setAuthLoading(false);
+            }
+        },
+        [loadUserState],
+    );
+
     const handleSignUp = useCallback(
         async ({
             email,
@@ -1354,12 +1376,13 @@ export function useAppScreen(): AppScreenHookResult {
         () => ({
             onGuest: handleGuestAccess,
             onLogin: handleLogin,
+            onGoogleLogin: handleGoogleLogin,
             onSignUp: handleSignUp,
             loading: authLoading,
             errorMessage: authError,
             signUpErrorMessage: signUpError,
         }),
-        [authError, authLoading, handleGuestAccess, handleLogin, handleSignUp, signUpError],
+        [authError, authLoading, handleGoogleLogin, handleGuestAccess, handleLogin, handleSignUp, signUpError],
     );
 
     useEffect(() => {

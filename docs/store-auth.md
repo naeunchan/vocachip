@@ -39,9 +39,9 @@ Add environment variables (e.g., `EXPO_PUBLIC_APPLE_CLIENT_ID`, `EXPO_PUBLIC_APP
 
 ### App-side configuration
 
-The project doesn’t yet include `expo-auth-session` or `@react-native-google-signin/google-signin`. Pick the provider that best matches your UX. We recommend `expo-auth-session` because it works on both platforms with minimal native code.
+The project now uses `expo-auth-session` + `expo-web-browser` for the first-pass Google OAuth flow (VOC-25). Google 로그인 성공 시 앱에서 프로필을 검증한 뒤 `upsertOAuthUser` + 세션 생성 경로로 연결됩니다.
 
-1. **Install the SDK (future step)**  
+1. **Install the SDK**  
    `npx expo install expo-auth-session expo-web-browser`
 2. **Configure reverse client ID for iOS**
     - Once you obtain a Google OAuth Client ID (iOS type), add it to `app.json` under:
@@ -76,9 +76,10 @@ The project doesn’t yet include `expo-auth-session` or `@react-native-google-s
     - `GoogleService-Info.plist` → root directory.
     - `google-services.json` → root directory.
 
-Update `.env` or `app.config` to expose:
+Update `.env` or `app.config` to expose (already wired in `app.config.ts`):
 
 ```
+EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
@@ -86,11 +87,11 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
 
 ---
 
-## 3. Wiring the UI (future work)
+## 3. Wiring the UI
 
-1. Install the chosen auth SDKs (`expo-apple-authentication`, `expo-auth-session`, etc.).
-2. In `LoginScreen.tsx`, reintroduce a dedicated social-login entry point that calls the providers and forwards the verified profile/token to the server (or to a rebuilt client handler).
-3. Remember to handle cases where Apple accounts don’t expose email/display name (prompt users to confirm).
-4. Add fallbacks for devices where Apple/Google sign-in isn’t available (already partly covered by guest login).
+1. `LoginScreen.tsx`에서 Google 버튼을 통해 OAuth를 실행합니다.
+2. `src/services/auth/googleSignIn.ts`가 `tokeninfo/userinfo` + JWT 디코드 fallback으로 프로필을 정규화합니다.
+3. `useAppScreen.ts`에서 `upsertOAuthUser` 호출 후 사용자 세션을 생성합니다.
+4. Apple Sign-In은 아직 별도 구현이 필요합니다.
 
 Once console configuration and SDK wiring are complete, test both providers on physical devices, then update the App Store / Google Play listing screenshots accordingly.

@@ -61,7 +61,7 @@ export function PasswordResetRequestScreen({ navigation, route, onRequestCode }:
                 <View style={styles.content}>
                     <Text style={styles.stepText}>Step 1 / 2</Text>
                     <TextField
-                        placeholder="가입 이메일 (example@vocationary.com)"
+                        placeholder="가입 이메일 (example@vocachip.com)"
                         autoCapitalize="none"
                         autoCorrect={false}
                         keyboardType="email-address"

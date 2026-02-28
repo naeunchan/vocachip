@@ -52,7 +52,10 @@ export function AppScreen() {
                         )}
                     </View>
                 </View>
-                <AppHelpModal visible={isHelpVisible} onDismiss={handleDismissHelp} />
+                <AppHelpModal
+                    visible={isAuthenticated && isHelpVisible && !isOnboardingVisible}
+                    onDismiss={handleDismissHelp}
+                />
                 <OnboardingModal visible={isOnboardingVisible} onComplete={onCompleteOnboarding} />
             </SafeAreaProvider>
         </AppAppearanceProvider>

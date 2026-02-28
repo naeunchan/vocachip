@@ -937,6 +937,7 @@ export function useAppScreen(): AppScreenHookResult {
         setAiAssistError(null);
         setAuthError(null);
         setSignUpError(null);
+        setIsOnboardingVisible(false);
     }, []);
 
     const handleGuestAccessAsync = useCallback(async () => {
@@ -946,6 +947,8 @@ export function useAppScreen(): AppScreenHookResult {
         try {
             await setGuestSession();
             await setPreferenceValue(GUEST_USED_PREFERENCE_KEY, "true");
+            // Always show onboarding right after guest login.
+            setIsOnboardingVisible(true);
             setIsGuest(true);
             setUser(null);
             setFavorites([]);

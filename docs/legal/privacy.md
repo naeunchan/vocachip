@@ -6,26 +6,30 @@ Vocachip uses Firebase Authentication for account sign-in and keeps learning dat
 
 ## Data We Process
 
-- Account data: email address, authentication provider ID, Firebase UID
+- Account data: email address, password hash (stored locally)
 - App data: favorites, search history, settings (stored locally on device)
 - Diagnostics: optional crash/error data via Sentry (if configured)
 
 ## How We Use Data
 
 - Authenticate users (email/password)
-- Send password-reset emails through Firebase Auth
+- Process account login/sign-up/password reset requests
 - Persist and show your local learning history
 - Improve reliability through error monitoring (optional)
 
 ## Storage & Security
 
+<<<<<<< HEAD
+
 - Authentication state is managed by Firebase Auth persistence on device
-- App content data is stored in app-local storage on device
+- # App content data is stored in app-local storage on device
+- Authentication state is managed locally on device
+- App content data is stored in local SQLite on device
+    > > > > > > > main
 - Exported backup files are user-managed; we do not collect them
 
 ## Third-Party Services
 
-- Firebase Authentication (Google LLC)
 - Optional Sentry crash monitoring
 
 ## Your Choices

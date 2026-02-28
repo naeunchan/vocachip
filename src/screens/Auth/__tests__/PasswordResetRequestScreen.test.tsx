@@ -52,8 +52,8 @@ describe("PasswordResetRequestScreen", () => {
             { wrapper },
         );
 
-        fireEvent.changeText(getByPlaceholderText("가입 이메일 (example@vocachip.com)"), "TESTER@EXAMPLE.COM ");
-        fireEvent.press(getByLabelText("재설정 메일 보내기"));
+        fireEvent.changeText(getByPlaceholderText("가입 이메일 (example@vocationary.com)"), "TESTER@EXAMPLE.COM ");
+        fireEvent.press(getByLabelText("인증 코드 받기"));
 
         await waitFor(() => {
             expect(onRequestCode).toHaveBeenCalledWith("tester@example.com");
@@ -79,8 +79,8 @@ describe("PasswordResetRequestScreen", () => {
             { wrapper },
         );
 
-        fireEvent.changeText(getByPlaceholderText("가입 이메일 (example@vocachip.com)"), "nobody@example.com");
-        fireEvent.press(getByLabelText("재설정 메일 보내기"));
+        fireEvent.changeText(getByPlaceholderText("가입 이메일 (example@vocationary.com)"), "nobody@example.com");
+        fireEvent.press(getByLabelText("인증 코드 받기"));
 
         await waitFor(() => {
             expect(alertSpy).toHaveBeenCalledWith("비밀번호 재설정", "가입된 이메일 계정을 찾을 수 없어요.");

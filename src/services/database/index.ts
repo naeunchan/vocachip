@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import * as Crypto from "expo-crypto";
 import { getRandomBytesAsync } from "expo-crypto";
 
-import { createRestoreError, createRestoreSuccess, type RestoreResult } from "@/services/backup/restoreResult";
+import { createRestoreSuccess, type RestoreResult } from "@/services/backup/restoreResult";
 import { validateBackupPayload } from "@/services/backup/validateBackupPayload";
 import type { DictionaryMode } from "@/services/dictionary/types";
 import type { FavoriteWordEntry } from "@/services/favorites/types";
@@ -38,8 +38,6 @@ export type UserRecord = {
     username: string;
     displayName: string | null;
     phoneNumber: string | null;
-    oauthProvider?: string | null;
-    oauthSubject?: string | null;
 };
 
 type UserWithPasswordRecord = UserRecord & {
@@ -101,8 +99,6 @@ function mapUserRow(row: UserRow, fallbackDisplayName?: string): UserRecord {
         username: row.username,
         displayName: row.display_name ?? fallbackDisplayName ?? null,
         phoneNumber: row.phone_number ?? null,
-        oauthProvider: row.oauth_provider ?? null,
-        oauthSubject: row.oauth_sub ?? null,
     };
 }
 

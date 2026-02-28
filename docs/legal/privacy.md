@@ -1,8 +1,8 @@
-# Privacy Policy (Vocationary)
+# Privacy Policy (Vocachip)
 
 _Last updated: 2026-02-21_
 
-Vocationary uses Firebase Authentication for account sign-in and keeps learning data on your device. We do not sell personal data.
+Vocachip uses Firebase Authentication for account sign-in and keeps learning data on your device. We do not sell personal data.
 
 ## Data We Process
 
@@ -20,7 +20,7 @@ Vocationary uses Firebase Authentication for account sign-in and keeps learning 
 ## Storage & Security
 
 - Authentication state is managed by Firebase Auth persistence on device
-- App content data is stored in local SQLite on device
+- App content data is stored in app-local storage on device
 - Exported backup files are user-managed; we do not collect them
 
 ## Third-Party Services
@@ -36,6 +36,6 @@ Vocationary uses Firebase Authentication for account sign-in and keeps learning 
 
 ## Contact
 
-- Email: support@vocationary.app
+- Email: support@vocachip.app
 
 If you host this file elsewhere, update `PRIVACY_POLICY_URL` in `src/config/legal.ts` before release.

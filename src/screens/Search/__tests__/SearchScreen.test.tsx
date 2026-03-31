@@ -74,6 +74,7 @@ const baseProps = {
     onSubmit: jest.fn(),
     loading: false,
     error: null,
+    aiStatusMessage: null,
     result: null,
     examplesVisible: false,
     onToggleExamples: jest.fn(),
@@ -81,6 +82,7 @@ const baseProps = {
     isCurrentFavorite: false,
     onPlayPronunciation: jest.fn(),
     pronunciationAvailable: false,
+    pronunciationLoading: false,
     autocompleteSuggestions: [],
     autocompleteLoading: false,
     onSelectAutocomplete: jest.fn(),
@@ -116,6 +118,16 @@ describe("SearchScreen", () => {
         expect(getByText("검색 결과가 여기에 표시됩니다")).toBeTruthy();
         expect(mockSearchResults).not.toHaveBeenCalled();
         expect(getByText("AI 발음/예문 준비 중")).toBeTruthy();
+    });
+
+    it("renders ai activity banner when ai work is in progress", () => {
+        const { getByTestId, getByText } = render(
+            <SearchScreen {...baseProps} aiStatusMessage="AI 예문을 생성하고 있어요." />,
+            { wrapper },
+        );
+
+        expect(getByTestId("search-ai-activity")).toBeTruthy();
+        expect(getByText("AI 예문을 생성하고 있어요.")).toBeTruthy();
     });
 
     it("renders empty-state copy after a search with no result", () => {

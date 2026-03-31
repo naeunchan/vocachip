@@ -12,6 +12,7 @@ export type SearchScreenProps = {
     loading: boolean;
     error: AppError | null;
     aiAssistError?: AppError | null;
+    aiStatusMessage?: string | null;
     result: WordResult | null;
     examplesVisible: boolean;
     onToggleExamples: () => void;
@@ -19,6 +20,7 @@ export type SearchScreenProps = {
     isCurrentFavorite: boolean;
     onPlayPronunciation: () => void;
     pronunciationAvailable: boolean;
+    pronunciationLoading?: boolean;
     autocompleteSuggestions: string[];
     autocompleteLoading: boolean;
     onSelectAutocomplete: (term: string) => void;

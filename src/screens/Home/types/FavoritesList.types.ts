@@ -6,6 +6,7 @@ export type FavoritesListProps = {
     onMoveToReview: (word: string) => void;
     onPlayAudio: (word: FavoriteWordEntry["word"]) => void;
     pronunciationAvailable: boolean;
+    audioLoadingWord?: string | null;
 };
 
 export type FavoriteItemProps = {
@@ -13,4 +14,5 @@ export type FavoriteItemProps = {
     onMoveToReview: (word: string) => void;
     onPlayAudio: (word: FavoriteWordEntry["word"]) => void;
     pronunciationAvailable: boolean;
+    audioLoadingWord?: string | null;
 };

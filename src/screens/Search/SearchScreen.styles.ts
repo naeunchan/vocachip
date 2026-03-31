@@ -48,6 +48,23 @@ export const createSearchScreenStyles = (theme: AppThemeColors, fontScale: numbe
             color: theme.textSecondary,
             lineHeight: scaleFont(19, fontScale),
         },
+        aiActivityBar: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderRadius: 14,
+            backgroundColor: theme.cardMuted,
+            borderWidth: 1,
+            borderColor: theme.border,
+        },
+        aiActivityText: {
+            flex: 1,
+            fontSize: scaleFont(13, fontScale),
+            fontWeight: "600",
+            color: theme.textPrimary,
+        },
         resultsWrapper: {
             marginTop: 8,
         },

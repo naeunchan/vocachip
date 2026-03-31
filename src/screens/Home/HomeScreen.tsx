@@ -17,6 +17,7 @@ export function HomeScreen({
     userName,
     onPlayWordAudio,
     pronunciationAvailable,
+    audioLoadingWord,
     reviewEnabled,
     reviewSummary,
     reviewSession,
@@ -89,6 +90,7 @@ export function HomeScreen({
                             }}
                             onPlayAudio={onPlayWordAudio}
                             pronunciationAvailable={pronunciationAvailable}
+                            audioLoadingWord={audioLoadingWord}
                         />
                     </>
                 )}

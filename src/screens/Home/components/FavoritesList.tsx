@@ -1,10 +1,11 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { FAVORITES_LIST_TEXT } from "@/screens/Home/constants";
 import { createFavoritesListStyles } from "@/screens/Home/styles/FavoritesList.styles";
 import { FavoritesListProps } from "@/screens/Home/types/FavoritesList.types";
+import { createReviewProgressKey } from "@/services/review";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 
@@ -14,6 +15,7 @@ export function FavoritesList({
     onMoveToReview,
     onPlayAudio,
     pronunciationAvailable,
+    audioLoadingWord,
 }: FavoritesListProps) {
     const styles = useThemedStyles(createFavoritesListStyles);
     const { theme } = useAppAppearance();
@@ -36,6 +38,10 @@ export function FavoritesList({
                                 item.word.meanings[0]?.definitions[0]?.definition ?? "뜻 정보가 없어요.";
                             const phonetic = item.word.phonetic;
                             const hasAudio = pronunciationAvailable && Boolean(item.word.word?.trim());
+                            const isAudioLoading =
+                                hasAudio &&
+                                createReviewProgressKey(audioLoadingWord ?? "") ===
+                                    createReviewProgressKey(item.word.word);
                             const isLast = index === entries.length - 1;
 
                             return (
@@ -53,9 +59,18 @@ export function FavoritesList({
                                                     onPress={() => {
                                                         onPlayAudio(item.word);
                                                     }}
+                                                    disabled={isAudioLoading}
                                                     accessibilityLabel={`${item.word.word} 발음 듣기`}
                                                 >
-                                                    <MaterialIcons name="volume-up" size={22} color={theme.accent} />
+                                                    {isAudioLoading ? (
+                                                        <ActivityIndicator size="small" color={theme.accent} />
+                                                    ) : (
+                                                        <MaterialIcons
+                                                            name="volume-up"
+                                                            size={22}
+                                                            color={theme.accent}
+                                                        />
+                                                    )}
                                                 </TouchableOpacity>
                                             ) : null}
                                             <TouchableOpacity

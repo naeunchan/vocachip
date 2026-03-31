@@ -20,6 +20,7 @@ type SearchResultsProps = {
     onToggleFavorite: (word: WordResult) => void;
     onPlayPronunciation: () => void;
     pronunciationAvailable: boolean;
+    pronunciationLoading?: boolean;
     onRetry?: () => void;
     onRetryAiAssist?: () => void;
     onRegenerateExamples?: () => void;
@@ -36,6 +37,7 @@ export function SearchResults({
     onToggleFavorite,
     onPlayPronunciation,
     pronunciationAvailable,
+    pronunciationLoading,
     onRetry,
     onRetryAiAssist,
     onRegenerateExamples,
@@ -90,6 +92,7 @@ export function SearchResults({
                 onToggleFavorite={onToggleFavorite}
                 onPlayPronunciation={onPlayPronunciation}
                 pronunciationAvailable={pronunciationAvailable}
+                pronunciationLoading={pronunciationLoading}
                 examplesVisible={examplesVisible}
                 onToggleExamples={onToggleExamples}
                 onRegenerateExamples={onRegenerateExamples}

@@ -76,6 +76,23 @@ describe("FavoritesFlashcard", () => {
         expect(onPlayAudio).toHaveBeenCalledWith(entries[0].word);
     });
 
+    it("disables audio button while the current word audio is loading", () => {
+        const entries = [buildEntry()];
+        const onPlayAudio = jest.fn();
+
+        const { getByLabelText } = render(
+            <FavoritesFlashcard
+                {...defaultProps}
+                entries={entries}
+                onPlayAudio={onPlayAudio}
+                audioLoadingWord="apple"
+            />,
+        );
+
+        fireEvent.press(getByLabelText("apple 발음 듣기"));
+        expect(onPlayAudio).not.toHaveBeenCalled();
+    });
+
     it("moves to next status when action pressed for toMemorize", () => {
         const entries = [buildEntry()];
         const onMoveToStatus = jest.fn();

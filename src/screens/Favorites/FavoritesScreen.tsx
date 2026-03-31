@@ -17,6 +17,7 @@ export function FavoritesScreen({
     onRemoveFavorite,
     onPlayAudio,
     pronunciationAvailable,
+    audioLoadingWord,
     collectionsEnabled,
     collections,
     collectionMemberships,
@@ -373,6 +374,7 @@ export function FavoritesScreen({
                         onRemoveFavorite={onRemoveFavorite}
                         onPlayAudio={onPlayAudio}
                         pronunciationAvailable={pronunciationAvailable}
+                        audioLoadingWord={audioLoadingWord}
                         onVisibleWordChange={setVisibleWord}
                     />
                 ) : (

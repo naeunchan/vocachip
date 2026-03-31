@@ -124,6 +124,16 @@ function formatReminderLabel(value: Date | null): string | null {
     return `${period} ${hour}:${minute}`;
 }
 
+function hasPendingExamplesForResult(result: WordResult | null): boolean {
+    if (!result) {
+        return false;
+    }
+
+    return result.meanings.some((meaning) =>
+        meaning.definitions.some((definition) => Boolean(definition.pendingExample)),
+    );
+}
+
 export function useAppScreen(): AppScreenHookResult {
     const openAIEnabled = isOpenAIFeatureEnabled();
     const [versionLabel] = useState(() => {
@@ -154,6 +164,7 @@ export function useAppScreen(): AppScreenHookResult {
     const [reviewReminderSettings, setReviewReminderSettings] = useState<ReviewReminderSettings>(
         createDefaultReviewReminderSettings,
     );
+    const [audioLoadingWord, setAudioLoadingWord] = useState<string | null>(null);
     const reviewStreakStateRef = useRef(reviewStreakState);
     reviewStreakStateRef.current = reviewStreakState;
 
@@ -213,6 +224,9 @@ export function useAppScreen(): AppScreenHookResult {
             return;
         }
 
+        const currentWordKey = createReviewProgressKey(currentWord);
+        setAudioLoadingWord(currentWord);
+
         try {
             const uri = await getPronunciationAudio(currentWord);
             await playRemoteAudio(uri);
@@ -222,6 +236,10 @@ export function useAppScreen(): AppScreenHookResult {
             showAudioErrorAlert(appError, () => {
                 void playPronunciationAsync();
             });
+        } finally {
+            setAudioLoadingWord((previous) =>
+                createReviewProgressKey(previous ?? "") === currentWordKey ? null : previous,
+            );
         }
     }, [openAIEnabled, reportAiAssistError, searchFlow.result?.word, showAudioErrorAlert]);
 
@@ -241,6 +259,9 @@ export function useAppScreen(): AppScreenHookResult {
                 return;
             }
 
+            const targetKey = createReviewProgressKey(target);
+            setAudioLoadingWord(target);
+
             try {
                 const uri = await getPronunciationAudio(target);
                 await playRemoteAudio(uri);
@@ -250,6 +271,10 @@ export function useAppScreen(): AppScreenHookResult {
                 showAudioErrorAlert(appError, () => {
                     void handlePlayWordAudioAsync(word);
                 });
+            } finally {
+                setAudioLoadingWord((previous) =>
+                    createReviewProgressKey(previous ?? "") === targetKey ? null : previous,
+                );
             }
         },
         [openAIEnabled, reportAiAssistError, showAudioErrorAlert],
@@ -269,6 +294,14 @@ export function useAppScreen(): AppScreenHookResult {
         }
         return sessionFlow.collectionMemberships[createReviewProgressKey(currentWord)] ?? null;
     }, [searchFlow.result?.word, sessionFlow.collectionMemberships]);
+    const searchPronunciationLoading = useMemo(() => {
+        const currentWord = searchFlow.result?.word;
+        if (!currentWord || !audioLoadingWord) {
+            return false;
+        }
+
+        return createReviewProgressKey(currentWord) === createReviewProgressKey(audioLoadingWord);
+    }, [audioLoadingWord, searchFlow.result?.word]);
 
     const [reviewSession, setReviewSession] = useState<ReviewSessionState>(null);
     const reviewSessionRef = useRef<ReviewSessionState>(null);
@@ -726,6 +759,21 @@ export function useAppScreen(): AppScreenHookResult {
         () => (studySessionViewModel?.source === "favorites" ? studySessionViewModel : null),
         [studySessionViewModel],
     );
+    const searchAiStatusMessage = useMemo(() => {
+        if (searchStudySessionViewModel?.status === "loading") {
+            return "AI 학습 카드를 준비하고 있어요.";
+        }
+
+        if (searchFlow.examplesVisible && hasPendingExamplesForResult(searchFlow.result)) {
+            return "AI 예문을 생성하고 있어요.";
+        }
+
+        if (searchPronunciationLoading) {
+            return "AI 발음을 준비하고 있어요.";
+        }
+
+        return null;
+    }, [searchFlow.examplesVisible, searchFlow.result, searchPronunciationLoading, searchStudySessionViewModel]);
 
     const navigatorProps = useMemo<RootTabNavigatorProps>(
         () => ({
@@ -737,6 +785,7 @@ export function useAppScreen(): AppScreenHookResult {
                     void handlePlayWordAudioAsync(word);
                 },
                 pronunciationAvailable: openAIEnabled,
+                audioLoadingWord,
                 reviewEnabled: reviewDashboardEnabled && reviewSessionEnabled,
                 reviewSummary: {
                     dueCount: dueReviewCount,
@@ -764,6 +813,7 @@ export function useAppScreen(): AppScreenHookResult {
                     void handlePlayWordAudioAsync(word);
                 },
                 pronunciationAvailable: openAIEnabled,
+                audioLoadingWord,
                 collectionsEnabled,
                 collections: sessionFlow.collections,
                 collectionMemberships: sessionFlow.collectionMemberships,
@@ -800,6 +850,8 @@ export function useAppScreen(): AppScreenHookResult {
                     void playPronunciationAsync();
                 },
                 pronunciationAvailable: openAIEnabled,
+                pronunciationLoading: searchPronunciationLoading,
+                aiStatusMessage: searchAiStatusMessage,
                 autocompleteSuggestions: searchFlow.autocompleteSuggestions,
                 autocompleteLoading: searchFlow.autocompleteLoading,
                 onSelectAutocomplete: searchFlow.onSelectAutocomplete,
@@ -864,6 +916,7 @@ export function useAppScreen(): AppScreenHookResult {
             appearanceFlow.onShowOnboarding,
             appearanceFlow.onThemeModeChange,
             appearanceFlow.themeMode,
+            audioLoadingWord,
             collectionsEnabled,
             currentResultCollectionId,
             dailyGoalEnabled,
@@ -896,6 +949,7 @@ export function useAppScreen(): AppScreenHookResult {
             reviewSessionEnabled,
             reviewSessionViewModel,
             reviewStreakState,
+            searchAiStatusMessage,
             searchStudySessionViewModel,
             searchFlow.aiAssistError,
             searchFlow.autocompleteLoading,
@@ -916,6 +970,7 @@ export function useAppScreen(): AppScreenHookResult {
             searchFlow.recentSearches,
             searchFlow.result,
             searchFlow.searchTerm,
+            searchPronunciationLoading,
             sessionFlow.canLogout,
             sessionFlow.collectionMemberships,
             sessionFlow.collections,

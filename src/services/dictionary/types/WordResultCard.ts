@@ -5,6 +5,7 @@ export type WordResultCardProps = {
     onToggleFavorite: (word: WordResult) => void;
     onPlayPronunciation: () => void;
     pronunciationAvailable: boolean;
+    pronunciationLoading?: boolean;
     isFavorite: boolean;
     examplesVisible: boolean;
     onToggleExamples: () => void;

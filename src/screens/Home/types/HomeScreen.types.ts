@@ -9,6 +9,7 @@ export type HomeScreenProps = {
     userName: string;
     onPlayWordAudio: (word: FavoriteWordEntry["word"]) => void;
     pronunciationAvailable: boolean;
+    audioLoadingWord?: string | null;
     reviewEnabled: boolean;
     reviewSummary: {
         dueCount: number;

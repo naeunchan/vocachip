@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 import { MaterialIcons } from "@/components/AppIcon";
 import { FAVORITES_FLASHCARD_ICONS } from "@/screens/Favorites/components/constants";
 import { createFavoritesFlashcardStyles } from "@/screens/Favorites/components/FavoritesFlashcard.styles";
 import { FavoritesFlashcardProps } from "@/screens/Favorites/components/FavoritesFlashcard.types";
 import { MemorizationStatus } from "@/services/favorites/types";
+import { createReviewProgressKey } from "@/services/review";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 
@@ -16,6 +17,7 @@ export function FavoritesFlashcard({
     onRemoveFavorite,
     onPlayAudio,
     pronunciationAvailable,
+    audioLoadingWord,
     onVisibleWordChange,
 }: FavoritesFlashcardProps) {
     const styles = useThemedStyles(createFavoritesFlashcardStyles);
@@ -63,6 +65,12 @@ export function FavoritesFlashcard({
     const hasAudio = useMemo(
         () => pronunciationAvailable && Boolean(currentEntry?.word.word?.trim()),
         [currentEntry, pronunciationAvailable],
+    );
+    const isAudioLoading = useMemo(
+        () =>
+            hasAudio &&
+            createReviewProgressKey(audioLoadingWord ?? "") === createReviewProgressKey(currentEntry?.word.word ?? ""),
+        [audioLoadingWord, currentEntry?.word.word, hasAudio],
     );
     const primaryDefinition = useMemo(() => {
         const word = currentEntry?.word;
@@ -191,9 +199,14 @@ export function FavoritesFlashcard({
                         <TouchableOpacity
                             style={styles.actionButton}
                             onPress={handlePlayAudio}
+                            disabled={isAudioLoading}
                             accessibilityLabel={`${currentEntry.word.word} 발음 듣기`}
                         >
-                            <MaterialIcons name="volume-up" size={28} color={theme.accent} />
+                            {isAudioLoading ? (
+                                <ActivityIndicator size="small" color={theme.accent} />
+                            ) : (
+                                <MaterialIcons name="volume-up" size={28} color={theme.accent} />
+                            )}
                         </TouchableOpacity>
                     ) : null}
                     <TouchableOpacity

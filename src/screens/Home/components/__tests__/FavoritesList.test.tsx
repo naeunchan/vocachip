@@ -74,4 +74,22 @@ describe("FavoritesList", () => {
         expect(getByText("커스텀 메시지")).toBeTruthy();
         expect(queryByText("외울 단어장")).toBeTruthy();
     });
+
+    it("disables the loading audio button for the active word", () => {
+        const onPlayAudio = jest.fn();
+        const entries = [createFavoriteEntry()];
+
+        const { getByLabelText } = render(
+            <FavoritesList
+                entries={entries}
+                onMoveToReview={jest.fn()}
+                onPlayAudio={onPlayAudio}
+                pronunciationAvailable
+                audioLoadingWord="apple"
+            />,
+        );
+
+        fireEvent.press(getByLabelText("apple 발음 듣기"));
+        expect(onPlayAudio).not.toHaveBeenCalled();
+    });
 });

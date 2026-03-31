@@ -1,6 +1,6 @@
 import { Button, TextField as TDSTextField, Top } from "@toss/tds-react-native";
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@/components/AppIcon";
@@ -21,6 +21,7 @@ export function SearchScreen({
     loading,
     error,
     aiAssistError,
+    aiStatusMessage,
     result,
     examplesVisible,
     onToggleExamples,
@@ -28,6 +29,7 @@ export function SearchScreen({
     isCurrentFavorite,
     onPlayPronunciation,
     pronunciationAvailable,
+    pronunciationLoading,
     autocompleteSuggestions,
     autocompleteLoading,
     onSelectAutocomplete,
@@ -117,6 +119,13 @@ export function SearchScreen({
                     onSelectSuggestion={onSelectAutocomplete}
                 />
 
+                {aiStatusMessage ? (
+                    <View style={styles.aiActivityBar} testID="search-ai-activity">
+                        <ActivityIndicator size="small" color={theme.accent} />
+                        <Text style={styles.aiActivityText}>{aiStatusMessage}</Text>
+                    </View>
+                ) : null}
+
                 <View style={styles.resultsWrapper}>
                     {showPlaceholder ? (
                         <View style={styles.placeholderCard}>
@@ -141,6 +150,7 @@ export function SearchScreen({
                             onToggleFavorite={onToggleFavorite}
                             onPlayPronunciation={onPlayPronunciation}
                             pronunciationAvailable={pronunciationAvailable}
+                            pronunciationLoading={pronunciationLoading}
                             onRetry={onRetry ?? onSubmit}
                             onRetryAiAssist={onRetryAiAssist}
                             onRegenerateExamples={onRegenerateExamples}

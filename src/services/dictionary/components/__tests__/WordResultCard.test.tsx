@@ -168,4 +168,24 @@ describe("WordResultCard", () => {
         fireEvent.press(getByText("다른 예문 생성"));
         expect(onRegenerateExamples).toHaveBeenCalled();
     });
+
+    it("disables pronunciation button while audio is loading", () => {
+        const onPlayPronunciation = jest.fn();
+        const { getByLabelText } = render(
+            <WordResultCard
+                result={baseResult}
+                onToggleFavorite={jest.fn()}
+                onPlayPronunciation={onPlayPronunciation}
+                pronunciationAvailable
+                pronunciationLoading
+                isFavorite={false}
+                examplesVisible={false}
+                onToggleExamples={jest.fn()}
+            />,
+            { wrapper },
+        );
+
+        fireEvent.press(getByLabelText("apple 발음 듣기"));
+        expect(onPlayPronunciation).not.toHaveBeenCalled();
+    });
 });

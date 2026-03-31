@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@/components/AppIcon";
 import { createWordResultCardStyles } from "@/services/dictionary/styles/WordResultCard.styles";
@@ -15,6 +15,7 @@ export function WordResultCard({
     examplesVisible,
     onToggleExamples,
     pronunciationAvailable,
+    pronunciationLoading,
     onRegenerateExamples,
 }: WordResultCardProps) {
     const styles = useThemedStyles(createWordResultCardStyles);
@@ -31,6 +32,7 @@ export function WordResultCard({
     const toggleButtonLabel = loadingExamples ? "예문을 불러오는 중..." : examplesVisible ? "예문 숨기기" : "예문 보기";
     const canRegenerateExamples = examplesVisible && typeof onRegenerateExamples === "function";
     const regenerateButtonLabel = loadingExamples ? "새 예문 생성 중..." : "다른 예문 생성";
+    const isPronunciationLoading = Boolean(pronunciationLoading && canPlayAudio);
     return (
         <View style={styles.resultCard}>
             <View style={styles.resultHeader}>
@@ -41,8 +43,17 @@ export function WordResultCard({
                 </View>
                 <View style={styles.resultActions}>
                     {canPlayAudio ? (
-                        <TouchableOpacity onPress={onPlayPronunciation} style={styles.iconButton}>
-                            <Ionicons name="volume-high-outline" size={20} color={theme.textPrimary} />
+                        <TouchableOpacity
+                            onPress={onPlayPronunciation}
+                            style={styles.iconButton}
+                            disabled={isPronunciationLoading}
+                            accessibilityLabel={`${result.word} 발음 듣기`}
+                        >
+                            {isPronunciationLoading ? (
+                                <ActivityIndicator size="small" color={theme.accent} />
+                            ) : (
+                                <Ionicons name="volume-high-outline" size={20} color={theme.textPrimary} />
+                            )}
                         </TouchableOpacity>
                     ) : null}
                     <TouchableOpacity
@@ -112,11 +123,15 @@ export function WordResultCard({
                     disabled={loadingExamples}
                     activeOpacity={loadingExamples ? 1 : 0.9}
                 >
-                    <Ionicons
-                        name={examplesVisible ? "chevron-up-outline" : "book-outline"}
-                        size={18}
-                        color={loadingExamples ? theme.textMuted : theme.accentContrast}
-                    />
+                    {loadingExamples ? (
+                        <ActivityIndicator size="small" color={theme.textMuted} />
+                    ) : (
+                        <Ionicons
+                            name={examplesVisible ? "chevron-up-outline" : "book-outline"}
+                            size={18}
+                            color={theme.accentContrast}
+                        />
+                    )}
                     <Text
                         style={[
                             styles.exampleToggleButtonText,
@@ -133,11 +148,11 @@ export function WordResultCard({
                         disabled={loadingExamples}
                         activeOpacity={loadingExamples ? 1 : 0.9}
                     >
-                        <Ionicons
-                            name="refresh-outline"
-                            size={18}
-                            color={loadingExamples ? theme.textMuted : theme.textPrimary}
-                        />
+                        {loadingExamples ? (
+                            <ActivityIndicator size="small" color={theme.textMuted} />
+                        ) : (
+                            <Ionicons name="refresh-outline" size={18} color={theme.textPrimary} />
+                        )}
                         <Text
                             style={[
                                 styles.regenerateButtonText,

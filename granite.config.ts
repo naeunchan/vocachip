@@ -3,8 +3,11 @@ import { env } from "@granite-js/plugin-env";
 import { defineConfig } from "@granite-js/react-native/config";
 
 const path = require("path");
+const { loadProjectEnv } = require(path.resolve(process.cwd(), "scripts/release/load-project-env.js"));
 const packageJson = require(path.resolve(process.cwd(), "package.json"));
 const staticConfig = require(path.resolve(process.cwd(), "app.json"));
+
+loadProjectEnv({ rootDir: process.cwd() });
 
 function parseBoolean(value?: string | null) {
     if (!value) return null;

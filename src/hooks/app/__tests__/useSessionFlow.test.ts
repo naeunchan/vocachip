@@ -9,6 +9,12 @@ import {
     ONBOARDING_PREFERENCE_KEY,
 } from "@/theme/constants";
 
+jest.mock("@/config/featureFlags", () => ({
+    FEATURE_FLAGS: {
+        accountAuth: true,
+    },
+}));
+
 jest.mock("@/logging/logger", () => ({
     setUserContext: jest.fn(),
 }));
@@ -72,6 +78,7 @@ const mockUpsertReviewProgressForUser = database.upsertReviewProgressForUser as 
 >;
 const mockImportBackupFromDocument = jest.requireMock("@/services/backup/manualBackup")
     .importBackupFromDocument as jest.Mock;
+const { FEATURE_FLAGS } = jest.requireMock<typeof import("@/config/featureFlags")>("@/config/featureFlags");
 
 const searchBridge = (): { current: SearchFlowBridge | null } => ({
     current: {
@@ -131,6 +138,7 @@ describe("useSessionFlow", () => {
             code: "OK",
             restored: { users: 0, favorites: 0, searchHistory: 0 },
         });
+        FEATURE_FLAGS.accountAuth = true;
     });
 
     it("merges guest favorites into the logged-in user during bootstrap", async () => {
@@ -200,7 +208,8 @@ describe("useSessionFlow", () => {
         await waitFor(() => {
             expect(mockSetGuestSession).toHaveBeenCalled();
             expect(mockSetPreferenceValue).toHaveBeenCalledWith(GUEST_USED_PREFERENCE_KEY, "true");
-            expect(setOnboardingVisible).toHaveBeenCalledWith(true);
+            expect(mockSetPreferenceValue).toHaveBeenCalledWith(ONBOARDING_PREFERENCE_KEY, "true");
+            expect(setOnboardingVisible).toHaveBeenCalledWith(false);
             expect(result.current.isGuest).toBe(true);
         });
 
@@ -259,6 +268,33 @@ describe("useSessionFlow", () => {
         expect(mockImportBackupFromDocument).toHaveBeenCalledWith("secret");
         expect(bridgeRef.current?.reloadRecentSearches).toHaveBeenCalled();
         expect(mockFindUserByUsername).toHaveBeenCalledWith("tester@example.com");
+    });
+
+    it("boots into guest mode automatically when account auth is disabled", async () => {
+        FEATURE_FLAGS.accountAuth = false;
+        mockGetActiveSession.mockResolvedValueOnce(null).mockResolvedValueOnce({ isGuest: true, user: null });
+
+        const bridgeRef = searchBridge();
+        const syncOnboardingVisibilityAfterAuthentication = jest.fn().mockResolvedValue(undefined);
+        const setOnboardingVisible = jest.fn();
+
+        const { result } = renderHook(() =>
+            useSessionFlow({
+                searchFlowBridgeRef: bridgeRef as any,
+                setOnboardingVisible,
+                syncOnboardingVisibilityAfterAuthentication,
+            }),
+        );
+
+        await waitFor(() => {
+            expect(result.current.initializing).toBe(false);
+        });
+
+        expect(mockSetGuestSession).toHaveBeenCalled();
+        expect(mockSetPreferenceValue).toHaveBeenCalledWith(ONBOARDING_PREFERENCE_KEY, "true");
+        expect(result.current.isGuest).toBe(true);
+        expect(result.current.isAuthenticated).toBe(true);
+        expect(setOnboardingVisible).not.toHaveBeenCalled();
     });
 
     it("applies review outcomes and persists review progress for authenticated users", async () => {

@@ -1,18 +1,19 @@
+import { TDSProvider } from "@toss/tds-react-native";
 import React, { useMemo } from "react";
 import { StatusBar, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppNavigator } from "@/components/AppNavigator";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppScreen } from "@/hooks/useAppScreen";
 import { INITIAL_LOADING_MESSAGE } from "@/screens/App/AppScreen.constants";
 import { createAppScreenStyles } from "@/screens/App/AppScreen.styles";
+import type { AppScreenProps } from "@/screens/App/AppScreen.types";
 import { AuthNavigator } from "@/screens/Auth/AuthNavigator";
 import { OnboardingModal } from "@/screens/Onboarding/OnboardingModal";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 import { APP_THEMES } from "@/theme/themes";
 
-export function AppScreen() {
+export function AppScreen({ initialTab }: AppScreenProps) {
     const {
         initializing,
         appearanceReady,
@@ -35,7 +36,7 @@ export function AppScreen() {
             onChangeMode={onThemeModeChange}
             onChangeFontScale={onFontScaleChange}
         >
-            <SafeAreaProvider>
+            <TDSProvider colorPreference={themeMode === "dark" ? "dark" : "light"}>
                 <StatusBar barStyle={themeMode === "dark" ? "light-content" : "dark-content"} />
                 <View style={styles.container}>
                     <View style={styles.content}>
@@ -44,12 +45,12 @@ export function AppScreen() {
                         ) : !isAuthenticated ? (
                             <AuthNavigator loginProps={loginBindings} />
                         ) : (
-                            <AppNavigator {...navigatorProps} />
+                            <AppNavigator {...navigatorProps} initialTab={initialTab} />
                         )}
                     </View>
                 </View>
                 <OnboardingModal visible={isOnboardingVisible} onComplete={onCompleteOnboarding} />
-            </SafeAreaProvider>
+            </TDSProvider>
         </AppAppearanceProvider>
     );
 }

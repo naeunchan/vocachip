@@ -15,11 +15,18 @@ import { useThemedStyles } from "@/theme/useThemedStyles";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-export function RootTabNavigator({ home, favorites: favoritesTab, search, settings }: RootTabNavigatorProps) {
+export function RootTabNavigator({
+    initialTab,
+    home,
+    favorites: favoritesTab,
+    search,
+    settings,
+}: RootTabNavigatorProps) {
     const tabStyles = useThemedStyles(createTabStyles);
     const { theme } = useAppAppearance();
     return (
         <Tab.Navigator
+            initialRouteName={initialTab}
             screenOptions={({ route }) => {
                 const { icon, label } = TAB_VISUAL_CONFIG[route.name];
                 return {

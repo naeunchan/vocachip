@@ -12,11 +12,30 @@ jest.mock("@expo/vector-icons/Ionicons", () => {
     return (props: { name: string }) => <Text>{props.name}</Text>;
 });
 
-jest.mock("@/components/TextField", () => ({
+jest.mock("@toss/tds-react-native", () => ({
+    Button: ({ children, onPress, disabled, accessibilityLabel }: any) => {
+        const React = require("react");
+        const { Pressable, Text } = require("react-native");
+        return (
+            <Pressable onPress={onPress} disabled={disabled} accessibilityLabel={accessibilityLabel}>
+                <Text>{children}</Text>
+            </Pressable>
+        );
+    },
     TextField: ({ value, onChangeText, placeholder }: any) => {
         const React = require("react");
         const { TextInput } = require("react-native");
         return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} />;
+    },
+    Top: ({ title, subtitle1 }: any) => {
+        const React = require("react");
+        const { Text, View } = require("react-native");
+        return (
+            <View>
+                <Text>{title}</Text>
+                {subtitle1 ? <Text>{subtitle1}</Text> : null}
+            </View>
+        );
     },
 }));
 

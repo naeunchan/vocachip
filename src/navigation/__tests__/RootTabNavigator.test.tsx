@@ -8,6 +8,7 @@ const mockHomeScreen = jest.fn(() => null);
 const mockFavoritesScreen = jest.fn(() => null);
 const mockSearchScreen = jest.fn(() => null);
 const mockSettingsNavigator = jest.fn(() => null);
+const mockTabNavigator = jest.fn(({ children }: { children: React.ReactNode }) => <>{children}</>);
 
 jest.mock("@expo/vector-icons", () => ({
     MaterialIcons: () => null,
@@ -33,7 +34,7 @@ jest.mock("@react-navigation/bottom-tabs", () => {
     const React = require("react");
     return {
         createBottomTabNavigator: () => {
-            const Navigator = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+            const Navigator = (props: { children: React.ReactNode }) => mockTabNavigator(props);
             const Screen = ({ children }: { children: React.ReactNode | ((props: any) => React.ReactNode) }) => (
                 <>{typeof children === "function" ? children({}) : children}</>
             );
@@ -47,6 +48,7 @@ const buildProps = (): RootTabNavigatorProps => {
     const asyncNoop = jest.fn((_arg?: any) => Promise.resolve());
 
     return {
+        initialTab: "Search",
         home: {
             favorites: [],
             onMoveToStatus: jest.fn(),
@@ -183,6 +185,18 @@ describe("RootTabNavigator", () => {
                 onSelectRecentSearch: props.search.onSelectRecentSearch,
                 onClearRecentSearches: props.search.onClearRecentSearches,
                 pronunciationAvailable: props.search.pronunciationAvailable,
+            }),
+        );
+    });
+
+    it("forwards the configured initial tab to the tab navigator", () => {
+        const props = buildProps();
+
+        render(<RootTabNavigator {...props} />);
+
+        expect(mockTabNavigator).toHaveBeenCalledWith(
+            expect.objectContaining({
+                initialRouteName: "Search",
             }),
         );
     });

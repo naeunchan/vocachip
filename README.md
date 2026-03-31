@@ -40,6 +40,7 @@
 
 - The detailed release checklist lives in `docs/release/apps-in-toss-launch-checklist.md`.
 - `npm run build` creates the Apps in Toss bundle as a `.ait` artifact.
+- For release candidates, copy `.env.release.example` to `.env.release` and fill the real `AIT_*` values before running `npm run release:validate` or `npm run build`.
 - Set `AIT_APP_NAME`, `AIT_DISPLAY_NAME`, `AIT_APP_ICON_URL`, and `AIT_PRIMARY_COLOR` before cutting a release build.
 - Production defaults are conservative. If the release should include member login, set `EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH=true` explicitly.
 - When `AIT_APP_NAME` is set on the proxy server, `server/index.js` automatically allows these Toss browser origins:
@@ -77,6 +78,7 @@
             - `production`: guest account CTA `false`, backup/restore `false`
         - `APP_ENV` decides the active profile.
 - `.env.example` includes the current Apps in Toss, client runtime, and server release placeholders.
+- `.env.release.example` is the dedicated release-candidate template for Apps in Toss production builds.
 - Scheduled proxy monitoring is available via GitHub Actions `AI Metrics Monitor`.
   Configure repository variable `AI_METRICS_URL` and secret `AI_PROXY_KEY`, then use `npm run ai:metrics:check` locally or let the workflow poll `/metrics` every 30 minutes.
 
@@ -88,3 +90,4 @@
 - AI-powered examples/TTS require a backend proxy (`EXPO_PUBLIC_OPENAI_PROXY_URL` + `EXPO_PUBLIC_OPENAI_PROXY_KEY`). Without them, the UI keeps the feature disabled and surfaces an in-app notice.
 - 인증, 세션, 단어장, 검색 기록은 현재 `src/services/database/index.ts`를 통해 관리되며, 원격 백엔드를 기본 전제로 두지 않습니다.
 - Quick start: `cp .env.example .env` 후 값 채우기
+- Release candidate: `cp .env.release.example .env.release` 후 실제 `AIT_*` 값 채우기

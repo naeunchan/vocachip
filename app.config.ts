@@ -1,4 +1,8 @@
-const staticConfig = require("./app.json");
+const path = require("path");
+const { loadProjectEnv } = require(path.resolve(process.cwd(), "scripts/release/load-project-env.js"));
+const staticConfig = require(path.resolve(process.cwd(), "app.json"));
+
+loadProjectEnv({ rootDir: process.cwd() });
 
 function parseBoolean(value) {
     if (!value) return null;

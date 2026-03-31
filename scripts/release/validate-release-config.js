@@ -5,8 +5,11 @@
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
+const { loadProjectEnv } = require("./load-project-env");
 
 const rootDir = path.resolve(__dirname, "..", "..");
+
+loadProjectEnv({ rootDir });
 
 function readJson(filePath) {
     try {

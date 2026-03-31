@@ -130,6 +130,8 @@ The `AI Metrics Monitor` workflow runs every 30 minutes and can also be triggere
 
 ```bash
 cp .env.example .env
+cp .env.release.example .env.release
+npm run release:validate
 npm run lint -- --max-warnings=0
 npm test -- --watch=false
 npm run ai:metrics:check

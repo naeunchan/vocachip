@@ -4,3 +4,5 @@ export type RootTabParamList = {
     Search: undefined;
     Settings: undefined;
 };
+
+export type RootTabRouteName = keyof RootTabParamList;

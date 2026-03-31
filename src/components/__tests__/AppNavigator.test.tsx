@@ -30,6 +30,7 @@ const createProps = (): RootTabNavigatorProps => {
     const noop = jest.fn();
     const asyncNoop = jest.fn(() => Promise.resolve());
     return {
+        initialTab: "Search",
         home: {
             favorites: [],
             onMoveToStatus: jest.fn(),
@@ -138,6 +139,7 @@ describe("AppNavigator", () => {
         expect(getByTestId("root-tab-navigator")).toBeTruthy();
         expect(mockRootTabNavigator).toHaveBeenCalledWith(
             expect.objectContaining({
+                initialTab: "Search",
                 home: expect.objectContaining({ favorites: [] }),
                 favorites: expect.objectContaining({ favorites: [] }),
             }),

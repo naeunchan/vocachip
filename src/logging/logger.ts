@@ -1,10 +1,26 @@
-import * as Sentry from "@sentry/react-native";
-
 import { getRuntimeConfig } from "@/config/runtime";
 import type { AppError } from "@/errors/AppError";
 
+type SentryModule = typeof import("@sentry/react-native");
+
 let initialized = false;
 let hasSentryDsn = false;
+let sentryModule: SentryModule | null | undefined;
+
+function getSentryModule(): SentryModule | null {
+    if (sentryModule !== undefined) {
+        return sentryModule;
+    }
+
+    try {
+        sentryModule = require("@sentry/react-native") as SentryModule;
+    } catch (error) {
+        sentryModule = null;
+        console.warn("[logger] Sentry unavailable in current runtime.", error);
+    }
+
+    return sentryModule;
+}
 
 export function initializeLogging() {
     if (initialized) {
@@ -15,6 +31,11 @@ export function initializeLogging() {
     const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? runtime.sentryDsn;
     if (!dsn) {
         console.info("[logger] Sentry disabled (missing DSN).");
+        return;
+    }
+    const Sentry = getSentryModule();
+    if (!Sentry) {
+        console.info("[logger] Sentry disabled (module unavailable).");
         return;
     }
     Sentry.init({
@@ -31,7 +52,8 @@ export function initializeLogging() {
 }
 
 export function captureException(error: unknown, context?: Record<string, unknown>) {
-    if (hasSentryDsn) {
+    const Sentry = hasSentryDsn ? getSentryModule() : null;
+    if (hasSentryDsn && Sentry) {
         if (context) {
             Sentry.addBreadcrumb({
                 category: "error",
@@ -57,7 +79,8 @@ export function captureAppError(error: AppError, context?: Record<string, unknow
 }
 
 export function setUserContext(userId: number | string | null | undefined) {
-    if (hasSentryDsn) {
+    const Sentry = hasSentryDsn ? getSentryModule() : null;
+    if (hasSentryDsn && Sentry) {
         if (userId) {
             Sentry.setUser({ id: String(userId) });
         } else {

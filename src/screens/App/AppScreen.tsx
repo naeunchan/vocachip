@@ -9,7 +9,6 @@ import { INITIAL_LOADING_MESSAGE } from "@/screens/App/AppScreen.constants";
 import { createAppScreenStyles } from "@/screens/App/AppScreen.styles";
 import type { AppScreenProps } from "@/screens/App/AppScreen.types";
 import type { AuthNavigatorProps } from "@/screens/Auth/AuthNavigator.types";
-import { OnboardingModal } from "@/screens/Onboarding/OnboardingModal";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 import { APP_THEMES } from "@/theme/themes";
 
@@ -18,8 +17,13 @@ type LoadedNavigators = {
     AuthNavigator: (props: AuthNavigatorProps) => React.JSX.Element;
 };
 
+type LoadedOnboardingModal = {
+    OnboardingModal: (props: { visible: boolean; onComplete: () => void }) => React.JSX.Element;
+};
+
 export function AppScreen({ initialTab }: AppScreenProps) {
     const [loadedNavigators, setLoadedNavigators] = useState<LoadedNavigators | null>(null);
+    const [loadedOnboardingModal, setLoadedOnboardingModal] = useState<LoadedOnboardingModal | null>(null);
     const [navigatorLoadError, setNavigatorLoadError] = useState<Error | null>(null);
     const {
         initializing,
@@ -40,8 +44,12 @@ export function AppScreen({ initialTab }: AppScreenProps) {
         let isMounted = true;
 
         const timer = setTimeout(() => {
-            void Promise.all([import("@/components/AppNavigator"), import("@/screens/Auth/AuthNavigator")])
-                .then(([appNavigatorModule, authNavigatorModule]) => {
+            void Promise.all([
+                import("@/components/AppNavigator"),
+                import("@/screens/Auth/AuthNavigator"),
+                import("@/screens/Onboarding/OnboardingModal"),
+            ])
+                .then(([appNavigatorModule, authNavigatorModule, onboardingModalModule]) => {
                     if (!isMounted) {
                         return;
                     }
@@ -49,6 +57,9 @@ export function AppScreen({ initialTab }: AppScreenProps) {
                     setLoadedNavigators({
                         AppNavigator: appNavigatorModule.AppNavigator,
                         AuthNavigator: authNavigatorModule.AuthNavigator,
+                    });
+                    setLoadedOnboardingModal({
+                        OnboardingModal: onboardingModalModule.OnboardingModal,
                     });
                 })
                 .catch((error: unknown) => {
@@ -92,7 +103,12 @@ export function AppScreen({ initialTab }: AppScreenProps) {
                         )}
                     </View>
                 </View>
-                <OnboardingModal visible={isOnboardingVisible} onComplete={onCompleteOnboarding} />
+                {loadedOnboardingModal ? (
+                    <loadedOnboardingModal.OnboardingModal
+                        visible={isOnboardingVisible}
+                        onComplete={onCompleteOnboarding}
+                    />
+                ) : null}
             </TDSProvider>
         </AppAppearanceProvider>
     );

@@ -1,19 +1,26 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { StatusBar, View } from "react-native";
 
-import { AppNavigator } from "@/components/AppNavigator";
+import type { AppNavigatorProps } from "@/components/AppNavigator";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppScreen } from "@/hooks/useAppScreen";
 import { TDSProvider } from "@/integrations/tds";
 import { INITIAL_LOADING_MESSAGE } from "@/screens/App/AppScreen.constants";
 import { createAppScreenStyles } from "@/screens/App/AppScreen.styles";
 import type { AppScreenProps } from "@/screens/App/AppScreen.types";
-import { AuthNavigator } from "@/screens/Auth/AuthNavigator";
+import type { AuthNavigatorProps } from "@/screens/Auth/AuthNavigator.types";
 import { OnboardingModal } from "@/screens/Onboarding/OnboardingModal";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 import { APP_THEMES } from "@/theme/themes";
 
+type LoadedNavigators = {
+    AppNavigator: (props: AppNavigatorProps) => React.JSX.Element;
+    AuthNavigator: (props: AuthNavigatorProps) => React.JSX.Element;
+};
+
 export function AppScreen({ initialTab }: AppScreenProps) {
+    const [loadedNavigators, setLoadedNavigators] = useState<LoadedNavigators | null>(null);
+    const [navigatorLoadError, setNavigatorLoadError] = useState<Error | null>(null);
     const {
         initializing,
         appearanceReady,
@@ -29,6 +36,42 @@ export function AppScreen({ initialTab }: AppScreenProps) {
     } = useAppScreen();
     const styles = useMemo(() => createAppScreenStyles(APP_THEMES[themeMode]), [themeMode]);
 
+    useEffect(() => {
+        let isMounted = true;
+
+        const timer = setTimeout(() => {
+            void Promise.all([import("@/components/AppNavigator"), import("@/screens/Auth/AuthNavigator")])
+                .then(([appNavigatorModule, authNavigatorModule]) => {
+                    if (!isMounted) {
+                        return;
+                    }
+
+                    setLoadedNavigators({
+                        AppNavigator: appNavigatorModule.AppNavigator,
+                        AuthNavigator: authNavigatorModule.AuthNavigator,
+                    });
+                })
+                .catch((error: unknown) => {
+                    if (!isMounted) {
+                        return;
+                    }
+
+                    setNavigatorLoadError(
+                        error instanceof Error ? error : new Error("내비게이터를 불러오는 중 문제가 발생했어요."),
+                    );
+                });
+        }, 0);
+
+        return () => {
+            isMounted = false;
+            clearTimeout(timer);
+        };
+    }, []);
+
+    if (navigatorLoadError) {
+        throw navigatorLoadError;
+    }
+
     return (
         <AppAppearanceProvider
             mode={themeMode}
@@ -40,12 +83,12 @@ export function AppScreen({ initialTab }: AppScreenProps) {
                 <StatusBar barStyle={themeMode === "dark" ? "light-content" : "dark-content"} />
                 <View style={styles.container}>
                     <View style={styles.content}>
-                        {initializing || !appearanceReady ? (
+                        {initializing || !appearanceReady || !loadedNavigators ? (
                             <LoadingState message={INITIAL_LOADING_MESSAGE} />
                         ) : !isAuthenticated ? (
-                            <AuthNavigator loginProps={loginBindings} />
+                            <loadedNavigators.AuthNavigator loginProps={loginBindings} />
                         ) : (
-                            <AppNavigator {...navigatorProps} initialTab={initialTab} />
+                            <loadedNavigators.AppNavigator {...navigatorProps} initialTab={initialTab} />
                         )}
                     </View>
                 </View>

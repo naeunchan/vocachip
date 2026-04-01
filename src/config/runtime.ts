@@ -71,11 +71,12 @@ function resolveRuntimeTarget(value: unknown): RuntimeTarget {
 
 export function getRuntimeConfig(): RuntimeConfig {
     const runtime = getRuntimeScope().__VOCACHIP_RUNTIME_CONFIG__ ?? {};
+    const runtimeTarget = resolveRuntimeTarget(runtime.runtimeTarget);
 
     return {
         ...DEFAULT_RUNTIME_CONFIG,
         ...runtime,
-        runtimeTarget: resolveRuntimeTarget(runtime.runtimeTarget),
+        runtimeTarget,
         appVersion: readString(
             runtime.appVersion,
             readEnvString("VOCACHIP_APP_VERSION") || DEFAULT_RUNTIME_CONFIG.appVersion,

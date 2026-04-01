@@ -80,15 +80,16 @@ function resolveRuntimeTarget(value: unknown): RuntimeTarget {
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
-    const expoConfig = readExpoConfig();
-    const expoExtra: Record<string, unknown> = expoConfig?.extra ?? {};
     const runtime = getRuntimeScope().__VOCACHIP_RUNTIME_CONFIG__ ?? {};
+    const runtimeTarget = resolveRuntimeTarget(runtime.runtimeTarget);
+    const expoConfig = runtimeTarget === "apps-in-toss" ? null : readExpoConfig();
+    const expoExtra: Record<string, unknown> = expoConfig?.extra ?? {};
 
     return {
         ...DEFAULT_RUNTIME_CONFIG,
         ...expoExtra,
         ...runtime,
-        runtimeTarget: resolveRuntimeTarget(runtime.runtimeTarget),
+        runtimeTarget,
         appVersion: readString(runtime.appVersion, readString(expoConfig?.version, DEFAULT_RUNTIME_CONFIG.appVersion)),
         versionLabel: readString(
             runtime.versionLabel,

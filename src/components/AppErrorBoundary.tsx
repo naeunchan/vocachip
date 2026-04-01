@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { debugError } from "@/appsInToss/debug";
 import { captureException } from "@/logging/logger";
 
 type AppErrorBoundaryProps = {
@@ -25,6 +26,11 @@ export class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, App
     }
 
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+        debugError("AppErrorBoundary caught error", {
+            message: error.message,
+            name: error.name,
+            componentStack: errorInfo.componentStack,
+        });
         captureException(error, { componentStack: errorInfo.componentStack });
     }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { debugError, debugLog } from "@/appsInToss/debug";
 import { getPreferenceValue, setPreferenceValue } from "@/services/database";
 import {
     DEFAULT_FONT_SCALE,
@@ -33,11 +34,17 @@ export function useAppearanceFlow(): UseAppearanceFlowResult {
         let isMounted = true;
 
         async function loadAppearancePreferences() {
+            debugLog("useAppearanceFlow loadAppearancePreferences started");
             try {
                 const [storedMode, storedScale] = await Promise.all([
                     getPreferenceValue(THEME_MODE_PREFERENCE_KEY),
                     getPreferenceValue(FONT_SCALE_PREFERENCE_KEY),
                 ]);
+
+                debugLog("useAppearanceFlow preferences loaded", {
+                    storedMode,
+                    hasStoredScale: storedScale !== null && storedScale !== undefined,
+                });
 
                 if (storedMode === "dark" || storedMode === "light") {
                     setThemeMode(storedMode);
@@ -50,9 +57,11 @@ export function useAppearanceFlow(): UseAppearanceFlowResult {
                     }
                 }
             } catch (error) {
+                debugError("useAppearanceFlow loadAppearancePreferences failed", error);
                 console.warn("모양새 설정을 불러오는 중 문제가 발생했어요.", error);
             } finally {
                 if (isMounted) {
+                    debugLog("useAppearanceFlow marked appearanceReady");
                     setAppearanceReady(true);
                 }
             }

@@ -1,3 +1,4 @@
+import { debugLog } from "@/appsInToss/debug";
 import { getRuntimeConfig } from "@/config/runtime";
 
 type StorageBackend = {
@@ -9,6 +10,8 @@ type StorageBackend = {
 type AsyncStorageLike = StorageBackend & {
     clear?: () => Promise<void>;
 };
+
+let loggedBackendName: string | null = null;
 
 function getAsyncStorageBackend(): StorageBackend {
     const moduleValue = require("@react-native-async-storage/async-storage") as {
@@ -36,7 +39,14 @@ function getAppsInTossStorageBackend(): StorageBackend {
 }
 
 export function getDatabaseStorage(): StorageBackend {
-    if (getRuntimeConfig().runtimeTarget === "apps-in-toss") {
+    const backendName = getRuntimeConfig().runtimeTarget === "apps-in-toss" ? "apps-in-toss" : "async-storage";
+
+    if (loggedBackendName !== backendName) {
+        loggedBackendName = backendName;
+        debugLog("database storage backend selected", { backendName });
+    }
+
+    if (backendName === "apps-in-toss") {
         return getAppsInTossStorageBackend();
     }
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { StatusBar, View } from "react-native";
 
+import { debugError, debugLog } from "@/appsInToss/debug";
 import type { AppNavigatorProps } from "@/components/AppNavigator";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppScreen } from "@/hooks/useAppScreen";
@@ -41,9 +42,11 @@ export function AppScreen({ initialTab }: AppScreenProps) {
     const styles = useMemo(() => createAppScreenStyles(APP_THEMES[themeMode]), [themeMode]);
 
     useEffect(() => {
+        debugLog("AppScreen lazy import scheduled", { initialTab });
         let isMounted = true;
 
         const timer = setTimeout(() => {
+            debugLog("AppScreen lazy import started");
             void Promise.all([
                 import("@/components/AppNavigator"),
                 import("@/screens/Auth/AuthNavigator"),
@@ -51,9 +54,11 @@ export function AppScreen({ initialTab }: AppScreenProps) {
             ])
                 .then(([appNavigatorModule, authNavigatorModule, onboardingModalModule]) => {
                     if (!isMounted) {
+                        debugLog("AppScreen lazy import resolved after unmount");
                         return;
                     }
 
+                    debugLog("AppScreen lazy import succeeded");
                     setLoadedNavigators({
                         AppNavigator: appNavigatorModule.AppNavigator,
                         AuthNavigator: authNavigatorModule.AuthNavigator,
@@ -64,9 +69,11 @@ export function AppScreen({ initialTab }: AppScreenProps) {
                 })
                 .catch((error: unknown) => {
                     if (!isMounted) {
+                        debugError("AppScreen lazy import failed after unmount", error);
                         return;
                     }
 
+                    debugError("AppScreen lazy import failed", error);
                     setNavigatorLoadError(
                         error instanceof Error ? error : new Error("내비게이터를 불러오는 중 문제가 발생했어요."),
                     );
@@ -78,6 +85,30 @@ export function AppScreen({ initialTab }: AppScreenProps) {
             clearTimeout(timer);
         };
     }, []);
+
+    useEffect(() => {
+        debugLog("AppScreen state updated", {
+            initializing,
+            appearanceReady,
+            hasLoadedNavigators: loadedNavigators !== null,
+            hasLoadedOnboardingModal: loadedOnboardingModal !== null,
+            hasNavigatorLoadError: navigatorLoadError !== null,
+            isAuthenticated,
+            isOnboardingVisible,
+            themeMode,
+            initialTab,
+        });
+    }, [
+        appearanceReady,
+        initialTab,
+        initializing,
+        isAuthenticated,
+        isOnboardingVisible,
+        loadedNavigators,
+        loadedOnboardingModal,
+        navigatorLoadError,
+        themeMode,
+    ]);
 
     if (navigatorLoadError) {
         throw navigatorLoadError;

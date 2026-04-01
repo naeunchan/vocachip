@@ -1,4 +1,5 @@
 import { setRuntimeConfig } from "../config/runtime";
+import { debugLog } from "./debug";
 
 type ImportMetaWithEnv = ImportMeta & {
     env?: Record<string, unknown>;
@@ -11,6 +12,10 @@ function readString(name: string, fallback = ""): string {
     const value = runtimeEnv[name];
     return typeof value === "string" ? value : fallback;
 }
+
+debugLog("runtimeInit started", {
+    hasMetaEnv: metaEnv !== undefined,
+});
 
 setRuntimeConfig({
     runtimeTarget: "apps-in-toss",
@@ -35,4 +40,14 @@ setRuntimeConfig({
     featureAiStudyMode: runtimeEnv.EXPO_PUBLIC_FEATURE_AI_STUDY_MODE,
     featureAiStudyEntryPoints: runtimeEnv.EXPO_PUBLIC_FEATURE_AI_STUDY_ENTRY_POINTS,
     featureAiStudySessionUi: runtimeEnv.EXPO_PUBLIC_FEATURE_AI_STUDY_SESSION_UI,
+});
+
+debugLog("runtime config applied", {
+    runtimeTarget: "apps-in-toss",
+    versionLabel: readString("VOCACHIP_VERSION_LABEL", "1.0.0"),
+    appVersion: readString("VOCACHIP_APP_VERSION", "1.0.0"),
+    featureAccountAuth: runtimeEnv.EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH,
+    hasPrivacyPolicyUrl: Boolean(readString("VOCACHIP_PRIVACY_POLICY_URL")),
+    hasTermsOfServiceUrl: Boolean(readString("VOCACHIP_TERMS_OF_SERVICE_URL")),
+    hasOpenAIProxyUrl: Boolean(readString("EXPO_PUBLIC_OPENAI_PROXY_URL")),
 });

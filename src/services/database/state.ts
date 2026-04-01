@@ -1,3 +1,4 @@
+import { debugError, debugLog } from "@/appsInToss/debug";
 import { cloneCollections } from "@/services/collections";
 import type { CollectionRecord } from "@/services/collections/types";
 import { getDatabaseStorage } from "@/services/database/storage";
@@ -516,33 +517,45 @@ export function normalizePersistedState(value: unknown): MemoryState {
 
 export async function ensureStateLoaded() {
     if (hasLoadedState) {
+        debugLog("database state already loaded");
         return;
     }
 
     if (!loadStatePromise) {
         loadStatePromise = (async () => {
+            debugLog("database state load started");
             const storage = getDatabaseStorage();
             try {
                 const serialized = await storage.getItem(DATABASE_STATE_STORAGE_KEY);
+                debugLog("database state storage read completed", {
+                    hasSerializedState: Boolean(serialized),
+                });
                 if (serialized) {
                     replaceMemoryState(normalizePersistedState(JSON.parse(serialized)));
+                    debugLog("database state restored from storage");
                 } else {
                     replaceMemoryState(createInitialMemoryState());
+                    debugLog("database state initialized with empty state");
                 }
             } catch (error) {
+                debugError("database state load failed", error);
                 console.warn("데이터 저장소를 복원하는 중 문제가 발생했어요.", error);
                 replaceMemoryState(createInitialMemoryState());
                 try {
                     await storage.removeItem(DATABASE_STATE_STORAGE_KEY);
+                    debugLog("database state storage key removed after failure");
                 } catch {
                     // Ignore cleanup failures and continue with a fresh state.
                 }
             } finally {
                 hasLoadedState = true;
+                debugLog("database state load finished");
             }
         })().finally(() => {
             loadStatePromise = null;
         });
+    } else {
+        debugLog("database state load awaiting existing promise");
     }
 
     await loadStatePromise;

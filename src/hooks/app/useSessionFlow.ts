@@ -2,6 +2,7 @@ import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useStat
 import { Alert } from "react-native";
 
 import { fetchDictionaryEntry } from "@/api/dictionary/freeDictionaryClient";
+import { debugError, debugLog } from "@/appsInToss/debug";
 import { FEATURE_FLAGS } from "@/config/featureFlags";
 import { type AppError } from "@/errors/AppError";
 import { setUserContext } from "@/logging/logger";
@@ -372,6 +373,11 @@ export function useSessionFlow({
 
     const applySignedOutState = useCallback(async () => {
         const session = await getActiveSession();
+        debugLog("useSessionFlow applySignedOutState", {
+            hasSession: session !== null,
+            isGuestSession: session?.isGuest ?? false,
+            hasUser: session?.user !== undefined && session?.user !== null,
+        });
         if (session?.isGuest) {
             const [rawGuestFavorites, rawGuestCollections, rawGuestReviewProgress] = await Promise.all([
                 getPreferenceValue(GUEST_FAVORITES_PREFERENCE_KEY),
@@ -410,14 +416,26 @@ export function useSessionFlow({
         let isMounted = true;
 
         async function bootstrap() {
+            debugLog("useSessionFlow bootstrap started", {
+                accountAuthEnabled,
+            });
             try {
                 await initializeDatabase();
+                debugLog("useSessionFlow initializeDatabase completed");
                 const session = await getActiveSession();
+                debugLog("useSessionFlow active session loaded", {
+                    hasSession: session !== null,
+                    isGuestSession: session?.isGuest ?? false,
+                    hasUser: session?.user !== undefined && session?.user !== null,
+                });
                 if (!isMounted) {
+                    debugLog("useSessionFlow bootstrap aborted after unmount");
                     return;
                 }
                 if (!accountAuthEnabled) {
+                    debugLog("useSessionFlow account auth disabled branch");
                     if (!session?.isGuest) {
+                        debugLog("useSessionFlow converting to guest session");
                         await clearSession();
                         await clearAutoLoginCredentials();
                         await setGuestSession();
@@ -427,18 +445,25 @@ export function useSessionFlow({
                     return;
                 }
                 if (session?.user && !session.isGuest) {
+                    debugLog("useSessionFlow restoring authenticated session", {
+                        userId: session.user.id,
+                    });
                     await loadUserStateRef.current(session.user);
                 } else {
+                    debugLog("useSessionFlow restoring signed-out state");
                     await applySignedOutState();
                 }
             } catch (error) {
                 if (!isMounted) {
+                    debugError("useSessionFlow bootstrap failed after unmount", error);
                     return;
                 }
+                debugError("useSessionFlow bootstrap failed", error);
                 const message = error instanceof Error ? error.message : DATABASE_INIT_ERROR_MESSAGE;
                 reportSearchError(message);
             } finally {
                 if (isMounted) {
+                    debugLog("useSessionFlow bootstrap finished");
                     setInitializing(false);
                 }
             }

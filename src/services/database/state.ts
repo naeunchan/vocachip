@@ -1,7 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import { cloneCollections } from "@/services/collections";
 import type { CollectionRecord } from "@/services/collections/types";
+import { getDatabaseStorage } from "@/services/database/storage";
 import type { DictionaryMode } from "@/services/dictionary/types";
 import type { FavoriteWordEntry } from "@/services/favorites/types";
 import type { ReviewOutcome, ReviewProgressEntry, ReviewProgressMap } from "@/services/review/types";
@@ -522,8 +521,9 @@ export async function ensureStateLoaded() {
 
     if (!loadStatePromise) {
         loadStatePromise = (async () => {
+            const storage = getDatabaseStorage();
             try {
-                const serialized = await AsyncStorage.getItem(DATABASE_STATE_STORAGE_KEY);
+                const serialized = await storage.getItem(DATABASE_STATE_STORAGE_KEY);
                 if (serialized) {
                     replaceMemoryState(normalizePersistedState(JSON.parse(serialized)));
                 } else {
@@ -533,7 +533,7 @@ export async function ensureStateLoaded() {
                 console.warn("데이터 저장소를 복원하는 중 문제가 발생했어요.", error);
                 replaceMemoryState(createInitialMemoryState());
                 try {
-                    await AsyncStorage.removeItem(DATABASE_STATE_STORAGE_KEY);
+                    await storage.removeItem(DATABASE_STATE_STORAGE_KEY);
                 } catch {
                     // Ignore cleanup failures and continue with a fresh state.
                 }
@@ -550,11 +550,12 @@ export async function ensureStateLoaded() {
 
 export async function persistState() {
     await ensureStateLoaded();
+    const storage = getDatabaseStorage();
 
     persistStatePromise = persistStatePromise
         .catch(() => undefined)
         .then(() =>
-            AsyncStorage.setItem(
+            storage.setItem(
                 DATABASE_STATE_STORAGE_KEY,
                 JSON.stringify({
                     version: 1,

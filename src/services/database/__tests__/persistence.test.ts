@@ -1,5 +1,6 @@
 const mockDigestStringAsync = jest.fn(async (_algorithm: string, value: string) => `digest-${value}`);
 const asyncStorageStore: Record<string, string> = {};
+const appsInTossStorageStore: Record<string, string> = {};
 const mockAsyncStorage = {
     getItem: jest.fn(async (key: string) =>
         Object.prototype.hasOwnProperty.call(asyncStorageStore, key) ? asyncStorageStore[key] : null,
@@ -17,10 +18,31 @@ const mockAsyncStorage = {
     }),
 };
 
+const mockAppsInTossStorage = {
+    getItem: jest.fn(async (key: string) =>
+        Object.prototype.hasOwnProperty.call(appsInTossStorageStore, key) ? appsInTossStorageStore[key] : null,
+    ),
+    setItem: jest.fn(async (key: string, value: string) => {
+        appsInTossStorageStore[key] = value;
+    }),
+    removeItem: jest.fn(async (key: string) => {
+        delete appsInTossStorageStore[key];
+    }),
+    clearItems: jest.fn(async () => {
+        Object.keys(appsInTossStorageStore).forEach((key) => {
+            delete appsInTossStorageStore[key];
+        });
+    }),
+};
+
 jest.mock("@react-native-async-storage/async-storage", () => ({
     __esModule: true,
     ...mockAsyncStorage,
     default: mockAsyncStorage,
+}));
+
+jest.mock("@apps-in-toss/framework", () => ({
+    Storage: mockAppsInTossStorage,
 }));
 
 jest.mock("expo-crypto", () => ({
@@ -39,12 +61,20 @@ describe("database persistence", () => {
     beforeEach(async () => {
         jest.resetModules();
         await mockAsyncStorage.clear();
+        await mockAppsInTossStorage.clearItems();
         Object.values(mockAsyncStorage).forEach((mockFn) => {
             if (typeof mockFn === "function" && "mockClear" in mockFn) {
                 mockFn.mockClear();
             }
         });
+        Object.values(mockAppsInTossStorage).forEach((mockFn) => {
+            if (typeof mockFn === "function" && "mockClear" in mockFn) {
+                mockFn.mockClear();
+            }
+        });
         mockDigestStringAsync.mockClear();
+        const runtimeScope = globalThis as typeof globalThis & { __VOCACHIP_RUNTIME_CONFIG__?: unknown };
+        delete runtimeScope.__VOCACHIP_RUNTIME_CONFIG__;
     });
 
     it("persists session, favorites, search history, preferences, and verification state across reloads", async () => {
@@ -205,5 +235,29 @@ describe("database persistence", () => {
 
         expect(await reloadedDatabase.getSearchHistoryEntries()).toEqual([]);
         expect(await reloadedDatabase.getPreferenceValue("settings.theme.mode")).toBe("dark");
+    });
+
+    it("uses Apps in Toss Storage when the runtime target is apps-in-toss", async () => {
+        const runtime = require("@/config/runtime") as typeof import("@/config/runtime");
+        runtime.setRuntimeConfig({ runtimeTarget: "apps-in-toss" });
+
+        const database = loadDatabaseModule();
+        await database.initializeDatabase();
+        await database.setPreferenceValue("settings.theme.mode", "dark");
+
+        expect(mockAppsInTossStorage.setItem).toHaveBeenCalled();
+        expect(mockAsyncStorage.setItem).not.toHaveBeenCalled();
+
+        jest.resetModules();
+
+        const reloadedRuntime = require("@/config/runtime") as typeof import("@/config/runtime");
+        reloadedRuntime.setRuntimeConfig({ runtimeTarget: "apps-in-toss" });
+
+        const reloadedDatabase = loadDatabaseModule();
+        await reloadedDatabase.initializeDatabase();
+
+        expect(await reloadedDatabase.getPreferenceValue("settings.theme.mode")).toBe("dark");
+        expect(mockAppsInTossStorage.getItem).toHaveBeenCalled();
+        expect(mockAsyncStorage.getItem).not.toHaveBeenCalled();
     });
 });

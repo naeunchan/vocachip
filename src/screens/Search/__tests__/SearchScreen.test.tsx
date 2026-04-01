@@ -12,7 +12,7 @@ jest.mock("@expo/vector-icons/Ionicons", () => {
     return (props: { name: string }) => <Text>{props.name}</Text>;
 });
 
-jest.mock("@toss/tds-react-native", () => ({
+jest.mock("@/integrations/tds", () => ({
     Button: ({ children, onPress, disabled, accessibilityLabel }: any) => {
         const React = require("react");
         const { Pressable, Text } = require("react-native");

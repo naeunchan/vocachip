@@ -1,9 +1,9 @@
-import { Button, TextField as TDSTextField, Top } from "@toss/tds-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@/components/AppIcon";
+import { Button, TextField as TDSTextField, Top } from "@/integrations/tds";
 import { SearchBar } from "@/screens/Search/components/SearchBar";
 import { SearchResults } from "@/screens/Search/components/SearchResults";
 import { createSearchScreenStyles } from "@/screens/Search/SearchScreen.styles";

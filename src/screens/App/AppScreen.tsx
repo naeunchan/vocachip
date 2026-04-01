@@ -1,10 +1,10 @@
-import { TDSProvider } from "@toss/tds-react-native";
 import React, { useMemo } from "react";
 import { StatusBar, View } from "react-native";
 
 import { AppNavigator } from "@/components/AppNavigator";
 import { LoadingState } from "@/components/LoadingState";
 import { useAppScreen } from "@/hooks/useAppScreen";
+import { TDSProvider } from "@/integrations/tds";
 import { INITIAL_LOADING_MESSAGE } from "@/screens/App/AppScreen.constants";
 import { createAppScreenStyles } from "@/screens/App/AppScreen.styles";
 import type { AppScreenProps } from "@/screens/App/AppScreen.types";

@@ -1,9 +1,9 @@
+import { Button, TextField as TDSTextField, Top } from "@toss/tds-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Ionicons } from "@/components/AppIcon";
-import { TextField } from "@/components/TextField";
 import { SearchBar } from "@/screens/Search/components/SearchBar";
 import { SearchResults } from "@/screens/Search/components/SearchResults";
 import { createSearchScreenStyles } from "@/screens/Search/SearchScreen.styles";
@@ -96,6 +96,11 @@ export function SearchScreen({
     return (
         <SafeAreaView style={styles.safeArea}>
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+                <Top
+                    title="단어 검색"
+                    subtitle1="앱인토스에서 바로 열리는 핵심 기능으로 검색과 저장, 복습 흐름에 바로 진입할 수 있어요."
+                />
+
                 {!pronunciationAvailable ? (
                     <View style={styles.aiNotice}>
                         <Text style={styles.aiNoticeTitle}>{t("search.aiNotice.title")}</Text>
@@ -151,8 +156,11 @@ export function SearchScreen({
                                 ? `${result.word} 단어로 객관식 AI 학습을 시작할 수 있어요.`
                                 : "백엔드가 준비되면 AI 학습 모드를 사용할 수 있어요. 지금은 사전 검색과 일반 복습을 이용해주세요."}
                         </Text>
-                        <TouchableOpacity
-                            style={[styles.studyButton, !studyAvailable && styles.studyButtonDisabled]}
+                        <Button
+                            type="primary"
+                            style="fill"
+                            size="large"
+                            display="block"
                             onPress={() => {
                                 onStartStudyMode(result);
                             }}
@@ -160,10 +168,8 @@ export function SearchScreen({
                             accessibilityRole="button"
                             accessibilityLabel={studyAvailable ? "AI 학습 시작" : "AI 학습 시작 비활성화"}
                         >
-                            <Text style={styles.studyButtonText}>
-                                {studyAvailable ? "AI 학습 시작" : "백엔드 준비 필요"}
-                            </Text>
-                        </TouchableOpacity>
+                            {studyAvailable ? "AI 학습 시작" : "백엔드 준비 필요"}
+                        </Button>
                     </View>
                 ) : null}
 
@@ -235,7 +241,10 @@ export function SearchScreen({
                             })}
                         </View>
 
-                        <TextField
+                        <TDSTextField
+                            variant="box"
+                            label="새 컬렉션"
+                            labelOption="sustain"
                             value={collectionName}
                             onChangeText={setCollectionName}
                             placeholder="새 컬렉션 이름"
@@ -243,18 +252,18 @@ export function SearchScreen({
                             autoCorrect={false}
                         />
 
-                        <TouchableOpacity
-                            style={[
-                                styles.collectionActionButton,
-                                !collectionName.trim() && styles.collectionActionButtonDisabled,
-                            ]}
+                        <Button
+                            type="primary"
+                            style="fill"
+                            size="large"
+                            display="block"
                             onPress={handleCreateCollection}
                             disabled={!collectionName.trim()}
                             accessibilityRole="button"
                             accessibilityLabel="새 컬렉션 만들고 현재 단어에 담기"
                         >
-                            <Text style={styles.collectionActionButtonText}>새 컬렉션 만들고 담기</Text>
-                        </TouchableOpacity>
+                            새 컬렉션 만들고 담기
+                        </Button>
                     </View>
                 ) : null}
 

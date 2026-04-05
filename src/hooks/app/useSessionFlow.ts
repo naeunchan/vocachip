@@ -2,6 +2,7 @@ import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useStat
 import { Alert } from "react-native";
 
 import { fetchDictionaryEntry } from "@/api/dictionary/freeDictionaryClient";
+import { FEATURE_FLAGS } from "@/config/featureFlags";
 import { type AppError } from "@/errors/AppError";
 import { setUserContext } from "@/logging/logger";
 import {
@@ -88,6 +89,7 @@ import {
     GUEST_FAVORITES_PREFERENCE_KEY,
     GUEST_REVIEW_PROGRESS_PREFERENCE_KEY,
     GUEST_USED_PREFERENCE_KEY,
+    ONBOARDING_PREFERENCE_KEY,
 } from "@/theme/constants";
 import {
     getEmailValidationError,
@@ -160,6 +162,7 @@ export function useSessionFlow({
     const [signUpError, setSignUpError] = useState<string | null>(null);
     const [authLoading, setAuthLoading] = useState(false);
     const loadUserStateRef = useRef<(userRecord: UserRecord) => Promise<void>>(async () => {});
+    const accountAuthEnabled = FEATURE_FLAGS.accountAuth;
 
     const reportSearchError = useCallback(
         (message: string, kind?: AppError["kind"], extras?: Partial<AppError>) => {
@@ -413,6 +416,16 @@ export function useSessionFlow({
                 if (!isMounted) {
                     return;
                 }
+                if (!accountAuthEnabled) {
+                    if (!session?.isGuest) {
+                        await clearSession();
+                        await clearAutoLoginCredentials();
+                        await setGuestSession();
+                    }
+                    await setPreferenceValue(ONBOARDING_PREFERENCE_KEY, "true");
+                    await applySignedOutState();
+                    return;
+                }
                 if (session?.user && !session.isGuest) {
                     await loadUserStateRef.current(session.user);
                 } else {
@@ -436,7 +449,7 @@ export function useSessionFlow({
         return () => {
             isMounted = false;
         };
-    }, [applySignedOutState, reportSearchError]);
+    }, [accountAuthEnabled, applySignedOutState, reportSearchError]);
 
     useEffect(() => {
         if (!isGuest) {
@@ -815,7 +828,8 @@ export function useSessionFlow({
         try {
             await setGuestSession();
             await setPreferenceValue(GUEST_USED_PREFERENCE_KEY, "true");
-            setOnboardingVisible(true);
+            await setPreferenceValue(ONBOARDING_PREFERENCE_KEY, "true");
+            setOnboardingVisible(false);
             setIsGuest(true);
             setUser(null);
             setFavorites([]);
@@ -831,6 +845,9 @@ export function useSessionFlow({
     }, [resetSearchState, setOnboardingVisible]);
 
     const handleGuestAuthRedirectAsync = useCallback(async () => {
+        if (!accountAuthEnabled) {
+            return;
+        }
         setAuthError(null);
         setSignUpError(null);
         try {
@@ -841,7 +858,7 @@ export function useSessionFlow({
         } finally {
             resetAuthState();
         }
-    }, [resetAuthState]);
+    }, [accountAuthEnabled, resetAuthState]);
 
     const handleRequestLogin = useCallback(() => {
         void handleGuestAuthRedirectAsync();

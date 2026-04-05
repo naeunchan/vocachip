@@ -1,7 +1,13 @@
 #!/usr/bin/env node
+/* global __dirname */
 
 const { URL } = require("url");
+const { loadProjectEnv } = require("./load-project-env");
+const path = require("path");
 
+const rootDir = path.resolve(__dirname, "..", "..");
+
+loadProjectEnv({ rootDir });
 function clean(value) {
     return typeof value === "string" ? value.trim() : "";
 }

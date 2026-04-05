@@ -11,6 +11,7 @@
 ## 2. Environment Freeze
 
 - Copy `.env.example` to `.env` and replace placeholder values.
+- Copy `.env.release.example` to `.env.release` and set the real Apps in Toss release inputs.
 - Verify the legal URLs resolve over HTTPS. If they are invalid, the app falls back to in-app legal documents.
 - Verify `VOCACHIP_OPENAI_PROXY_URL`, `VOCACHIP_OPENAI_PROXY_KEY`, and `VOCACHIP_AI_HEALTH_URL` against the real proxy.
 - Verify `AI_PROXY_KEY` and `OPENAI_API_KEY` are configured only on the backend.
@@ -52,6 +53,8 @@
 
 ```bash
 cp .env.example .env
+cp .env.release.example .env.release
+npm run release:validate
 npm run lint -- --max-warnings=0
 npm test -- --watch=false
 npm run build

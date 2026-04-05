@@ -3,6 +3,7 @@ import { env } from "@granite-js/plugin-env";
 import { defineConfig } from "@granite-js/react-native/config";
 
 const path = require("path");
+const { loadProjectEnv } = require(path.resolve(process.cwd(), "scripts/release/load-project-env.js"));
 const packageJson = require(path.resolve(process.cwd(), "package.json"));
 
 const DEFAULT_APP_VERSION = "1.0.0";
@@ -10,6 +11,8 @@ const DEFAULT_DISPLAY_NAME = "Vocachip";
 const DEFAULT_PRIMARY_COLOR = "#1d4ed8";
 const DEFAULT_PRIVACY_POLICY_URL = "https://vocachip.app/legal/privacy";
 const DEFAULT_TERMS_OF_SERVICE_URL = "https://vocachip.app/legal/terms";
+
+loadProjectEnv({ rootDir: process.cwd() });
 
 function parseBoolean(value?: string | null) {
     if (!value) return null;

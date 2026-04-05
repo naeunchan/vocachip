@@ -1,6 +1,11 @@
+import type { RootTabRouteName } from "@/navigation/Navigation.types";
 import type { RootTabNavigatorProps } from "@/navigation/RootTabNavigator.types";
 import type { LoginScreenProps } from "@/screens/Auth/LoginScreen.types";
 import type { ThemeMode } from "@/theme/types";
+
+export type AppScreenProps = {
+    initialTab?: RootTabRouteName;
+};
 
 export type AppScreenHookResult = {
     versionLabel: string;

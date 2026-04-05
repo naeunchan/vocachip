@@ -1,4 +1,3 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Dimensions,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Ionicons } from "@/components/AppIcon";
 import { t } from "@/shared/i18n";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 
@@ -19,7 +19,7 @@ type OnboardingSlide = {
     key: string;
     title: string;
     description: string;
-    icon: keyof typeof Ionicons.glyphMap;
+    icon: string;
 };
 
 type OnboardingModalProps = {

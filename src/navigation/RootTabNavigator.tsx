@@ -1,7 +1,7 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
 
+import { MaterialIcons } from "@/components/AppIcon";
 import { RootTabParamList } from "@/navigation/Navigation.types";
 import { RootTabNavigatorProps } from "@/navigation/RootTabNavigator.types";
 import { TAB_BAR_OPTIONS, TAB_VISUAL_CONFIG } from "@/navigation/tabConfig";

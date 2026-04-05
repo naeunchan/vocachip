@@ -1,7 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Text, TextInput, TextInputProps, TouchableOpacity, View } from "react-native";
 
+import { Ionicons } from "@/components/AppIcon";
 import { createTextFieldStyles } from "@/components/TextField.styles";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 import { useThemedStyles } from "@/theme/useThemedStyles";

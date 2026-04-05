@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-env node */
 /* global AbortController */
 
 const {
@@ -27,13 +26,13 @@ function printSection(title, items) {
 async function main() {
     const metricsUrl = resolveMetricsUrl(process.env);
     if (!metricsUrl) {
-        throw new Error("Set `AI_METRICS_URL` or `EXPO_PUBLIC_OPENAI_PROXY_URL` before running metrics checks.");
+        throw new Error("Set `AI_METRICS_URL` or `VOCACHIP_OPENAI_PROXY_URL` before running metrics checks.");
     }
 
     const apiKey = resolveMetricsApiKey(process.env);
     if (!apiKey) {
         throw new Error(
-            "Set `AI_METRICS_API_KEY`, `AI_PROXY_KEY`, or `EXPO_PUBLIC_OPENAI_PROXY_KEY` before running metrics checks.",
+            "Set `AI_METRICS_API_KEY`, `AI_PROXY_KEY`, or `VOCACHIP_OPENAI_PROXY_KEY` before running metrics checks.",
         );
     }
 

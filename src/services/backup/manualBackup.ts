@@ -1,18 +1,22 @@
+import {
+    getClipboardText,
+    GetClipboardTextPermissionError,
+    saveBase64Data,
+    setClipboardText,
+    SetClipboardTextPermissionError,
+} from "@apps-in-toss/framework";
 import { Buffer } from "buffer";
 import CryptoJS from "crypto-js";
-import * as Crypto from "expo-crypto";
-import { getRandomBytesAsync } from "expo-crypto";
-import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 
 import { classifyUnsealError } from "@/services/backup/classifyUnsealError";
 import { BackupUnsealError, decryptFailed, invalidPayload, unsupportedVersion } from "@/services/backup/errors";
 import { createRestoreError, type RestoreResult } from "@/services/backup/restoreResult";
 import { validateBackupPayload } from "@/services/backup/validateBackupPayload";
 import { type BackupPayload, exportBackup, importBackup } from "@/services/database";
+import { digestSha256, getRandomBytesAsync } from "@/utils/crypto";
 
-const BACKUP_DIRECTORY = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? ""}backups`;
+const CLIPBOARD_BACKUP_PREFIX = "vocachip-backup:";
+const DEFAULT_ITERATIONS = 120_000;
 
 type SealedBackupV1 = {
     version: 1;
@@ -34,15 +38,10 @@ type SealedBackupV2 = {
     cipher: "aes-256-cbc";
 };
 
-async function ensureBackupDirectory() {
-    if (!BACKUP_DIRECTORY) {
-        throw new Error("백업 디렉터리를 생성할 수 없어요.");
-    }
-    const info = await FileSystem.getInfoAsync(BACKUP_DIRECTORY);
-    if (!info.exists) {
-        await FileSystem.makeDirectoryAsync(BACKUP_DIRECTORY, { intermediates: true });
-    }
-}
+type ExportBackupResult = {
+    fileName: string;
+    copiedToClipboard: boolean;
+};
 
 function assertValidBackupPayload(payload: unknown): BackupPayload {
     const validation = validateBackupPayload(payload);
@@ -51,11 +50,12 @@ function assertValidBackupPayload(payload: unknown): BackupPayload {
             details: validation.details,
         });
     }
+
     return validation.parsed;
 }
 
-async function deriveKey(passphrase: string, salt: string) {
-    const digest = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${passphrase}`);
+async function deriveLegacyKey(passphrase: string, salt: string) {
+    const digest = await digestSha256(`${salt}:${passphrase}`);
     return Buffer.from(digest, "hex");
 }
 
@@ -71,12 +71,13 @@ async function sealPayload(payload: BackupPayload, passphrase: string): Promise<
     if (!passphrase.trim()) {
         throw new Error("암호를 입력해주세요.");
     }
+
     const normalizedPayload = assertValidBackupPayload(payload);
     const saltBytes = await getRandomBytesAsync(16);
     const ivBytes = await getRandomBytesAsync(16);
     const salt = Buffer.from(saltBytes).toString("hex");
     const iv = Buffer.from(ivBytes).toString("hex");
-    const iterations = 120_000;
+    const iterations = DEFAULT_ITERATIONS;
 
     const saltWordArray = CryptoJS.enc.Hex.parse(salt);
     const ivWordArray = CryptoJS.enc.Hex.parse(iv);
@@ -113,154 +114,229 @@ async function sealPayload(payload: BackupPayload, passphrase: string): Promise<
     };
 }
 
+function createClipboardBackupText(serialized: string) {
+    return `${CLIPBOARD_BACKUP_PREFIX}${Buffer.from(serialized, "utf8").toString("base64")}`;
+}
+
+function decodeClipboardPayload(encoded: string) {
+    try {
+        return Buffer.from(encoded, "base64").toString("utf8");
+    } catch (error) {
+        throw invalidPayload("클립보드의 백업 텍스트를 해석하지 못했어요.", undefined, error);
+    }
+}
+
+function resolveSerializedBackupFromClipboard(clipboardText: string) {
+    const trimmed = clipboardText.trim();
+    if (!trimmed) {
+        throw invalidPayload("클립보드에 백업 텍스트가 없어요. 백업 텍스트를 먼저 복사해주세요.");
+    }
+
+    if (trimmed.startsWith(CLIPBOARD_BACKUP_PREFIX)) {
+        const encoded = trimmed.slice(CLIPBOARD_BACKUP_PREFIX.length).trim();
+        if (!encoded) {
+            throw invalidPayload("클립보드의 백업 텍스트 형식이 올바르지 않아요.");
+        }
+        return decodeClipboardPayload(encoded);
+    }
+
+    if (trimmed.startsWith("{")) {
+        return trimmed;
+    }
+
+    if (/^[A-Za-z0-9+/=\s]+$/.test(trimmed)) {
+        const decoded = decodeClipboardPayload(trimmed.replace(/\s+/g, ""));
+        if (decoded.trim().startsWith("{")) {
+            return decoded;
+        }
+    }
+
+    throw invalidPayload("클립보드의 백업 텍스트 형식이 올바르지 않아요.");
+}
+
+async function ensureClipboardPermission(
+    clipboardApi: Partial<Pick<typeof getClipboardText, "getPermission" | "openPermissionDialog">>,
+) {
+    if (typeof clipboardApi.getPermission !== "function" || typeof clipboardApi.openPermissionDialog !== "function") {
+        return true;
+    }
+
+    try {
+        const status = await clipboardApi.getPermission();
+        if (status === "allowed") {
+            return true;
+        }
+        return (await clipboardApi.openPermissionDialog()) === "allowed";
+    } catch {
+        return false;
+    }
+}
+
+async function copyBackupToClipboard(serialized: string) {
+    const canWrite = await ensureClipboardPermission(setClipboardText);
+    if (!canWrite) {
+        return false;
+    }
+
+    try {
+        await setClipboardText(createClipboardBackupText(serialized));
+        return true;
+    } catch (error) {
+        if (error instanceof SetClipboardTextPermissionError) {
+            return false;
+        }
+        throw error;
+    }
+}
+
 async function unsealPayload(serialized: string, passphrase: string): Promise<BackupPayload> {
     if (!passphrase.trim()) {
         throw decryptFailed(undefined, "암호를 입력해주세요.");
     }
+
     let parsed: SealedBackupV1 | SealedBackupV2 | BackupPayload;
     try {
         parsed = JSON.parse(serialized);
     } catch (error) {
-        throw invalidPayload("백업 파일을 읽을 수 없어요.", undefined, error);
+        throw invalidPayload("백업 데이터를 읽을 수 없어요.", undefined, error);
     }
 
-    if ((parsed as SealedBackupV1 | SealedBackupV2).encrypted) {
-        const sealed = parsed as SealedBackupV1 | SealedBackupV2;
-        if (sealed.version !== 1 && sealed.version !== 2) {
-            throw unsupportedVersion(sealed.version);
+    if (!(parsed as SealedBackupV1 | SealedBackupV2).encrypted) {
+        return assertValidBackupPayload(parsed);
+    }
+
+    const sealed = parsed as SealedBackupV1 | SealedBackupV2;
+    if (sealed.version !== 1 && sealed.version !== 2) {
+        throw unsupportedVersion(sealed.version);
+    }
+
+    if (sealed.version === 2) {
+        if (!sealed.ciphertext || !sealed.salt || !sealed.iv || !sealed.integrity) {
+            throw invalidPayload("백업 데이터 형식이 올바르지 않아요.");
         }
 
-        if (sealed.version === 2) {
-            if (!sealed.ciphertext || !sealed.salt || !sealed.iv || !sealed.integrity) {
-                throw invalidPayload("백업 파일 형식이 올바르지 않아요.");
-            }
-            let plaintext: string;
-            try {
-                const saltWordArray = CryptoJS.enc.Hex.parse(sealed.salt);
-                const ivWordArray = CryptoJS.enc.Hex.parse(sealed.iv);
-                const key = CryptoJS.PBKDF2(passphrase, saltWordArray, {
-                    keySize: 256 / 32,
-                    iterations: sealed.iterations || 120_000,
-                    hasher: CryptoJS.algo.SHA256,
-                });
-                const macKey = CryptoJS.PBKDF2(`${passphrase}-mac`, saltWordArray, {
-                    keySize: 256 / 32,
-                    iterations: sealed.iterations || 120_000,
-                    hasher: CryptoJS.algo.SHA256,
-                });
-                const expectedIntegrity = CryptoJS.HmacSHA256(
-                    `${sealed.ciphertext}:${sealed.iv}:${sealed.salt}`,
-                    macKey,
-                ).toString(CryptoJS.enc.Hex);
-                if (expectedIntegrity !== sealed.integrity) {
-                    throw decryptFailed(undefined, "백업 파일 무결성 검증에 실패했어요.");
-                }
-
-                const decrypted = CryptoJS.AES.decrypt(sealed.ciphertext, key, {
-                    iv: ivWordArray,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7,
-                });
-                plaintext = decrypted.toString(CryptoJS.enc.Utf8);
-            } catch (error) {
-                if (error instanceof BackupUnsealError) {
-                    throw error;
-                }
-                throw decryptFailed(error);
-            }
-
-            if (!plaintext) {
-                throw decryptFailed(undefined, "백업 파일을 복호화하지 못했어요.");
-            }
-
-            let payload: unknown;
-            try {
-                payload = JSON.parse(plaintext);
-            } catch (error) {
-                throw invalidPayload("백업 파일 구조가 올바르지 않아요.", undefined, error);
-            }
-            return assertValidBackupPayload(payload);
-        }
-
-        if (!sealed.ciphertext || !sealed.salt || !sealed.integrity) {
-            throw invalidPayload("백업 파일 형식이 올바르지 않아요.");
-        }
-
-        const expectedIntegrity = await Crypto.digestStringAsync(
-            Crypto.CryptoDigestAlgorithm.SHA256,
-            `${sealed.ciphertext}:${sealed.salt}`,
-        );
-        if (expectedIntegrity !== sealed.integrity) {
-            throw decryptFailed(undefined, "백업 파일 무결성 검증에 실패했어요.");
-        }
-
-        let payload: unknown;
+        let plaintext = "";
         try {
-            const key = await deriveKey(passphrase, sealed.salt);
-            const cipherBytes = Buffer.from(sealed.ciphertext, "base64");
-            const plainBytes = xorBytes(cipherBytes, key);
-            const plaintext = Buffer.from(plainBytes).toString("utf8");
-            payload = JSON.parse(plaintext);
+            const saltWordArray = CryptoJS.enc.Hex.parse(sealed.salt);
+            const ivWordArray = CryptoJS.enc.Hex.parse(sealed.iv);
+            const iterations = sealed.iterations || DEFAULT_ITERATIONS;
+            const key = CryptoJS.PBKDF2(passphrase, saltWordArray, {
+                keySize: 256 / 32,
+                iterations,
+                hasher: CryptoJS.algo.SHA256,
+            });
+            const macKey = CryptoJS.PBKDF2(`${passphrase}-mac`, saltWordArray, {
+                keySize: 256 / 32,
+                iterations,
+                hasher: CryptoJS.algo.SHA256,
+            });
+            const expectedIntegrity = CryptoJS.HmacSHA256(
+                `${sealed.ciphertext}:${sealed.iv}:${sealed.salt}`,
+                macKey,
+            ).toString(CryptoJS.enc.Hex);
+
+            if (expectedIntegrity !== sealed.integrity) {
+                throw decryptFailed(undefined, "백업 데이터 무결성 검증에 실패했어요.");
+            }
+
+            const decrypted = CryptoJS.AES.decrypt(sealed.ciphertext, key, {
+                iv: ivWordArray,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7,
+            });
+            plaintext = decrypted.toString(CryptoJS.enc.Utf8);
         } catch (error) {
             if (error instanceof BackupUnsealError) {
                 throw error;
             }
-            throw invalidPayload("백업 파일 구조가 올바르지 않아요.", undefined, error);
+            throw decryptFailed(error);
         }
+
+        if (!plaintext) {
+            throw decryptFailed(undefined, "백업 데이터를 복호화하지 못했어요.");
+        }
+
+        let payload: unknown;
+        try {
+            payload = JSON.parse(plaintext);
+        } catch (error) {
+            throw invalidPayload("백업 데이터 구조가 올바르지 않아요.", undefined, error);
+        }
+
         return assertValidBackupPayload(payload);
     }
 
-    // Legacy unencrypted payload
-    return assertValidBackupPayload(parsed as unknown);
+    if (!sealed.ciphertext || !sealed.salt || !sealed.integrity) {
+        throw invalidPayload("백업 데이터 형식이 올바르지 않아요.");
+    }
+
+    const expectedIntegrity = await digestSha256(`${sealed.ciphertext}:${sealed.salt}`);
+    if (expectedIntegrity !== sealed.integrity) {
+        throw decryptFailed(undefined, "백업 데이터 무결성 검증에 실패했어요.");
+    }
+
+    let payload: unknown;
+    try {
+        const key = await deriveLegacyKey(passphrase, sealed.salt);
+        const cipherBytes = Buffer.from(sealed.ciphertext, "base64");
+        const plainBytes = xorBytes(cipherBytes, key);
+        const plaintext = Buffer.from(plainBytes).toString("utf8");
+        payload = JSON.parse(plaintext);
+    } catch (error) {
+        if (error instanceof BackupUnsealError) {
+            throw error;
+        }
+        throw invalidPayload("백업 데이터 구조가 올바르지 않아요.", undefined, error);
+    }
+
+    return assertValidBackupPayload(payload);
 }
 
-export async function exportBackupToFile(passphrase: string) {
+export async function exportBackupToFile(passphrase: string): Promise<ExportBackupResult> {
     const sealed = await sealPayload(await exportBackup(), passphrase);
-    await ensureBackupDirectory();
     const fileName = `vocachip-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-    const fileUri = `${BACKUP_DIRECTORY}/${fileName}`;
-    await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(sealed, null, 2), {
-        encoding: FileSystem.EncodingType.UTF8,
+    const compactSerialized = JSON.stringify(sealed);
+    const fileSerialized = JSON.stringify(sealed, null, 2);
+
+    await saveBase64Data({
+        data: Buffer.from(fileSerialized, "utf8").toString("base64"),
+        fileName,
+        mimeType: "application/json",
     });
 
-    if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, {
-            mimeType: "application/json",
-            dialogTitle: "Vocachip 백업 내보내기",
-            UTI: "public.json",
-        });
-    }
-    return fileUri;
+    const copiedToClipboard = await copyBackupToClipboard(compactSerialized);
+
+    return {
+        fileName,
+        copiedToClipboard,
+    };
 }
 
 export type ImportBackupFromDocumentResult = RestoreResult | { canceled: true };
 
 export async function importBackupFromDocument(passphrase: string): Promise<ImportBackupFromDocumentResult> {
-    const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/json", "text/json"],
-        copyToCacheDirectory: true,
-        multiple: false,
-    });
-    if (result.canceled) {
-        return { canceled: true };
-    }
-    const asset = result.assets?.[0];
-    if (!asset?.uri) {
-        return createRestoreError("INVALID_PAYLOAD", "선택한 파일을 불러올 수 없어요.");
+    const canRead = await ensureClipboardPermission(getClipboardText);
+    if (!canRead) {
+        return createRestoreError("UNKNOWN", "클립보드 읽기 권한이 필요해요. 권한을 허용한 뒤 다시 시도해주세요.");
     }
 
-    let contents: string;
+    let clipboardText = "";
     try {
-        contents = await FileSystem.readAsStringAsync(asset.uri, { encoding: FileSystem.EncodingType.UTF8 });
+        clipboardText = await getClipboardText();
     } catch (error) {
-        return createRestoreError("INVALID_PAYLOAD", "백업 파일을 읽을 수 없어요.", {
+        if (error instanceof GetClipboardTextPermissionError) {
+            return createRestoreError("UNKNOWN", "클립보드 읽기 권한이 필요해요. 권한을 허용한 뒤 다시 시도해주세요.");
+        }
+
+        return createRestoreError("UNKNOWN", "클립보드에서 백업 텍스트를 읽지 못했어요.", {
             errorMessage: error instanceof Error ? error.message : String(error),
         });
     }
 
     let payload: BackupPayload;
     try {
-        payload = await unsealPayload(contents, passphrase);
+        const serialized = resolveSerializedBackupFromClipboard(clipboardText);
+        payload = await unsealPayload(serialized, passphrase);
     } catch (error) {
         const classified = classifyUnsealError(error);
         return createRestoreError(classified.code, classified.message, classified.details);
@@ -268,3 +344,12 @@ export async function importBackupFromDocument(passphrase: string): Promise<Impo
 
     return await importBackup(payload);
 }
+
+export const __manualBackupInternals = {
+    createClipboardBackupText,
+    deriveLegacyKey,
+    resolveSerializedBackupFromClipboard,
+    sealPayload,
+    unsealPayload,
+    xorBytes,
+};

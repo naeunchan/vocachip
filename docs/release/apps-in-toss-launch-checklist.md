@@ -3,16 +3,16 @@
 ## 1. Release Candidate Freeze
 
 - Confirm the release branch and build from a dedicated branch, not `main`.
-- Update `app.json` `expo.version` and `extra.versionLabel` for the release candidate.
+- Update `package.json` `version` and `VOCACHIP_VERSION_LABEL` for the release candidate.
 - Confirm `AIT_APP_NAME`, `AIT_DISPLAY_NAME`, `AIT_APP_ICON_URL`, and `AIT_PRIMARY_COLOR` before running `npm run build`.
-- Decide the first-release feature scope explicitly. Production defaults in `app.config.ts` and `granite.config.ts` are conservative.
-- If the release includes member login, set `EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH=true` explicitly.
+- Decide the first-release feature scope explicitly. Production defaults in `granite.config.ts` are conservative.
+- If the release includes member login, set `VOCACHIP_FEATURE_ACCOUNT_AUTH=true` explicitly.
 
 ## 2. Environment Freeze
 
 - Copy `.env.example` to `.env` and replace placeholder values.
 - Verify the legal URLs resolve over HTTPS. If they are invalid, the app falls back to in-app legal documents.
-- Verify `EXPO_PUBLIC_OPENAI_PROXY_URL`, `EXPO_PUBLIC_OPENAI_PROXY_KEY`, and `EXPO_PUBLIC_AI_HEALTH_URL` against the real proxy.
+- Verify `VOCACHIP_OPENAI_PROXY_URL`, `VOCACHIP_OPENAI_PROXY_KEY`, and `VOCACHIP_AI_HEALTH_URL` against the real proxy.
 - Verify `AI_PROXY_KEY` and `OPENAI_API_KEY` are configured only on the backend.
 
 ## 3. Backend And CORS Readiness

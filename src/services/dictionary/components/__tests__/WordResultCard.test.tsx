@@ -5,10 +5,11 @@ import { WordResultCard } from "@/services/dictionary/components/WordResultCard"
 import type { WordResult } from "@/services/dictionary/types";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 
-jest.mock("@expo/vector-icons/Ionicons", () => {
+jest.mock("@/components/AppIcon", () => {
     const React = require("react");
     const { Text } = require("react-native");
-    return ({ name }: { name: string }) => <Text>{name}</Text>;
+    const MockIcon = ({ name }: { name: string }) => <Text>{name}</Text>;
+    return { Ionicons: MockIcon, MaterialIcons: MockIcon };
 });
 
 const wrapper: React.ComponentType<React.PropsWithChildren> = ({ children }) => (

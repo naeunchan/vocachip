@@ -6,10 +6,11 @@ import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 
 const mockSearchResults = jest.fn();
 
-jest.mock("@expo/vector-icons/Ionicons", () => {
+jest.mock("@/components/AppIcon", () => {
     const React = require("react");
     const { Text } = require("react-native");
-    return (props: { name: string }) => <Text>{props.name}</Text>;
+    const MockIcon = (props: { name: string }) => <Text>{props.name}</Text>;
+    return { Ionicons: MockIcon, MaterialIcons: MockIcon };
 });
 
 jest.mock("@/components/TextField", () => ({

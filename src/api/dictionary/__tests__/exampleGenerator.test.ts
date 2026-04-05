@@ -1,7 +1,7 @@
 type OpenAIConfigMock = {
-    OPENAI_FEATURE_ENABLED: boolean;
-    OPENAI_PROXY_URL: string;
-    OPENAI_PROXY_KEY: string;
+    featureEnabled: boolean;
+    proxyUrl: string;
+    proxyKey: string;
 };
 
 const originalFetch = global.fetch;
@@ -13,7 +13,14 @@ function loadModule(config: OpenAIConfigMock) {
 
     jest.resetModules();
     jest.isolateModules(() => {
-        jest.doMock("@/config/openAI", () => config);
+        jest.doMock("@/config/openAI", () => ({
+            getOpenAIConfig: () => ({
+                proxyUrl: config.proxyUrl,
+                proxyKey: config.proxyKey,
+                healthUrl: config.proxyUrl ? `${config.proxyUrl.replace(/\/+$/, "")}/health` : "",
+                featureEnabled: config.featureEnabled,
+            }),
+        }));
         jest.doMock("@/services/database", () => ({
             getPreferenceValue: jest.fn(async (key: string) =>
                 Object.prototype.hasOwnProperty.call(preferenceStore, key) ? preferenceStore[key] : null,
@@ -64,9 +71,9 @@ describe("exampleGenerator", () => {
 
     it("returns stale cached examples immediately and refreshes them in the background", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
         const nowSpy = jest.spyOn(Date, "now");
         nowSpy.mockReturnValue(1000);
@@ -121,9 +128,9 @@ describe("exampleGenerator", () => {
 
     it("deduplicates concurrent uncached example requests", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
 
         let resolveResponse: ((value: unknown) => void) | null = null;
@@ -162,9 +169,9 @@ describe("exampleGenerator", () => {
 
     it("returns an empty list without fetching when the proxy is unavailable", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: false,
-            OPENAI_PROXY_URL: "",
-            OPENAI_PROXY_KEY: "",
+            featureEnabled: false,
+            proxyUrl: "",
+            proxyKey: "",
         });
         const fetchMock = jest.fn();
         mockFetch(fetchMock);
@@ -175,9 +182,9 @@ describe("exampleGenerator", () => {
 
     it("reuses persisted example cache after the module reloads", async () => {
         const firstModule = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
         const firstFetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -200,9 +207,9 @@ describe("exampleGenerator", () => {
         expect(firstFetchMock).toHaveBeenCalledTimes(1);
 
         const secondModule = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
         const secondFetchMock = jest.fn();
         mockFetch(secondFetchMock);

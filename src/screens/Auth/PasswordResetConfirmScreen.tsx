@@ -1,9 +1,9 @@
-import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Text, TouchableOpacity, View } from "react-native";
 
 import { AppHeader } from "@/components/AppHeader";
+import { Ionicons } from "@/components/AppIcon";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { TextField } from "@/components/TextField";
 import { PASSWORD_RESET_SUCCESS_MESSAGE } from "@/screens/App/AppScreen.constants";

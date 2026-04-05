@@ -1,7 +1,7 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
+import { Ionicons } from "@/components/AppIcon";
 import { createWordResultCardStyles } from "@/services/dictionary/styles/WordResultCard.styles";
 import { WordResultCardProps } from "@/services/dictionary/types/WordResultCard";
 import { useAppAppearance } from "@/theme/AppearanceContext";

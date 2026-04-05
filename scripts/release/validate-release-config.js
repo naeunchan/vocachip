@@ -1,20 +1,6 @@
 #!/usr/bin/env node
-/* eslint-env node */
-/* global __dirname */
 
-const fs = require("fs");
-const path = require("path");
 const { URL } = require("url");
-
-const rootDir = path.resolve(__dirname, "..", "..");
-
-function readJson(filePath) {
-    try {
-        return JSON.parse(fs.readFileSync(filePath, "utf8"));
-    } catch (error) {
-        throw new Error(`Failed to read ${path.relative(rootDir, filePath)}: ${error.message}`);
-    }
-}
 
 function clean(value) {
     return typeof value === "string" ? value.trim() : "";
@@ -62,22 +48,19 @@ function printSection(title, items) {
 
 const errors = [];
 const warnings = [];
-const appJson = readJson(path.join(rootDir, "app.json"));
-const expoConfig = appJson.expo ?? {};
-const expoExtra = expoConfig.extra ?? {};
 
 const appName = clean(process.env.AIT_APP_NAME);
 const displayName = clean(process.env.AIT_DISPLAY_NAME);
 const iconUrl = clean(process.env.AIT_APP_ICON_URL);
-const privacyPolicyUrl = clean(expoExtra.privacyPolicyUrl);
-const termsOfServiceUrl = clean(expoExtra.termsOfServiceUrl);
+const privacyPolicyUrl = clean(process.env.VOCACHIP_PRIVACY_POLICY_URL);
+const termsOfServiceUrl = clean(process.env.VOCACHIP_TERMS_OF_SERVICE_URL);
 const profile = clean(process.env.APP_ENV || process.env.NODE_ENV).toLowerCase();
 const isProduction = profile === "production";
-const accountAuthRaw = process.env.EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH;
+const accountAuthRaw = process.env.VOCACHIP_FEATURE_ACCOUNT_AUTH;
 const accountAuthFlag = parseBoolean(accountAuthRaw);
-const openAIProxyUrl = clean(process.env.EXPO_PUBLIC_OPENAI_PROXY_URL);
-const openAIProxyKey = clean(process.env.EXPO_PUBLIC_OPENAI_PROXY_KEY);
-const aiHealthUrl = clean(process.env.EXPO_PUBLIC_AI_HEALTH_URL);
+const openAIProxyUrl = clean(process.env.VOCACHIP_OPENAI_PROXY_URL);
+const openAIProxyKey = clean(process.env.VOCACHIP_OPENAI_PROXY_KEY);
+const aiHealthUrl = clean(process.env.VOCACHIP_AI_HEALTH_URL);
 
 if (isPlaceholder(appName)) {
     errors.push("Set `AIT_APP_NAME` to the real Apps in Toss app name before building release artifacts.");
@@ -92,19 +75,19 @@ if (!isHttpsUrl(iconUrl) || isPlaceholder(iconUrl)) {
 }
 
 if (!isHttpsUrl(privacyPolicyUrl) || isPlaceholder(privacyPolicyUrl)) {
-    errors.push("Set `app.json -> expo.extra.privacyPolicyUrl` to a real hosted HTTPS URL before release.");
+    errors.push("Set `VOCACHIP_PRIVACY_POLICY_URL` to a real hosted HTTPS URL before release.");
 }
 
 if (!isHttpsUrl(termsOfServiceUrl) || isPlaceholder(termsOfServiceUrl)) {
-    errors.push("Set `app.json -> expo.extra.termsOfServiceUrl` to a real hosted HTTPS URL before release.");
+    errors.push("Set `VOCACHIP_TERMS_OF_SERVICE_URL` to a real hosted HTTPS URL before release.");
 }
 
 if (isProduction) {
     if (accountAuthFlag === null) {
-        errors.push("Set `EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH` explicitly to `true` or `false` for production releases.");
+        errors.push("Set `VOCACHIP_FEATURE_ACCOUNT_AUTH` explicitly to `true` or `false` for production releases.");
     }
 } else if (accountAuthFlag === null && clean(accountAuthRaw)) {
-    errors.push("`EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH` must be `true` or `false` when it is provided.");
+    errors.push("`VOCACHIP_FEATURE_ACCOUNT_AUTH` must be `true` or `false` when it is provided.");
 }
 
 const aiConfiguredFields = [openAIProxyUrl, openAIProxyKey, aiHealthUrl].filter(Boolean).length;
@@ -114,7 +97,7 @@ const hasOnlyPartialProxyConfig =
 
 if (aiConfiguredFields > 0 && hasOnlyPartialProxyConfig) {
     warnings.push(
-        "AI proxy config looks partial. Prefer setting `EXPO_PUBLIC_OPENAI_PROXY_URL`, `EXPO_PUBLIC_OPENAI_PROXY_KEY`, and `EXPO_PUBLIC_AI_HEALTH_URL` together.",
+        "AI proxy config looks partial. Prefer setting `VOCACHIP_OPENAI_PROXY_URL`, `VOCACHIP_OPENAI_PROXY_KEY`, and `VOCACHIP_AI_HEALTH_URL` together.",
     );
 }
 

@@ -9,8 +9,9 @@ const mockFavoritesScreen = jest.fn(() => null);
 const mockSearchScreen = jest.fn(() => null);
 const mockSettingsNavigator = jest.fn(() => null);
 
-jest.mock("@expo/vector-icons", () => ({
+jest.mock("@/components/AppIcon", () => ({
     MaterialIcons: () => null,
+    Ionicons: () => null,
 }));
 
 jest.mock("@/screens/Home/HomeScreen", () => ({

@@ -1,7 +1,7 @@
 import {
     DarkTheme as NavigationDarkTheme,
     DefaultTheme as NavigationDefaultTheme,
-    NavigationContainer,
+    ThemeProvider,
 } from "@react-navigation/native";
 import React, { useMemo } from "react";
 
@@ -27,8 +27,8 @@ export function AppNavigator(props: AppNavigatorProps) {
     );
 
     return (
-        <NavigationContainer independent theme={navigationTheme}>
+        <ThemeProvider value={navigationTheme}>
             <RootTabNavigator {...props} />
-        </NavigationContainer>
+        </ThemeProvider>
     );
 }

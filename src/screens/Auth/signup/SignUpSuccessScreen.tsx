@@ -1,8 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useEffect, useRef } from "react";
 import { Animated, Text, View } from "react-native";
 
+import { Ionicons } from "@/components/AppIcon";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { AuthStackParamList } from "@/screens/Auth/AuthNavigator.types";
 import { createSignupStyles } from "@/screens/Auth/signup/signupStyles";

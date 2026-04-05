@@ -70,7 +70,7 @@ describe("RecoveryGuideScreen", () => {
         FEATURE_FLAGS.backupRestore = true;
         const { getByText } = render(<RecoveryGuideScreen />);
 
-        expect(getByText(/설정 > 백업 및 복원 > 백업에서 복원하기/)).toBeTruthy();
+        expect(getByText(/설정 > 백업 및 복원 > 클립보드 백업 복원하기/)).toBeTruthy();
         expect(getByText("5. 문제가 계속되면 고객센터로 문의하기")).toBeTruthy();
     });
 

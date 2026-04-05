@@ -1,7 +1,7 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from "react-native";
 
+import { Ionicons } from "@/components/AppIcon";
 import { createSearchBarStyles } from "@/screens/Search/components/SearchBar.styles";
 import { SearchBarProps } from "@/screens/Search/components/SearchBar.types";
 import { t } from "@/shared/i18n";

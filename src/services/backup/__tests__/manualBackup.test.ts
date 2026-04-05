@@ -2,30 +2,37 @@ import { Buffer } from "buffer";
 
 import { exportBackupToFile, importBackupFromDocument } from "../manualBackup";
 
-jest.mock("expo-document-picker", () => ({
-    getDocumentAsync: jest.fn(),
+const mockImportBackup = jest.fn(async () => ({
+    ok: true as const,
+    code: "OK" as const,
+    restored: {
+        users: 1,
+        favorites: 0,
+        searchHistory: 0,
+    },
 }));
 
-jest.mock("expo-file-system/legacy", () => ({
-    documentDirectory: "file:///documents",
-    cacheDirectory: "file:///cache",
-    getInfoAsync: jest.fn(async () => ({ exists: false })),
-    makeDirectoryAsync: jest.fn(async () => {}),
-    writeAsStringAsync: jest.fn(async () => {}),
-    readAsStringAsync: jest.fn(async () => ""),
-    EncodingType: { UTF8: "utf8", Base64: "base64" },
-}));
+jest.mock("@apps-in-toss/framework", () => {
+    const getClipboardText = jest.fn(async () => "");
+    getClipboardText.getPermission = jest.fn(async () => "allowed");
+    getClipboardText.openPermissionDialog = jest.fn(async () => "allowed");
 
-jest.mock("expo-sharing", () => ({
-    isAvailableAsync: jest.fn(async () => true),
-    shareAsync: jest.fn(async () => {}),
-}));
+    const setClipboardText = jest.fn(async () => {});
+    setClipboardText.getPermission = jest.fn(async () => "allowed");
+    setClipboardText.openPermissionDialog = jest.fn(async () => "allowed");
 
-jest.mock("expo-crypto", () => ({
-    CryptoDigestAlgorithm: { SHA256: "SHA256" },
-    digestStringAsync: jest.fn(async (_algo, value) => "hash-" + value),
-    getRandomBytesAsync: jest.fn(async (length = 8) => new Uint8Array(length)),
-}));
+    return {
+        getClipboardText,
+        saveBase64Data: jest.fn(async () => {}),
+        setClipboardText,
+    };
+});
+
+const frameworkMock = jest.requireMock("@apps-in-toss/framework");
+
+const mockGetClipboardText = frameworkMock.getClipboardText;
+const mockSaveBase64Data = frameworkMock.saveBase64Data;
+const mockSetClipboardText = frameworkMock.setClipboardText;
 
 jest.mock("@/services/database", () => ({
     exportBackup: jest.fn(async () => ({
@@ -35,61 +42,52 @@ jest.mock("@/services/database", () => ({
         favorites: {},
         searchHistory: [],
     })),
-    importBackup: jest.fn(async () => ({
-        ok: true,
-        code: "OK",
-        restored: {
-            users: 0,
-            favorites: 0,
-            searchHistory: 0,
-        },
-    })),
+    importBackup: (...args: unknown[]) => mockImportBackup(...args),
 }));
-
-const mockDocumentPicker = jest.requireMock("expo-document-picker");
-const mockFileSystem = jest.requireMock("expo-file-system/legacy");
-const mockSharing = jest.requireMock("expo-sharing");
-const mockDatabase = jest.requireMock("@/services/database");
 
 describe("manualBackup", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockFileSystem.getInfoAsync.mockResolvedValue({ exists: false });
+        mockGetClipboardText.getPermission.mockResolvedValue("allowed");
+        mockGetClipboardText.openPermissionDialog.mockResolvedValue("allowed");
+        mockSetClipboardText.getPermission.mockResolvedValue("allowed");
+        mockSetClipboardText.openPermissionDialog.mockResolvedValue("allowed");
     });
 
-    it("exports a backup file and triggers sharing", async () => {
-        const filePath = await exportBackupToFile("secret");
+    it("exports a sealed backup file and copies restore text to the clipboard", async () => {
+        const result = await exportBackupToFile("secret");
+        const { fileName } = result;
 
-        expect(mockDatabase.exportBackup).toHaveBeenCalled();
-        expect(mockFileSystem.makeDirectoryAsync).toHaveBeenCalled();
-        expect(mockFileSystem.writeAsStringAsync).toHaveBeenCalled();
-        expect(mockSharing.shareAsync).toHaveBeenCalledWith(
-            expect.stringContaining("vocachip-backup-"),
-            expect.objectContaining({ mimeType: "application/json" }),
-        );
-        expect(filePath).toContain("vocachip-backup-");
-    });
-
-    it("imports a backup when a document is selected", async () => {
-        mockDocumentPicker.getDocumentAsync.mockResolvedValue({
-            canceled: false,
-            assets: [{ uri: "file:///tmp/backup.json" }],
-        });
-        const payload = { version: 1, exportedAt: "t", users: [], favorites: {}, searchHistory: [] };
-        const ciphertext = Buffer.from(JSON.stringify(payload)).toString("base64");
-        mockFileSystem.readAsStringAsync.mockResolvedValue(
-            JSON.stringify({
-                version: 1,
-                encrypted: true,
-                salt: "salt",
-                ciphertext,
-                integrity: `hash-${ciphertext}:salt`,
+        expect(fileName).toContain("vocachip-backup-");
+        expect(result.copiedToClipboard).toBe(true);
+        expect(mockSaveBase64Data).toHaveBeenCalledWith(
+            expect.objectContaining({
+                fileName,
+                mimeType: "application/json",
+                data: expect.any(String),
             }),
         );
 
-        const result = await importBackupFromDocument("secret");
+        const encoded = mockSaveBase64Data.mock.calls[0][0].data as string;
+        const serialized = Buffer.from(encoded, "base64").toString("utf8");
+        const payload = JSON.parse(serialized);
+        const clipboardText = mockSetClipboardText.mock.calls[0][0] as string;
 
-        expect(result).toEqual({
+        expect(payload).toMatchObject({
+            version: 2,
+            encrypted: true,
+            kdf: "pbkdf2-sha256",
+            cipher: "aes-256-cbc",
+        });
+        expect(clipboardText).toMatch(/^vocachip-backup:/);
+    });
+
+    it("restores a backup from clipboard text", async () => {
+        const exportResult = await exportBackupToFile("secret");
+        const clipboardText = mockSetClipboardText.mock.calls[0][0] as string;
+
+        mockGetClipboardText.mockResolvedValueOnce(clipboardText);
+        mockImportBackup.mockResolvedValueOnce({
             ok: true,
             code: "OK",
             restored: {
@@ -98,15 +96,28 @@ describe("manualBackup", () => {
                 searchHistory: 0,
             },
         });
-        expect(mockDatabase.importBackup).toHaveBeenCalled();
+
+        await expect(importBackupFromDocument("secret")).resolves.toMatchObject({
+            ok: true,
+            code: "OK",
+        });
+        expect(exportResult.copiedToClipboard).toBe(true);
+        expect(mockImportBackup).toHaveBeenCalledWith(
+            expect.objectContaining({
+                version: 1,
+                users: [],
+                favorites: {},
+                searchHistory: [],
+            }),
+        );
     });
 
-    it("returns canceled result when the document picker is cancelled", async () => {
-        mockDocumentPicker.getDocumentAsync.mockResolvedValue({ canceled: true });
+    it("returns a validation error when clipboard text is missing", async () => {
+        mockGetClipboardText.mockResolvedValueOnce("   ");
 
-        const result = await importBackupFromDocument("secret");
-
-        expect(result).toEqual({ canceled: true });
-        expect(mockDatabase.importBackup).not.toHaveBeenCalled();
+        await expect(importBackupFromDocument("secret")).resolves.toMatchObject({
+            ok: false,
+            code: "INVALID_PAYLOAD",
+        });
     });
 });

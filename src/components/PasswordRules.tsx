@@ -1,7 +1,7 @@
-import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Text, View } from "react-native";
 
+import { Ionicons } from "@/components/AppIcon";
 import { createPasswordRulesStyles } from "@/components/PasswordRules.styles";
 import type { PasswordRuleState } from "@/screens/Auth/signup/signupSchema";
 import { useAppAppearance } from "@/theme/AppearanceContext";

@@ -1,10 +1,9 @@
 // @ts-check
 const path = require("path");
 
-const { getSentryExpoConfig } = require("@sentry/react-native/metro");
+const { getDefaultConfig, mergeConfig } = require("@react-native/metro-config");
 
-const baseConfig = getSentryExpoConfig(path.resolve());
-
+const baseConfig = getDefaultConfig(path.resolve());
 const resolver = baseConfig.resolver ?? { assetExts: [], sourceExts: [] };
 const assetExts = resolver.assetExts ? [...resolver.assetExts] : [];
 const sourceExts = resolver.sourceExts ? [...resolver.sourceExts] : [];
@@ -13,12 +12,10 @@ if (!assetExts.includes("wasm")) {
     assetExts.push("wasm");
 }
 
-module.exports = {
-    ...baseConfig,
+module.exports = mergeConfig(baseConfig, {
     resolver: {
-        ...resolver,
         assetExts,
         sourceExts: sourceExts.filter((ext) => ext !== "wasm"),
         unstable_enablePackageExports: false,
     },
-};
+});

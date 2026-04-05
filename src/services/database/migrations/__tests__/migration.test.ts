@@ -6,12 +6,6 @@ import {
     verifyPasswordHash,
 } from "@/services/database";
 
-jest.mock("expo-crypto", () => ({
-    CryptoDigestAlgorithm: { SHA256: "SHA256" },
-    digestStringAsync: jest.fn(async (_algorithm: string, value: string) => `digest-${value}`),
-    getRandomBytesAsync: jest.fn(async (length = 16) => new Uint8Array(length)),
-}));
-
 const LEGACY_PASSWORD_SALT = "vocachip::salt";
 
 function fnv1a32(input: string) {

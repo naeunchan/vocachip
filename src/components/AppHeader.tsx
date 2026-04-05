@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { type NavigationProp, type ParamListBase, useNavigation } from "@react-navigation/native";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createAppHeaderStyles } from "@/components/AppHeader.styles";
+import { Ionicons } from "@/components/AppIcon";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 

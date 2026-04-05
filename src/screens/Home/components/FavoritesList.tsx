@@ -1,7 +1,7 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 
+import { MaterialIcons } from "@/components/AppIcon";
 import { FAVORITES_LIST_TEXT } from "@/screens/Home/constants";
 import { createFavoritesListStyles } from "@/screens/Home/styles/FavoritesList.styles";
 import { FavoritesListProps } from "@/screens/Home/types/FavoritesList.types";

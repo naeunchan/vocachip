@@ -9,7 +9,7 @@ describe("aiMetricsMonitor", () => {
     it("falls back to the proxy metrics URL when no explicit metrics URL is set", () => {
         expect(
             resolveMetricsUrl({
-                EXPO_PUBLIC_OPENAI_PROXY_URL: "https://api.example.com/",
+                VOCACHIP_OPENAI_PROXY_URL: "https://api.example.com/",
             }),
         ).toBe("https://api.example.com/metrics");
     });
@@ -19,13 +19,13 @@ describe("aiMetricsMonitor", () => {
             resolveMetricsApiKey({
                 AI_METRICS_API_KEY: "metrics-key",
                 AI_PROXY_KEY: "server-key",
-                EXPO_PUBLIC_OPENAI_PROXY_KEY: "client-key",
+                VOCACHIP_OPENAI_PROXY_KEY: "client-key",
             }),
         ).toBe("metrics-key");
         expect(
             resolveMetricsApiKey({
                 AI_PROXY_KEY: "server-key",
-                EXPO_PUBLIC_OPENAI_PROXY_KEY: "client-key",
+                VOCACHIP_OPENAI_PROXY_KEY: "client-key",
             }),
         ).toBe("server-key");
     });

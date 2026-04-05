@@ -1,4 +1,4 @@
-import { AI_HEALTH_URL, OPENAI_FEATURE_ENABLED } from "@/config/openAI";
+import { getOpenAIConfig } from "@/config/openAI";
 
 export type AIProxyHealthStatus = "ok" | "degraded" | "unconfigured" | "unknown";
 
@@ -83,7 +83,9 @@ export function isBackgroundAIWarmupAllowed(health: AIProxyHealth): boolean {
 }
 
 export async function getAIProxyHealth(options: GetAIProxyHealthOptions = {}): Promise<AIProxyHealth> {
-    if (!OPENAI_FEATURE_ENABLED || !AI_HEALTH_URL) {
+    const { featureEnabled, healthUrl } = getOpenAIConfig();
+
+    if (!featureEnabled || !healthUrl) {
         return createHealthValue("unconfigured");
     }
 
@@ -105,7 +107,7 @@ export async function getAIProxyHealth(options: GetAIProxyHealthOptions = {}): P
         controller.abort();
     }, options.timeoutMs ?? AI_HEALTH_REQUEST_TIMEOUT_MS);
 
-    const task = fetch(AI_HEALTH_URL, {
+    const task = fetch(healthUrl, {
         method: "GET",
         signal: controller.signal,
     })

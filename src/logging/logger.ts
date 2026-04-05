@@ -6,13 +6,35 @@ import type { AppError } from "@/errors/AppError";
 let initialized = false;
 let hasSentryDsn = false;
 
+function getConsoleErrorMessage(error: unknown) {
+    if (error instanceof Error) {
+        return error.message || error.name;
+    }
+
+    if (typeof error === "string") {
+        return error;
+    }
+
+    return "Unknown error";
+}
+
+function getConsoleContext(context?: Record<string, unknown>) {
+    if (!context) {
+        return undefined;
+    }
+
+    const { componentStack: _componentStack, stack: _stack, ...rest } = context;
+
+    return Object.keys(rest).length > 0 ? rest : undefined;
+}
+
 export function initializeLogging() {
     if (initialized) {
         return;
     }
     initialized = true;
     const runtime = getRuntimeConfig();
-    const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN ?? runtime.sentryDsn;
+    const dsn = globalThis.process?.env?.VOCACHIP_SENTRY_DSN ?? runtime.sentryDsn;
     if (!dsn) {
         console.info("[logger] Sentry disabled (missing DSN).");
         return;
@@ -42,7 +64,15 @@ export function captureException(error: unknown, context?: Record<string, unknow
         }
         Sentry.captureException(error, { extra: context });
     } else {
-        console.error("[logger] exception", error, context);
+        const message = getConsoleErrorMessage(error);
+        const consoleContext = getConsoleContext(context);
+
+        if (consoleContext) {
+            console.error("[logger] exception", message, consoleContext);
+            return;
+        }
+
+        console.error("[logger] exception", message);
     }
 }
 

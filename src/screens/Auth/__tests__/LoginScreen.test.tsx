@@ -11,12 +11,6 @@ jest.mock("@/services/database", () => ({
     setPreferenceValue: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock("@expo/vector-icons/MaterialCommunityIcons", () => {
-    const React = require("react");
-    const { Text } = require("react-native");
-    return (props: { name: string }) => <Text>{props.name}</Text>;
-});
-
 const wrapper: React.ComponentType<React.PropsWithChildren> = ({ children }) => (
     <AppAppearanceProvider
         mode="light"

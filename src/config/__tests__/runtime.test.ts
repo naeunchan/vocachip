@@ -10,7 +10,7 @@ describe("runtime config", () => {
             throw new Error("expo-constants should not be loaded");
         });
 
-        jest.doMock("expo-constants", expoConstantsFactory);
+        jest.doMock("expo-constants", expoConstantsFactory, { virtual: true });
 
         const runtime = require("@/config/runtime") as typeof import("@/config/runtime");
         runtime.setRuntimeConfig({

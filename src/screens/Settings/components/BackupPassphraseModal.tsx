@@ -2,6 +2,7 @@ import React from "react";
 import { Modal, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { createStyles } from "@/screens/Settings/SettingsScreen.styles";
+import { t } from "@/shared/i18n";
 import { useThemedStyles } from "@/theme/useThemedStyles";
 
 type BackupPassphraseModalProps = {
@@ -24,16 +25,17 @@ export function BackupPassphraseModal({
     onConfirm,
 }: BackupPassphraseModalProps) {
     const styles = useThemedStyles(createStyles);
+    const isExportAction = backupAction === "export";
 
     return (
         <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
             <View style={styles.backdrop}>
                 <View style={styles.passphraseCard}>
                     <Text style={styles.passphraseTitle}>
-                        {backupAction === "export" ? "백업 내보내기" : "백업 불러오기"}
+                        {isExportAction ? t("settings.link.backupExport") : t("settings.link.backupImport")}
                     </Text>
                     <Text style={styles.passphraseSubtitle}>
-                        백업 파일은 입력한 암호로 암호화돼요. 동일한 암호를 기억해두세요.
+                        {isExportAction ? t("settings.backup.exportHint") : t("settings.backup.importHint")}
                     </Text>
                     <TextInput
                         value={passphrase}

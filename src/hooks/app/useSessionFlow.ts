@@ -1160,8 +1160,19 @@ export function useSessionFlow({
         try {
             const { exportBackupToFile } =
                 require("@/services/backup/manualBackup") as typeof import("@/services/backup/manualBackup");
-            await exportBackupToFile(passphrase);
-            Alert.alert("백업 완료", "암호화된 백업 파일을 저장하거나 공유했어요.");
+            const exportResult = await exportBackupToFile(passphrase);
+            const copiedToClipboard =
+                typeof exportResult === "object" &&
+                exportResult !== null &&
+                "copiedToClipboard" in exportResult &&
+                Boolean(exportResult.copiedToClipboard);
+
+            Alert.alert(
+                "백업 완료",
+                copiedToClipboard
+                    ? "암호화된 백업 파일을 저장했고, 복원용 백업 텍스트를 클립보드에도 복사했어요."
+                    : "암호화된 백업 파일을 저장했어요. 클립보드 복사는 허용되지 않았거나 건너뛰었어요.",
+            );
         } catch (error) {
             const message = error instanceof Error ? error.message : "백업을 생성하지 못했어요.";
             Alert.alert("백업 실패", message);

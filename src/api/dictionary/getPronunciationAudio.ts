@@ -9,7 +9,7 @@ import {
     createAIUnavailableError,
     normalizeAIProxyError,
 } from "@/api/dictionary/aiProxyError";
-import { OPENAI_FEATURE_ENABLED, OPENAI_PROXY_KEY, OPENAI_PROXY_URL } from "@/config/openAI";
+import { getOpenAIConfig } from "@/config/openAI";
 import { createAppError } from "@/errors/AppError";
 
 const TTS_MODEL = "gpt-4o-mini-tts";
@@ -19,52 +19,8 @@ const AUDIO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const AUDIO_CACHE: Map<string, string> = new Map();
 const AUDIO_REQUESTS: Map<string, Promise<string>> = new Map();
 
-type FileSystemModule = {
-    cacheDirectory?: string | null;
-    documentDirectory?: string | null;
-    writeAsStringAsync?: (uri: string, contents: string, options?: { encoding?: string }) => Promise<void>;
-    getInfoAsync?: (uri: string) => Promise<{ exists: boolean }>;
-    EncodingType?: { Base64?: string };
-};
-
-function getFileSystemModule(): FileSystemModule | null {
-    try {
-        return require("expo-file-system") as FileSystemModule;
-    } catch {
-        return null;
-    }
-}
-
 function normalizeWord(input: string) {
     return input.trim().toLowerCase();
-}
-
-function resolveDirectory(): string | null {
-    const fileSystem = getFileSystemModule();
-    const directory = fileSystem?.cacheDirectory ?? fileSystem?.documentDirectory;
-    if (!directory) {
-        return null;
-    }
-    return directory.endsWith("/") ? directory : `${directory}/`;
-}
-
-async function writeAudioToFile(base64Data: string, key: string) {
-    const directory = resolveDirectory();
-    const fileSystemWithWrite = getFileSystemModule();
-
-    if (!directory || typeof fileSystemWithWrite?.writeAsStringAsync !== "function") {
-        return null;
-    }
-    const safeKey = key.replace(/[^a-z0-9]/gi, "-");
-    const fileUri = `${directory}tts-${safeKey}-${Date.now()}.${TTS_FORMAT}`;
-
-    const encodingType = fileSystemWithWrite.EncodingType?.Base64 ?? "base64";
-
-    await fileSystemWithWrite.writeAsStringAsync(fileUri, base64Data, {
-        encoding: encodingType,
-    });
-
-    return fileUri;
 }
 
 async function resolveCachedAudioUri(normalized: string): Promise<string | null> {
@@ -90,20 +46,7 @@ async function validateCachedAudioUri(normalized: string, cachedUri: string): Pr
         return null;
     }
 
-    if (cachedUri.startsWith("file://")) {
-        const fileSystem = getFileSystemModule();
-        if (!fileSystem?.getInfoAsync) {
-            AUDIO_CACHE.delete(normalized);
-            return null;
-        }
-        try {
-            const info = await fileSystem.getInfoAsync(cachedUri);
-            if (info.exists) {
-                return cachedUri;
-            }
-        } catch {
-            // Ignore and refresh cache below.
-        }
+    if (cachedUri.startsWith("data:audio/")) {
         AUDIO_CACHE.delete(normalized);
         await deletePersistedPronunciationUri(normalized);
         return null;
@@ -113,11 +56,12 @@ async function validateCachedAudioUri(normalized: string, cachedUri: string): Pr
 }
 
 function shouldPersistAudioUri(uri: string): boolean {
-    return uri.startsWith("http://") || uri.startsWith("https://") || uri.startsWith("file://");
+    return uri.startsWith("http://") || uri.startsWith("https://");
 }
 
 async function requestPronunciationAudio(normalized: string): Promise<string> {
-    const endpointBase = OPENAI_PROXY_URL.replace(/\/+$/, "");
+    const { proxyKey, proxyUrl } = getOpenAIConfig();
+    const endpointBase = proxyUrl.replace(/\/+$/, "");
     const requestUrl = `${endpointBase}/dictionary/tts`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -130,7 +74,7 @@ async function requestPronunciationAudio(normalized: string): Promise<string> {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(OPENAI_PROXY_KEY ? { "x-api-key": OPENAI_PROXY_KEY } : {}),
+                ...(proxyKey ? { "x-api-key": proxyKey } : {}),
             },
             body: JSON.stringify({
                 text: normalized,
@@ -167,8 +111,7 @@ async function requestPronunciationAudio(normalized: string): Promise<string> {
         return directUrl;
     }
 
-    const fileUri = base64 ? await writeAudioToFile(base64, normalized) : null;
-    const finalUri = fileUri ?? (base64 ? `data:audio/${TTS_FORMAT};base64,${base64}` : null);
+    const finalUri = base64 ? `data:audio/${TTS_FORMAT};base64,${base64}` : null;
 
     if (!finalUri) {
         throw createAIInvalidPayloadError("tts");
@@ -208,7 +151,9 @@ export async function getPronunciationAudio(word: string) {
         });
     }
 
-    if (!OPENAI_FEATURE_ENABLED || !OPENAI_PROXY_URL) {
+    const { featureEnabled, proxyUrl } = getOpenAIConfig();
+
+    if (!featureEnabled || !proxyUrl) {
         throw createAIUnavailableError("tts");
     }
 

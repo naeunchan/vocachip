@@ -4,7 +4,7 @@ import { Alert } from "react-native";
 import { normalizeAIProxyError } from "@/api/dictionary/aiProxyError";
 import { getPronunciationAudio, invalidatePronunciationAudioCache } from "@/api/dictionary/getPronunciationAudio";
 import { FEATURE_FLAGS } from "@/config/featureFlags";
-import { OPENAI_FEATURE_ENABLED } from "@/config/openAI";
+import { isOpenAIFeatureEnabled } from "@/config/openAI";
 import { getRuntimeConfig } from "@/config/runtime";
 import type { AppError } from "@/errors/AppError";
 import { isAppError, normalizeError, shouldRetry } from "@/errors/AppError";
@@ -125,6 +125,7 @@ function formatReminderLabel(value: Date | null): string | null {
 }
 
 export function useAppScreen(): AppScreenHookResult {
+    const openAIEnabled = isOpenAIFeatureEnabled();
     const [versionLabel] = useState(() => {
         return getRuntimeConfig().versionLabel ?? DEFAULT_VERSION_LABEL;
     });
@@ -137,7 +138,7 @@ export function useAppScreen(): AppScreenHookResult {
     });
     const searchFlow = useSearchFlow({
         favorites: sessionFlow.favorites,
-        pronunciationAvailable: OPENAI_FEATURE_ENABLED,
+        pronunciationAvailable: openAIEnabled,
     });
 
     searchFlowBridgeRef.current = {
@@ -204,7 +205,7 @@ export function useAppScreen(): AppScreenHookResult {
             return;
         }
 
-        if (!OPENAI_FEATURE_ENABLED) {
+        if (!openAIEnabled) {
             if (!hasShownPronunciationInfoRef.current) {
                 Alert.alert("발음 재생", "발음 기능은 현재 사용할 수 없습니다. 백엔드 연동 후 활성화됩니다.");
                 hasShownPronunciationInfoRef.current = true;
@@ -222,7 +223,7 @@ export function useAppScreen(): AppScreenHookResult {
                 void playPronunciationAsync();
             });
         }
-    }, [reportAiAssistError, searchFlow.result?.word, showAudioErrorAlert]);
+    }, [openAIEnabled, reportAiAssistError, searchFlow.result?.word, showAudioErrorAlert]);
 
     const handlePlayWordAudioAsync = useCallback(
         async (word: WordResult) => {
@@ -232,7 +233,7 @@ export function useAppScreen(): AppScreenHookResult {
                 return;
             }
 
-            if (!OPENAI_FEATURE_ENABLED) {
+            if (!openAIEnabled) {
                 if (!hasShownPronunciationInfoRef.current) {
                     Alert.alert("발음 재생", "발음 기능은 현재 사용할 수 없습니다. 백엔드 연동 후 활성화됩니다.");
                     hasShownPronunciationInfoRef.current = true;
@@ -251,7 +252,7 @@ export function useAppScreen(): AppScreenHookResult {
                 });
             }
         },
-        [reportAiAssistError, showAudioErrorAlert],
+        [openAIEnabled, reportAiAssistError, showAudioErrorAlert],
     );
 
     const isCurrentFavorite = useMemo(() => {
@@ -280,7 +281,7 @@ export function useAppScreen(): AppScreenHookResult {
     const reviewSessionEnabled = FEATURE_FLAGS.reviewLoop && FEATURE_FLAGS.reviewSessionUi;
     const studyEntryEnabled = FEATURE_FLAGS.aiStudyMode && FEATURE_FLAGS.aiStudyEntryPoints;
     const studySessionEnabled = FEATURE_FLAGS.aiStudyMode && FEATURE_FLAGS.aiStudySessionUi;
-    const studyAvailable = studyEntryEnabled && studySessionEnabled && OPENAI_FEATURE_ENABLED;
+    const studyAvailable = studyEntryEnabled && studySessionEnabled && openAIEnabled;
     const dailyGoalEnabled = FEATURE_FLAGS.dailyGoal;
     const reviewReminderEnabled = FEATURE_FLAGS.reviewReminder;
     const dueReviewQueue = useMemo(
@@ -735,7 +736,7 @@ export function useAppScreen(): AppScreenHookResult {
                 onPlayWordAudio: (word: WordResult) => {
                     void handlePlayWordAudioAsync(word);
                 },
-                pronunciationAvailable: OPENAI_FEATURE_ENABLED,
+                pronunciationAvailable: openAIEnabled,
                 reviewEnabled: reviewDashboardEnabled && reviewSessionEnabled,
                 reviewSummary: {
                     dueCount: dueReviewCount,
@@ -762,7 +763,7 @@ export function useAppScreen(): AppScreenHookResult {
                 onPlayAudio: (word: WordResult) => {
                     void handlePlayWordAudioAsync(word);
                 },
-                pronunciationAvailable: OPENAI_FEATURE_ENABLED,
+                pronunciationAvailable: openAIEnabled,
                 collectionsEnabled,
                 collections: sessionFlow.collections,
                 collectionMemberships: sessionFlow.collectionMemberships,
@@ -798,7 +799,7 @@ export function useAppScreen(): AppScreenHookResult {
                 onPlayPronunciation: () => {
                     void playPronunciationAsync();
                 },
-                pronunciationAvailable: OPENAI_FEATURE_ENABLED,
+                pronunciationAvailable: openAIEnabled,
                 autocompleteSuggestions: searchFlow.autocompleteSuggestions,
                 autocompleteLoading: searchFlow.autocompleteLoading,
                 onSelectAutocomplete: searchFlow.onSelectAutocomplete,

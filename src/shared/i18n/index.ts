@@ -45,8 +45,10 @@ const translations: Record<Locale, Record<string, string>> = {
         "settings.link.login": "기존 계정으로 로그인",
         "settings.link.theme": "화면 모드",
         "settings.link.font": "글자 크기",
-        "settings.link.backupExport": "데이터 백업 내보내기",
-        "settings.link.backupImport": "백업에서 복원하기",
+        "settings.link.backupExport": "암호화 백업 저장하기",
+        "settings.link.backupImport": "클립보드 백업 복원하기",
+        "settings.backup.exportHint": "백업 파일을 저장하고 복원용 백업 텍스트를 클립보드에도 복사해요.",
+        "settings.backup.importHint": "백업 텍스트를 클립보드에 복사한 뒤, 같은 암호를 입력해 복원하세요.",
         "settings.label.comingSoon": "준비 중",
         "search.aiNotice.title": "AI 발음/예문 준비 중",
         "search.aiNotice.body":
@@ -105,8 +107,11 @@ const translations: Record<Locale, Record<string, string>> = {
         "settings.link.login": "Log in with existing account",
         "settings.link.theme": "Theme",
         "settings.link.font": "Font size",
-        "settings.link.backupExport": "Export backup",
-        "settings.link.backupImport": "Import backup",
+        "settings.link.backupExport": "Save encrypted backup",
+        "settings.link.backupImport": "Restore clipboard backup",
+        "settings.backup.exportHint": "Saves a backup file and also copies restore text to the clipboard.",
+        "settings.backup.importHint":
+            "Copy the backup text to the clipboard, then enter the same passphrase to restore.",
         "settings.label.comingSoon": "Coming soon",
         "search.aiNotice.title": "AI pronunciation/examples pending",
         "search.aiNotice.body":

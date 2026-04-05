@@ -1,8 +1,8 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Ionicons } from "@/components/AppIcon";
 import { TextField } from "@/components/TextField";
 import { SearchBar } from "@/screens/Search/components/SearchBar";
 import { SearchResults } from "@/screens/Search/components/SearchResults";

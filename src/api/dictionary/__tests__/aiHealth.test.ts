@@ -1,6 +1,6 @@
 type OpenAIConfigMock = {
-    OPENAI_FEATURE_ENABLED: boolean;
-    AI_HEALTH_URL: string;
+    featureEnabled: boolean;
+    healthUrl: string;
 };
 
 const originalFetch = global.fetch;
@@ -10,7 +10,14 @@ function loadModule(config: OpenAIConfigMock) {
 
     jest.resetModules();
     jest.isolateModules(() => {
-        jest.doMock("@/config/openAI", () => config);
+        jest.doMock("@/config/openAI", () => ({
+            getOpenAIConfig: () => ({
+                proxyUrl: "",
+                proxyKey: "",
+                healthUrl: config.healthUrl,
+                featureEnabled: config.featureEnabled,
+            }),
+        }));
         loaded = require("@/api/dictionary/aiHealth") as typeof import("@/api/dictionary/aiHealth");
     });
 
@@ -30,8 +37,8 @@ describe("aiHealth", () => {
 
     it("returns unconfigured when the AI proxy health endpoint is unavailable", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: false,
-            AI_HEALTH_URL: "",
+            featureEnabled: false,
+            healthUrl: "",
         });
         const fetchMock = jest.fn();
         mockFetch(fetchMock);
@@ -44,8 +51,8 @@ describe("aiHealth", () => {
 
     it("caches successful health checks within the cache TTL", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            AI_HEALTH_URL: "https://example.com/health",
+            featureEnabled: true,
+            healthUrl: "https://example.com/health",
         });
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -69,8 +76,8 @@ describe("aiHealth", () => {
 
     it("returns unknown when the health check request fails", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            AI_HEALTH_URL: "https://example.com/health",
+            featureEnabled: true,
+            healthUrl: "https://example.com/health",
         });
         const fetchMock = jest.fn().mockRejectedValue(new Error("network_error"));
         mockFetch(fetchMock);

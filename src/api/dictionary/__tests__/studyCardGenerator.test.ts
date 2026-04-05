@@ -1,7 +1,7 @@
 type OpenAIConfigMock = {
-    OPENAI_FEATURE_ENABLED: boolean;
-    OPENAI_PROXY_URL: string;
-    OPENAI_PROXY_KEY: string;
+    featureEnabled: boolean;
+    proxyUrl: string;
+    proxyKey: string;
 };
 
 const originalFetch = global.fetch;
@@ -11,7 +11,14 @@ function loadModule(config: OpenAIConfigMock) {
 
     jest.resetModules();
     jest.isolateModules(() => {
-        jest.doMock("@/config/openAI", () => config);
+        jest.doMock("@/config/openAI", () => ({
+            getOpenAIConfig: () => ({
+                proxyUrl: config.proxyUrl,
+                proxyKey: config.proxyKey,
+                healthUrl: config.proxyUrl ? `${config.proxyUrl.replace(/\/+$/, "")}/health` : "",
+                featureEnabled: config.featureEnabled,
+            }),
+        }));
         loaded = require("@/api/dictionary/studyCardGenerator") as typeof import("@/api/dictionary/studyCardGenerator");
     });
 
@@ -77,9 +84,9 @@ describe("studyCardGenerator", () => {
 
     it("throws unavailable when proxy configuration is missing", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: false,
-            OPENAI_PROXY_URL: "",
-            OPENAI_PROXY_KEY: "",
+            featureEnabled: false,
+            proxyUrl: "",
+            proxyKey: "",
         });
 
         await expect(module.generateStudyCards("focus", meanings)).rejects.toMatchObject({
@@ -90,9 +97,9 @@ describe("studyCardGenerator", () => {
 
     it("posts study-card requests to the proxy and normalizes the response", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com/",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com/",
+            proxyKey: "secret",
         });
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -154,9 +161,9 @@ describe("studyCardGenerator", () => {
 
     it("maps invalid payloads to AI study payload errors", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -179,9 +186,9 @@ describe("studyCardGenerator", () => {
 
     it("sends a reduced context for definition-only study cards", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,

@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext, useFormState, useWatch } from "react-hook-form";
 import { KeyboardAvoidingView, Text, View } from "react-native";
 
 import { AppHeader } from "@/components/AppHeader";
+import { Ionicons } from "@/components/AppIcon";
 import { PasswordRules } from "@/components/PasswordRules";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { TextField } from "@/components/TextField";

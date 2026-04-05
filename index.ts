@@ -1,10 +1,11 @@
 import "react-native-gesture-handler";
 
-import { registerRootComponent } from "expo";
+import { register } from "@granite-js/react-native";
 
-import App from "./App";
+import App from "./src/_app";
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+if (__DEV__) {
+    register(App);
+}
+
+export default App;

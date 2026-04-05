@@ -1,4 +1,4 @@
-type RuntimeTarget = "expo" | "apps-in-toss";
+type RuntimeTarget = "apps-in-toss";
 
 type RuntimeConfig = {
     runtimeTarget: RuntimeTarget;
@@ -25,13 +25,8 @@ type RuntimeConfig = {
     featureAiStudySessionUi?: unknown;
 };
 
-type ExpoConfigLike = {
-    version?: unknown;
-    extra?: Record<string, unknown> | null;
-};
-
 const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
-    runtimeTarget: "expo",
+    runtimeTarget: "apps-in-toss",
     appVersion: "1.0.0",
     versionLabel: "1.0.0",
     privacyPolicyUrl: "https://vocachip.app/legal/privacy",
@@ -50,18 +45,13 @@ function getRuntimeScope(): RuntimeScope {
     return globalThis as RuntimeScope;
 }
 
-function readExpoConfig(): ExpoConfigLike | null {
-    try {
-        const moduleValue = require("expo-constants");
-        const constants = moduleValue?.default ?? moduleValue;
-        return constants?.expoConfig ?? null;
-    } catch {
-        return null;
-    }
-}
-
 function readString(value: unknown, fallback: string): string {
     return typeof value === "string" ? value : fallback;
+}
+
+function readEnvString(name: string): string {
+    const value = globalThis.process?.env?.[name];
+    return typeof value === "string" ? value.trim() : "";
 }
 
 export function setRuntimeConfig(overrides: Partial<RuntimeConfig>) {
@@ -73,47 +63,50 @@ export function setRuntimeConfig(overrides: Partial<RuntimeConfig>) {
 }
 
 function resolveRuntimeTarget(value: unknown): RuntimeTarget {
-    if (value === "apps-in-toss" || value === "expo") {
+    if (value === "apps-in-toss") {
         return value;
     }
     return DEFAULT_RUNTIME_CONFIG.runtimeTarget;
 }
 
 export function getRuntimeConfig(): RuntimeConfig {
-    const expoConfig = readExpoConfig();
-    const expoExtra: Record<string, unknown> = expoConfig?.extra ?? {};
     const runtime = getRuntimeScope().__VOCACHIP_RUNTIME_CONFIG__ ?? {};
 
     return {
         ...DEFAULT_RUNTIME_CONFIG,
-        ...expoExtra,
         ...runtime,
         runtimeTarget: resolveRuntimeTarget(runtime.runtimeTarget),
-        appVersion: readString(runtime.appVersion, readString(expoConfig?.version, DEFAULT_RUNTIME_CONFIG.appVersion)),
+        appVersion: readString(
+            runtime.appVersion,
+            readEnvString("VOCACHIP_APP_VERSION") || DEFAULT_RUNTIME_CONFIG.appVersion,
+        ),
         versionLabel: readString(
             runtime.versionLabel,
-            readString(expoExtra.versionLabel, DEFAULT_RUNTIME_CONFIG.versionLabel),
+            readEnvString("VOCACHIP_VERSION_LABEL") || DEFAULT_RUNTIME_CONFIG.versionLabel,
         ),
         privacyPolicyUrl: readString(
             runtime.privacyPolicyUrl,
-            readString(expoExtra.privacyPolicyUrl, DEFAULT_RUNTIME_CONFIG.privacyPolicyUrl),
+            readEnvString("VOCACHIP_PRIVACY_POLICY_URL") || DEFAULT_RUNTIME_CONFIG.privacyPolicyUrl,
         ),
         termsOfServiceUrl: readString(
             runtime.termsOfServiceUrl,
-            readString(expoExtra.termsOfServiceUrl, DEFAULT_RUNTIME_CONFIG.termsOfServiceUrl),
+            readEnvString("VOCACHIP_TERMS_OF_SERVICE_URL") || DEFAULT_RUNTIME_CONFIG.termsOfServiceUrl,
         ),
         openAIProxyUrl: readString(
             runtime.openAIProxyUrl,
-            readString(expoExtra.openAIProxyUrl, DEFAULT_RUNTIME_CONFIG.openAIProxyUrl),
+            readEnvString("VOCACHIP_OPENAI_PROXY_URL") || DEFAULT_RUNTIME_CONFIG.openAIProxyUrl,
         ),
         openAIProxyKey: readString(
             runtime.openAIProxyKey,
-            readString(expoExtra.openAIProxyKey, DEFAULT_RUNTIME_CONFIG.openAIProxyKey),
+            readEnvString("VOCACHIP_OPENAI_PROXY_KEY") || DEFAULT_RUNTIME_CONFIG.openAIProxyKey,
         ),
         aiHealthUrl: readString(
             runtime.aiHealthUrl,
-            readString(expoExtra.aiHealthUrl, DEFAULT_RUNTIME_CONFIG.aiHealthUrl),
+            readEnvString("VOCACHIP_AI_HEALTH_URL") || DEFAULT_RUNTIME_CONFIG.aiHealthUrl,
         ),
-        sentryDsn: readString(runtime.sentryDsn, readString(expoExtra.sentryDsn, DEFAULT_RUNTIME_CONFIG.sentryDsn)),
+        sentryDsn: readString(
+            runtime.sentryDsn,
+            readEnvString("VOCACHIP_SENTRY_DSN") || DEFAULT_RUNTIME_CONFIG.sentryDsn,
+        ),
     };
 }

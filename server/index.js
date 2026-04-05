@@ -1,4 +1,3 @@
-/* eslint-env node */
 /* global __dirname, Buffer */
 
 const path = require("path");

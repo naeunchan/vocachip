@@ -1,4 +1,3 @@
-const mockDigestStringAsync = jest.fn(async (_algorithm: string, value: string) => `digest-${value}`);
 const asyncStorageStore: Record<string, string> = {};
 const mockAsyncStorage = {
     getItem: jest.fn(async (key: string) =>
@@ -23,12 +22,6 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
     default: mockAsyncStorage,
 }));
 
-jest.mock("expo-crypto", () => ({
-    CryptoDigestAlgorithm: { SHA256: "SHA256" },
-    digestStringAsync: (...args: [string, string]) => mockDigestStringAsync(...args),
-    getRandomBytesAsync: jest.fn(async (length = 16) => new Uint8Array(length)),
-}));
-
 type DatabaseModule = typeof import("@/services/database");
 
 function loadDatabaseModule(): DatabaseModule {
@@ -44,7 +37,6 @@ describe("database persistence", () => {
                 mockFn.mockClear();
             }
         });
-        mockDigestStringAsync.mockClear();
     });
 
     it("persists session, favorites, search history, preferences, and verification state across reloads", async () => {

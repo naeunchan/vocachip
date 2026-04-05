@@ -4,12 +4,11 @@ import React from "react";
 import { FavoritesList } from "@/screens/Home/components/FavoritesList";
 import { FavoriteWordEntry } from "@/services/favorites/types";
 
-jest.mock("@expo/vector-icons", () => {
+jest.mock("@/components/AppIcon", () => {
     const React = require("react");
     const { Text } = require("react-native");
-    return {
-        MaterialIcons: ({ name }: { name: string }) => <Text>{name}</Text>,
-    };
+    const MockIcon = ({ name }: { name: string }) => <Text>{name}</Text>;
+    return { MaterialIcons: MockIcon, Ionicons: MockIcon };
 });
 
 const baseWord = {

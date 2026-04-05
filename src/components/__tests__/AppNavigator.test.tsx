@@ -9,7 +9,7 @@ const mockRootTabNavigator = jest.fn();
 jest.mock("@react-navigation/native", () => {
     const React = require("react");
     return {
-        NavigationContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+        ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
         DefaultTheme: { colors: { background: "#fff", card: "#fff", border: "#fff", primary: "#000", text: "#000" } },
         DarkTheme: { colors: { background: "#000", card: "#000", border: "#000", primary: "#fff", text: "#fff" } },
     };
@@ -131,7 +131,7 @@ const createProps = (): RootTabNavigatorProps => {
 };
 
 describe("AppNavigator", () => {
-    it("renders RootTabNavigator inside NavigationContainer", () => {
+    it("renders RootTabNavigator inside the navigation theme provider", () => {
         const props = createProps();
         const { getByTestId } = render(<AppNavigator {...props} />);
 

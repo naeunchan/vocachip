@@ -5,12 +5,11 @@ import { Alert } from "react-native";
 import { PasswordResetRequestScreen } from "@/screens/Auth/PasswordResetRequestScreen";
 import { AppAppearanceProvider } from "@/theme/AppearanceContext";
 
-jest.mock("@expo/vector-icons", () => {
+jest.mock("@/components/AppIcon", () => {
     const React = require("react");
     const { Text } = require("react-native");
-    return {
-        Ionicons: (props: { name: string }) => <Text>{props.name}</Text>,
-    };
+    const MockIcon = (props: { name: string }) => <Text>{props.name}</Text>;
+    return { Ionicons: MockIcon, MaterialIcons: MockIcon };
 });
 
 jest.mock("@/components/AppHeader", () => ({

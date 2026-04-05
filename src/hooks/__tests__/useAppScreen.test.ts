@@ -19,7 +19,13 @@ import {
 } from "@/theme/constants";
 
 jest.mock("@/config/openAI", () => ({
-    OPENAI_FEATURE_ENABLED: true,
+    getOpenAIConfig: () => ({
+        proxyUrl: "https://example.com",
+        proxyKey: "secret",
+        healthUrl: "https://example.com/health",
+        featureEnabled: true,
+    }),
+    isOpenAIFeatureEnabled: () => true,
 }));
 
 jest.mock("@/config/featureFlags", () => ({

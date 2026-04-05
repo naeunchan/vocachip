@@ -1,8 +1,8 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Ionicons } from "@/components/AppIcon";
 import { createStyles } from "@/screens/Settings/SettingsScreen.styles";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 import { FONT_SCALE_OPTIONS } from "@/theme/constants";

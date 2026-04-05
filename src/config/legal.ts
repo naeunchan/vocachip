@@ -1,11 +1,5 @@
 import { getRuntimeConfig } from "@/config/runtime";
 
-/**
- * Reads legal URLs from Expo extra so we don't accidentally ship placeholder links.
- * When empty, the app will show the built-in legal modal instead of opening a broken URL.
- */
-const runtime = getRuntimeConfig();
-
 const BLOCKED_HOSTS = new Set(["192.168.0.31", "127.0.0.1", "0.0.0.0", "example.com"]);
 
 function isPrivateIp(hostname: string) {
@@ -31,9 +25,10 @@ function sanitizeLegalUrl(input: unknown): string {
     }
 }
 
-/**
- * Ensure these are real, hosted HTTPS URLs before release.
- * If invalid/missing, the app will fallback to in-app legal documents.
- */
-export const PRIVACY_POLICY_URL = sanitizeLegalUrl(runtime.privacyPolicyUrl);
-export const TERMS_OF_SERVICE_URL = sanitizeLegalUrl(runtime.termsOfServiceUrl);
+export function getPrivacyPolicyUrl(): string {
+    return sanitizeLegalUrl(getRuntimeConfig().privacyPolicyUrl);
+}
+
+export function getTermsOfServiceUrl(): string {
+    return sanitizeLegalUrl(getRuntimeConfig().termsOfServiceUrl);
+}

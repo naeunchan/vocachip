@@ -29,7 +29,7 @@ export function RecoveryGuideScreen({
             : ["현재 출시 버전에서는 게스트 모드 학습 경험을 우선 제공하며 계정 기능은 제한적으로 운영됩니다."];
 
         if (FEATURE_FLAGS.backupRestore) {
-            steps.push("복원 가능한 백업 파일이 있다면 설정 > 백업 및 복원 > 백업에서 복원하기 이용");
+            steps.push("백업 텍스트를 클립보드에 복사한 뒤 설정 > 백업 및 복원 > 클립보드 백업 복원하기 이용");
         }
 
         if (showAccountAuth) {

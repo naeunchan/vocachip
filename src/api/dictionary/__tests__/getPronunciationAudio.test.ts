@@ -1,7 +1,7 @@
 type OpenAIConfigMock = {
-    OPENAI_FEATURE_ENABLED: boolean;
-    OPENAI_PROXY_URL: string;
-    OPENAI_PROXY_KEY: string;
+    featureEnabled: boolean;
+    proxyUrl: string;
+    proxyKey: string;
 };
 
 const originalFetch = global.fetch;
@@ -12,7 +12,14 @@ function loadModule(config: OpenAIConfigMock) {
 
     jest.resetModules();
     jest.isolateModules(() => {
-        jest.doMock("@/config/openAI", () => config);
+        jest.doMock("@/config/openAI", () => ({
+            getOpenAIConfig: () => ({
+                proxyUrl: config.proxyUrl,
+                proxyKey: config.proxyKey,
+                healthUrl: config.proxyUrl ? `${config.proxyUrl.replace(/\/+$/, "")}/health` : "",
+                featureEnabled: config.featureEnabled,
+            }),
+        }));
         jest.doMock("@/services/database", () => ({
             getPreferenceValue: jest.fn(async (key: string) =>
                 Object.prototype.hasOwnProperty.call(preferenceStore, key) ? preferenceStore[key] : null,
@@ -20,13 +27,6 @@ function loadModule(config: OpenAIConfigMock) {
             setPreferenceValue: jest.fn(async (key: string, value: string) => {
                 preferenceStore[key] = value;
             }),
-        }));
-        jest.doMock("expo-file-system", () => ({
-            cacheDirectory: "file:///tmp/",
-            documentDirectory: "file:///tmp/",
-            writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
-            getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
-            EncodingType: { Base64: "base64" },
         }));
         loaded =
             require("@/api/dictionary/getPronunciationAudio") as typeof import("@/api/dictionary/getPronunciationAudio");
@@ -51,9 +51,9 @@ describe("getPronunciationAudio", () => {
 
     it("throws unavailable when proxy configuration is missing", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: false,
-            OPENAI_PROXY_URL: "",
-            OPENAI_PROXY_KEY: "",
+            featureEnabled: false,
+            proxyUrl: "",
+            proxyKey: "",
         });
 
         await expect(module.getPronunciationAudio("apple")).rejects.toMatchObject({
@@ -62,11 +62,11 @@ describe("getPronunciationAudio", () => {
         });
     });
 
-    it("prefers direct audio URLs without writing a local file", async () => {
+    it("prefers direct audio URLs", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com/",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com/",
+            proxyKey: "secret",
         });
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -77,18 +77,16 @@ describe("getPronunciationAudio", () => {
         });
         mockFetch(fetchMock);
 
-        const fileSystem = require("expo-file-system");
         const uri = await module.getPronunciationAudio("apple");
 
         expect(uri).toBe("https://example.com/dictionary/tts/abc123");
-        expect(fileSystem.writeAsStringAsync).not.toHaveBeenCalled();
     });
 
-    it("falls back to writing a local file when only base64 data is returned", async () => {
+    it("falls back to an in-memory data URI when only base64 data is returned", async () => {
         const module = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com",
+            proxyKey: "secret",
         });
         const fetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -99,22 +97,16 @@ describe("getPronunciationAudio", () => {
         });
         mockFetch(fetchMock);
 
-        const fileSystem = require("expo-file-system");
         const uri = await module.getPronunciationAudio("apple");
 
-        expect(uri).toMatch(/^file:\/\/\/tmp\/tts-apple-/);
-        expect(fileSystem.writeAsStringAsync).toHaveBeenCalledWith(
-            expect.stringMatching(/^file:\/\/\/tmp\/tts-apple-/),
-            "YWJj",
-            expect.objectContaining({ encoding: "base64" }),
-        );
+        expect(uri).toBe("data:audio/mp3;base64,YWJj");
     });
 
     it("reuses a persisted audio URL after the module reloads", async () => {
         const firstModule = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com/",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com/",
+            proxyKey: "secret",
         });
         const firstFetchMock = jest.fn().mockResolvedValue({
             ok: true,
@@ -131,9 +123,9 @@ describe("getPronunciationAudio", () => {
         expect(firstFetchMock).toHaveBeenCalledTimes(1);
 
         const secondModule = loadModule({
-            OPENAI_FEATURE_ENABLED: true,
-            OPENAI_PROXY_URL: "https://example.com/",
-            OPENAI_PROXY_KEY: "secret",
+            featureEnabled: true,
+            proxyUrl: "https://example.com/",
+            proxyKey: "secret",
         });
         const secondFetchMock = jest.fn();
         mockFetch(secondFetchMock);

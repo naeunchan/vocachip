@@ -130,7 +130,7 @@ function cloneWordResult(result: WordResult): WordResult {
 }
 
 async function fetchFromSource(word: string): Promise<FreeDictionaryResponse> {
-    const proxyEndpoint = process.env.EXPO_PUBLIC_DICTIONARY_PROXY_URL;
+    const proxyEndpoint = globalThis.process?.env?.VOCACHIP_DICTIONARY_PROXY_URL;
     const encodedWord = encodeURIComponent(word);
     const requestUrl = proxyEndpoint
         ? `${proxyEndpoint}?word=${encodedWord}`

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-- This repository is `Vocachip`, an Expo-based React Native vocabulary app.
+- This repository is `Vocachip`, an Apps in Toss miniapp built with Granite and React Native.
 - Use this file as the project-specific operating guide for Codex.
 - Prefer the current source code over README assumptions when they disagree.
 
@@ -22,7 +22,7 @@
 
 ## Stack
 
-- Expo SDK 54
+- Apps in Toss + Granite
 - React Native 0.81
 - React 19
 - TypeScript with `strict: true`
@@ -33,14 +33,13 @@
 ## Core Commands
 
 - Install: `npm ci`
-- Start Expo: `npm start`
-- Start web: `npm run web`
+- Start miniapp dev server: `npm start`
 - Start local AI proxy: `npm run proxy`
 - Lint: `npm run lint -- --max-warnings=0`
 - Auto-fix lint: `npm run lint:fix`
 - Test: `npm test -- --watch=false`
 - Single test file: `npm test -- --watch=false <path>`
-- CI web export: `npm run ci:build`
+- CI bundle build: `npm run ci:build`
 
 ## Default Agent Workflow
 
@@ -56,8 +55,12 @@
 
 ## App Architecture
 
-- Entry point: `App.tsx`
-    - Loads the custom font.
+- Runtime entry point: `src/_app.tsx`
+    - Registers the Apps in Toss miniapp with Granite.
+    - Loads runtime env values through `src/appsInToss/runtimeInit.ts`.
+- App shell export: `App.tsx`
+    - Re-exports the miniapp shell for local module compatibility.
+- Miniapp shell: `src/appsInToss/VocachipMiniApp.tsx`
     - Initializes logging.
     - Wraps the app in `AppErrorBoundary`.
 - App shell: `src/screens/App/AppScreen.tsx`
@@ -112,7 +115,7 @@
 - Put tests next to the feature under `__tests__` when possible.
 - Use `@testing-library/react-native`.
 - If a component depends on theme context, wrap it with `AppAppearanceProvider` as existing tests do.
-- Mock Expo/native modules minimally and locally, following existing test patterns.
+- Mock native modules minimally and locally, following existing test patterns.
 - For behavior changes:
     - add or update focused tests first if practical
     - run at least the affected test file
@@ -120,26 +123,26 @@
 
 ## Feature Flags And Env
 
-- Feature flags are resolved in `src/config/featureFlags.ts` from Expo `extra` and env vars.
-- `app.config.ts` derives profile defaults from `APP_ENV`.
+- Feature flags are resolved in `src/config/featureFlags.ts` from the Granite runtime config and env vars.
+- `granite.config.ts` derives profile defaults from `APP_ENV`.
 - AI features must remain safe when proxy env vars are missing.
 - Never commit real secrets from `.env` or `.env.local`.
 - Relevant env vars:
-    - `EXPO_PUBLIC_OPENAI_PROXY_URL`
-    - `EXPO_PUBLIC_OPENAI_PROXY_KEY`
-    - `EXPO_PUBLIC_AI_HEALTH_URL`
-    - `EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA`
-    - `EXPO_PUBLIC_FEATURE_BACKUP_RESTORE`
+    - `VOCACHIP_OPENAI_PROXY_URL`
+    - `VOCACHIP_OPENAI_PROXY_KEY`
+    - `VOCACHIP_AI_HEALTH_URL`
+    - `VOCACHIP_FEATURE_ACCOUNT_AUTH`
+    - `VOCACHIP_FEATURE_GUEST_ACCOUNT_CTA`
+    - `VOCACHIP_FEATURE_BACKUP_RESTORE`
     - `AI_PROXY_KEY`
     - `OPENAI_API_KEY`
 
 ## Release And CI Notes
 
-- CI currently runs lint, full tests, a migration regression test, and a web export build.
+- CI currently runs lint, full tests, a migration regression test, and an Apps in Toss bundle build.
 - If you change release behavior, inspect:
-    - `app.json`
-    - `app.config.ts`
-    - `eas.json`
+    - `granite.config.ts`
+    - `.env.example`
     - `.github/workflows/ci.yml`
 - Keep production-safe defaults intact for hidden or incomplete features.
 

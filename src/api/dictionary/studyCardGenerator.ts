@@ -4,7 +4,7 @@ import {
     createAIUnavailableError,
     normalizeAIProxyError,
 } from "@/api/dictionary/aiProxyError";
-import { OPENAI_FEATURE_ENABLED, OPENAI_PROXY_KEY, OPENAI_PROXY_URL } from "@/config/openAI";
+import { getOpenAIConfig } from "@/config/openAI";
 import { createAppError } from "@/errors/AppError";
 import { MeaningEntry } from "@/services/dictionary/types/WordResult";
 import { DEFAULT_STUDY_CARD_TYPES, StudyCard, StudyCardChoice, StudyCardType } from "@/services/study/types";
@@ -188,11 +188,13 @@ export async function generateStudyCards(
         });
     }
 
-    if (!OPENAI_FEATURE_ENABLED || !OPENAI_PROXY_URL) {
+    const { featureEnabled, proxyKey, proxyUrl } = getOpenAIConfig();
+
+    if (!featureEnabled || !proxyUrl) {
         throw createAIUnavailableError("study");
     }
 
-    const endpointBase = OPENAI_PROXY_URL.replace(/\/+$/, "");
+    const endpointBase = proxyUrl.replace(/\/+$/, "");
     const requestUrl = `${endpointBase}/study/cards`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -205,7 +207,7 @@ export async function generateStudyCards(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(OPENAI_PROXY_KEY ? { "x-api-key": OPENAI_PROXY_KEY } : {}),
+                ...(proxyKey ? { "x-api-key": proxyKey } : {}),
             },
             body: JSON.stringify({
                 word: normalizedWord,

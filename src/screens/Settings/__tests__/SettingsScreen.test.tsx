@@ -5,10 +5,11 @@ import { Alert, Linking } from "react-native";
 import { FEATURE_FLAGS } from "@/config/featureFlags";
 import { SettingsScreen } from "@/screens/Settings/SettingsScreen";
 
-jest.mock("@expo/vector-icons/Ionicons", () => {
+jest.mock("@/components/AppIcon", () => {
     const React = require("react");
     const { Text } = require("react-native");
-    return (props: { name: string }) => <Text>{props.name}</Text>;
+    const MockIcon = (props: { name: string }) => <Text>{props.name}</Text>;
+    return { Ionicons: MockIcon, MaterialIcons: MockIcon };
 });
 
 jest.mock("@/screens/Settings/components/GuestActionCard", () => ({
@@ -185,12 +186,12 @@ describe("SettingsScreen", () => {
     it("opens the backup modal, validates passphrase, and exports with trimmed input", async () => {
         FEATURE_FLAGS.backupRestore = true;
         const onExportBackup = jest.fn().mockResolvedValue(undefined);
-        const { getByPlaceholderText, getByText, queryByText } = render(
+        const { getAllByText, getByPlaceholderText, getByText, queryByText } = render(
             <SettingsScreen {...baseProps} onExportBackup={onExportBackup} />,
         );
 
-        fireEvent.press(getByText("데이터 백업 내보내기"));
-        expect(getByText("백업 내보내기")).toBeTruthy();
+        fireEvent.press(getByText("암호화 백업 저장하기"));
+        expect(getAllByText("암호화 백업 저장하기")).toHaveLength(2);
 
         await act(async () => {
             fireEvent.press(getByText("확인"));

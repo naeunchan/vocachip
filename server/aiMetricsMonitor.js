@@ -156,7 +156,7 @@ function resolveMetricsUrl(env) {
         return explicit;
     }
 
-    const proxyUrl = clean(env.EXPO_PUBLIC_OPENAI_PROXY_URL);
+    const proxyUrl = clean(env.VOCACHIP_OPENAI_PROXY_URL);
     if (!proxyUrl) {
         return "";
     }
@@ -165,7 +165,7 @@ function resolveMetricsUrl(env) {
 }
 
 function resolveMetricsApiKey(env) {
-    return clean(env.AI_METRICS_API_KEY) || clean(env.AI_PROXY_KEY) || clean(env.EXPO_PUBLIC_OPENAI_PROXY_KEY);
+    return clean(env.AI_METRICS_API_KEY) || clean(env.AI_PROXY_KEY) || clean(env.VOCACHIP_OPENAI_PROXY_KEY);
 }
 
 module.exports = {

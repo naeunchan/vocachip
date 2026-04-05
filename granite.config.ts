@@ -4,7 +4,12 @@ import { defineConfig } from "@granite-js/react-native/config";
 
 const path = require("path");
 const packageJson = require(path.resolve(process.cwd(), "package.json"));
-const staticConfig = require(path.resolve(process.cwd(), "app.json"));
+
+const DEFAULT_APP_VERSION = "1.0.0";
+const DEFAULT_DISPLAY_NAME = "Vocachip";
+const DEFAULT_PRIMARY_COLOR = "#1d4ed8";
+const DEFAULT_PRIVACY_POLICY_URL = "https://vocachip.app/legal/privacy";
+const DEFAULT_TERMS_OF_SERVICE_URL = "https://vocachip.app/legal/terms";
 
 function parseBoolean(value?: string | null) {
     if (!value) return null;
@@ -28,8 +33,6 @@ function resolveProfile() {
     return process.env.NODE_ENV === "production" ? "production" : "development";
 }
 
-const expoConfig = staticConfig.expo ?? {};
-const expoExtra = expoConfig.extra ?? {};
 const profile = resolveProfile();
 const isProduction = profile === "production";
 const profileDefaults = {
@@ -53,19 +56,12 @@ function resolveFlag(name: keyof typeof profileDefaults, envName: string) {
     if (envValue !== null) {
         return envValue;
     }
-    const extraValue = expoExtra[name];
-    if (typeof extraValue === "boolean") {
-        return extraValue;
-    }
     return profileDefaults[name];
 }
 
-const appVersion = resolveString(expoConfig.version, resolveString(packageJson.version, "1.0.0"));
-const versionLabel = resolveString(expoExtra.versionLabel, appVersion);
-const primaryColor = resolveString(
-    process.env.AIT_PRIMARY_COLOR,
-    resolveString(expoConfig.splash?.backgroundColor, "#1d4ed8"),
-);
+const appVersion = resolveString(packageJson.version, DEFAULT_APP_VERSION);
+const versionLabel = resolveString(process.env.VOCACHIP_VERSION_LABEL, appVersion);
+const primaryColor = resolveString(process.env.AIT_PRIMARY_COLOR, DEFAULT_PRIMARY_COLOR);
 
 export default defineConfig({
     scheme: "intoss",
@@ -81,74 +77,73 @@ export default defineConfig({
     plugins: [
         appsInToss({
             brand: {
-                displayName: resolveString(process.env.AIT_DISPLAY_NAME, "Vocachip"),
+                displayName: resolveString(process.env.AIT_DISPLAY_NAME, DEFAULT_DISPLAY_NAME),
                 primaryColor,
                 icon: resolveString(process.env.AIT_APP_ICON_URL, ""),
             },
-            permissions: [],
+            permissions: [
+                {
+                    name: "clipboard",
+                    access: "read",
+                },
+                {
+                    name: "clipboard",
+                    access: "write",
+                },
+            ],
         }),
         env({
             VOCACHIP_APP_VERSION: appVersion,
             VOCACHIP_VERSION_LABEL: versionLabel,
             VOCACHIP_PRIVACY_POLICY_URL: resolveString(
                 process.env.VOCACHIP_PRIVACY_POLICY_URL,
-                resolveString(expoExtra.privacyPolicyUrl),
+                DEFAULT_PRIVACY_POLICY_URL,
             ),
             VOCACHIP_TERMS_OF_SERVICE_URL: resolveString(
                 process.env.VOCACHIP_TERMS_OF_SERVICE_URL,
-                resolveString(expoExtra.termsOfServiceUrl),
+                DEFAULT_TERMS_OF_SERVICE_URL,
             ),
-            EXPO_PUBLIC_SENTRY_DSN: resolveString(process.env.EXPO_PUBLIC_SENTRY_DSN),
-            EXPO_PUBLIC_OPENAI_PROXY_URL: resolveString(
-                process.env.EXPO_PUBLIC_OPENAI_PROXY_URL,
-                resolveString(expoExtra.openAIProxyUrl),
+            VOCACHIP_SENTRY_DSN: resolveString(process.env.VOCACHIP_SENTRY_DSN),
+            VOCACHIP_OPENAI_PROXY_URL: resolveString(process.env.VOCACHIP_OPENAI_PROXY_URL),
+            VOCACHIP_OPENAI_PROXY_KEY: resolveString(process.env.VOCACHIP_OPENAI_PROXY_KEY),
+            VOCACHIP_AI_HEALTH_URL: resolveString(process.env.VOCACHIP_AI_HEALTH_URL),
+            VOCACHIP_DICTIONARY_PROXY_URL: resolveString(process.env.VOCACHIP_DICTIONARY_PROXY_URL),
+            VOCACHIP_FEATURE_ACCOUNT_AUTH: toEnvBoolean(
+                resolveFlag("featureAccountAuth", "VOCACHIP_FEATURE_ACCOUNT_AUTH"),
             ),
-            EXPO_PUBLIC_OPENAI_PROXY_KEY: resolveString(
-                process.env.EXPO_PUBLIC_OPENAI_PROXY_KEY,
-                resolveString(expoExtra.openAIProxyKey),
+            VOCACHIP_FEATURE_GUEST_ACCOUNT_CTA: toEnvBoolean(
+                resolveFlag("featureGuestAccountCta", "VOCACHIP_FEATURE_GUEST_ACCOUNT_CTA"),
             ),
-            EXPO_PUBLIC_AI_HEALTH_URL: resolveString(
-                process.env.EXPO_PUBLIC_AI_HEALTH_URL,
-                resolveString(expoExtra.aiHealthUrl),
+            VOCACHIP_FEATURE_BACKUP_RESTORE: toEnvBoolean(
+                resolveFlag("featureBackupRestore", "VOCACHIP_FEATURE_BACKUP_RESTORE"),
             ),
-            EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH: toEnvBoolean(
-                resolveFlag("featureAccountAuth", "EXPO_PUBLIC_FEATURE_ACCOUNT_AUTH"),
+            VOCACHIP_FEATURE_REVIEW_LOOP: toEnvBoolean(
+                resolveFlag("featureReviewLoop", "VOCACHIP_FEATURE_REVIEW_LOOP"),
             ),
-            EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA: toEnvBoolean(
-                resolveFlag("featureGuestAccountCta", "EXPO_PUBLIC_FEATURE_GUEST_ACCOUNT_CTA"),
+            VOCACHIP_FEATURE_REVIEW_HOME_DASHBOARD: toEnvBoolean(
+                resolveFlag("featureReviewHomeDashboard", "VOCACHIP_FEATURE_REVIEW_HOME_DASHBOARD"),
             ),
-            EXPO_PUBLIC_FEATURE_BACKUP_RESTORE: toEnvBoolean(
-                resolveFlag("featureBackupRestore", "EXPO_PUBLIC_FEATURE_BACKUP_RESTORE"),
+            VOCACHIP_FEATURE_REVIEW_SESSION_UI: toEnvBoolean(
+                resolveFlag("featureReviewSessionUi", "VOCACHIP_FEATURE_REVIEW_SESSION_UI"),
             ),
-            EXPO_PUBLIC_FEATURE_REVIEW_LOOP: toEnvBoolean(
-                resolveFlag("featureReviewLoop", "EXPO_PUBLIC_FEATURE_REVIEW_LOOP"),
+            VOCACHIP_FEATURE_DAILY_GOAL: toEnvBoolean(resolveFlag("featureDailyGoal", "VOCACHIP_FEATURE_DAILY_GOAL")),
+            VOCACHIP_FEATURE_REVIEW_REMINDER: toEnvBoolean(
+                resolveFlag("featureReviewReminder", "VOCACHIP_FEATURE_REVIEW_REMINDER"),
             ),
-            EXPO_PUBLIC_FEATURE_REVIEW_HOME_DASHBOARD: toEnvBoolean(
-                resolveFlag("featureReviewHomeDashboard", "EXPO_PUBLIC_FEATURE_REVIEW_HOME_DASHBOARD"),
+            VOCACHIP_FEATURE_COLLECTIONS: toEnvBoolean(
+                resolveFlag("featureCollections", "VOCACHIP_FEATURE_COLLECTIONS"),
             ),
-            EXPO_PUBLIC_FEATURE_REVIEW_SESSION_UI: toEnvBoolean(
-                resolveFlag("featureReviewSessionUi", "EXPO_PUBLIC_FEATURE_REVIEW_SESSION_UI"),
+            VOCACHIP_FEATURE_FAVORITES_BATCH_ACTIONS: toEnvBoolean(
+                resolveFlag("featureFavoritesBatchActions", "VOCACHIP_FEATURE_FAVORITES_BATCH_ACTIONS"),
             ),
-            EXPO_PUBLIC_FEATURE_DAILY_GOAL: toEnvBoolean(
-                resolveFlag("featureDailyGoal", "EXPO_PUBLIC_FEATURE_DAILY_GOAL"),
+            VOCACHIP_FEATURE_AI_STUDY_MODE: toEnvBoolean(
+                resolveFlag("featureAiStudyMode", "VOCACHIP_FEATURE_AI_STUDY_MODE"),
             ),
-            EXPO_PUBLIC_FEATURE_REVIEW_REMINDER: toEnvBoolean(
-                resolveFlag("featureReviewReminder", "EXPO_PUBLIC_FEATURE_REVIEW_REMINDER"),
+            VOCACHIP_FEATURE_AI_STUDY_ENTRY_POINTS: toEnvBoolean(
+                resolveFlag("featureAiStudyEntryPoints", "VOCACHIP_FEATURE_AI_STUDY_ENTRY_POINTS"),
             ),
-            EXPO_PUBLIC_FEATURE_COLLECTIONS: toEnvBoolean(
-                resolveFlag("featureCollections", "EXPO_PUBLIC_FEATURE_COLLECTIONS"),
-            ),
-            EXPO_PUBLIC_FEATURE_FAVORITES_BATCH_ACTIONS: toEnvBoolean(
-                resolveFlag("featureFavoritesBatchActions", "EXPO_PUBLIC_FEATURE_FAVORITES_BATCH_ACTIONS"),
-            ),
-            EXPO_PUBLIC_FEATURE_AI_STUDY_MODE: toEnvBoolean(
-                resolveFlag("featureAiStudyMode", "EXPO_PUBLIC_FEATURE_AI_STUDY_MODE"),
-            ),
-            EXPO_PUBLIC_FEATURE_AI_STUDY_ENTRY_POINTS: toEnvBoolean(
-                resolveFlag("featureAiStudyEntryPoints", "EXPO_PUBLIC_FEATURE_AI_STUDY_ENTRY_POINTS"),
-            ),
-            EXPO_PUBLIC_FEATURE_AI_STUDY_SESSION_UI: toEnvBoolean(
-                resolveFlag("featureAiStudySessionUi", "EXPO_PUBLIC_FEATURE_AI_STUDY_SESSION_UI"),
+            VOCACHIP_FEATURE_AI_STUDY_SESSION_UI: toEnvBoolean(
+                resolveFlag("featureAiStudySessionUi", "VOCACHIP_FEATURE_AI_STUDY_SESSION_UI"),
             ),
         }),
     ],

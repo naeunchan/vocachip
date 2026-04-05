@@ -1,10 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { getHeaderTitle } from "@react-navigation/elements";
 import { type NativeStackHeaderProps } from "@react-navigation/native-stack";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { Ionicons } from "@/components/AppIcon";
 import { useAppAppearance } from "@/theme/AppearanceContext";
 
 export function SettingsHeader({ navigation, options, route, back }: NativeStackHeaderProps) {

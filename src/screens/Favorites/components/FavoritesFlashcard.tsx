@@ -1,7 +1,7 @@
-import { MaterialIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
+import { MaterialIcons } from "@/components/AppIcon";
 import { FAVORITES_FLASHCARD_ICONS } from "@/screens/Favorites/components/constants";
 import { createFavoritesFlashcardStyles } from "@/screens/Favorites/components/FavoritesFlashcard.styles";
 import { FavoritesFlashcardProps } from "@/screens/Favorites/components/FavoritesFlashcard.types";
@@ -210,7 +210,7 @@ export function FavoritesFlashcard({
                             onPress={action.onPress}
                             accessibilityLabel={action.label}
                         >
-                            <MaterialIcons name={action.icon as any} size={28} color={action.color} />
+                            <MaterialIcons name={action.icon} size={28} color={action.color} />
                         </TouchableOpacity>
                     ))}
                 </View>

@@ -21,7 +21,5 @@ jobs:
               run: npm test -- --watch=false
             - name: Migration regression test
               run: npm test -- --watch=false src/services/database/migrations/__tests__/migration.test.ts
-            # - name: Expo doctor
-            #   run: npx expo-doctor
-            - name: Build (web export)
+            - name: Build (Apps in Toss bundle)
               run: npm run ci:build

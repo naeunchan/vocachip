@@ -7,6 +7,22 @@ import {
 } from "@/services/database";
 
 const LEGACY_PASSWORD_SALT = "vocachip::salt";
+const appsInTossStorageStore: Record<string, string> = {};
+const mockAppsInTossStorage = {
+    getItem: jest.fn(async (key: string) =>
+        Object.prototype.hasOwnProperty.call(appsInTossStorageStore, key) ? appsInTossStorageStore[key] : null,
+    ),
+    setItem: jest.fn(async (key: string, value: string) => {
+        appsInTossStorageStore[key] = value;
+    }),
+    removeItem: jest.fn(async (key: string) => {
+        delete appsInTossStorageStore[key];
+    }),
+};
+
+jest.mock("@apps-in-toss/framework", () => ({
+    Storage: mockAppsInTossStorage,
+}));
 
 function fnv1a32(input: string) {
     let hash = 0x811c9dc5;
@@ -33,6 +49,14 @@ const EMPTY_BACKUP: BackupPayload = {
 
 describe("database migration regressions", () => {
     beforeEach(async () => {
+        Object.keys(appsInTossStorageStore).forEach((key) => {
+            delete appsInTossStorageStore[key];
+        });
+        Object.values(mockAppsInTossStorage).forEach((mockFn) => {
+            if (typeof mockFn === "function" && "mockClear" in mockFn) {
+                mockFn.mockClear();
+            }
+        });
         await importBackup(EMPTY_BACKUP);
     });
 

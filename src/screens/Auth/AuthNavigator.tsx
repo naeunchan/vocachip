@@ -1,7 +1,7 @@
 import {
     DarkTheme as NavigationDarkTheme,
     DefaultTheme as NavigationDefaultTheme,
-    ThemeProvider,
+    NavigationContainer,
 } from "@react-navigation/native";
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import React, { useMemo } from "react";
@@ -50,7 +50,7 @@ export function AuthNavigator({ loginProps }: AuthNavigatorProps) {
     );
 
     return (
-        <ThemeProvider value={navigationTheme}>
+        <NavigationContainer theme={navigationTheme}>
             <SignupProvider>
                 <SignUpFormProvider>
                     <Stack.Navigator screenOptions={stackScreenOptions}>
@@ -125,6 +125,6 @@ export function AuthNavigator({ loginProps }: AuthNavigatorProps) {
                     </Stack.Navigator>
                 </SignUpFormProvider>
             </SignupProvider>
-        </ThemeProvider>
+        </NavigationContainer>
     );
 }

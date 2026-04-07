@@ -11,7 +11,7 @@ const mockRecoveryGuideScreen = jest.fn(() => null);
 jest.mock("@react-navigation/native", () => {
     const React = require("react");
     return {
-        ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+        NavigationContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
         DefaultTheme: { colors: { background: "#fff", card: "#fff", border: "#fff", primary: "#000", text: "#000" } },
         DarkTheme: { colors: { background: "#000", card: "#000", border: "#000", primary: "#fff", text: "#fff" } },
     };

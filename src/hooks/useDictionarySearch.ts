@@ -1,0 +1,378 @@
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+
+import type { DictionaryMode } from "../core/state/types";
+import type { VocabularyEntry } from "../entities/vocabulary/mockData";
+import { createVocabularyEntryFromSearchResult } from "../features/search/adapters";
+import {
+  createAiExampleRequests,
+  fetchAiGeneratedExample,
+} from "../features/search/aiExamples";
+import { naturalizeDictionarySearchResultMeanings } from "../features/search/aiMeanings";
+import {
+  fetchDictionarySearchResult,
+  hydrateDictionarySearchResultTranslations,
+} from "../features/search/freeDictionary";
+import type {
+  AiExampleStatus,
+  AiGeneratedExample,
+  DictionarySearchResult,
+  SearchStatus,
+} from "../features/search/types";
+import { STORAGE_KEYS } from "../core/state/constants";
+import { getSearchResults } from "../core/state/helpers";
+import { usePersistentState } from "./usePersistentState";
+
+interface UseDictionarySearchParams {
+  dictionaryMode: DictionaryMode;
+  initialHistory: string[];
+  words: VocabularyEntry[];
+  setWords: Dispatch<SetStateAction<VocabularyEntry[]>>;
+}
+
+function createSearchResultMeaningKey(result: DictionarySearchResult) {
+  return [
+    result.word.toLowerCase(),
+    ...result.sections.flatMap((section) => [
+      section.label.toLowerCase(),
+      ...section.items.map((item) => item.meaning),
+    ]),
+  ].join("\u001f");
+}
+
+export function useDictionarySearch({
+  dictionaryMode,
+  initialHistory,
+  words,
+  setWords,
+}: UseDictionarySearchParams) {
+  const [searchHistory, setSearchHistory] = usePersistentState(
+    STORAGE_KEYS.history,
+    initialHistory,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchStatus, setSearchStatus] = useState<SearchStatus>("idle");
+  const [searchResult, setSearchResult] =
+    useState<DictionarySearchResult | null>(null);
+  const [searchSaveFeedback, setSearchSaveFeedback] = useState<
+    "saved" | "existing" | null
+  >(null);
+  const [aiExampleStatus, setAiExampleStatus] =
+    useState<AiExampleStatus>("idle");
+  const [aiGeneratedExamples, setAiGeneratedExamples] = useState<
+    AiGeneratedExample[]
+  >([]);
+  const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const aiExampleAbortControllerRef = useRef<AbortController | null>(null);
+  const aiMeaningAbortControllerRef = useRef<AbortController | null>(null);
+  const enrichedSearchMeaningKeyRef = useRef<string | null>(null);
+  const matchedSearchWord =
+    searchResult === null
+      ? null
+      : (words.find(
+          (word) => word.word.toLowerCase() === searchResult.word.toLowerCase(),
+        ) ?? null);
+  const isSearchResultSaved = matchedSearchWord?.saved ?? false;
+  const emptySearchSuggestions = Array.from(
+    new Set(
+      [
+        ...getSearchResults(words, searchQuery).map((word) => word.word),
+        ...searchHistory,
+        "take",
+        "make",
+        "retain",
+      ].filter(
+        (term) =>
+          term.trim().length > 0 &&
+          term.toLowerCase() !== searchQuery.trim().toLowerCase(),
+      ),
+    ),
+  ).slice(0, 4);
+
+  useEffect(() => {
+    return () => {
+      searchAbortControllerRef.current?.abort();
+      aiExampleAbortControllerRef.current?.abort();
+      aiMeaningAbortControllerRef.current?.abort();
+    };
+  }, []);
+
+  const syncSavedWordFromSearchResult = useCallback(
+    (nextResult: DictionarySearchResult) => {
+      setWords((currentWords) =>
+        currentWords.map((word) =>
+          word.saved &&
+          word.word.toLowerCase() === nextResult.word.toLowerCase()
+            ? createVocabularyEntryFromSearchResult(nextResult, word)
+            : word,
+        ),
+      );
+    },
+    [setWords],
+  );
+
+  function handleChangeSearchQuery(nextQuery: string) {
+    setSearchQuery(nextQuery);
+
+    if (nextQuery.trim().length > 0) {
+      return;
+    }
+
+    searchAbortControllerRef.current?.abort();
+    aiExampleAbortControllerRef.current?.abort();
+    aiMeaningAbortControllerRef.current?.abort();
+    setSearchStatus("idle");
+    setSearchResult(null);
+    setSearchSaveFeedback(null);
+    setAiExampleStatus("idle");
+    setAiGeneratedExamples([]);
+    enrichedSearchMeaningKeyRef.current = null;
+  }
+
+  async function handleSearchSubmit(nextQuery: string) {
+    const trimmedQuery = nextQuery.trim();
+
+    if (trimmedQuery.length === 0) {
+      return;
+    }
+
+    setSearchQuery(trimmedQuery);
+
+    searchAbortControllerRef.current?.abort();
+    aiExampleAbortControllerRef.current?.abort();
+    aiMeaningAbortControllerRef.current?.abort();
+
+    const nextAbortController = new AbortController();
+
+    searchAbortControllerRef.current = nextAbortController;
+    enrichedSearchMeaningKeyRef.current = null;
+    setSearchStatus("loading");
+    setSearchResult(null);
+    setSearchSaveFeedback(null);
+    setAiExampleStatus("idle");
+    setAiGeneratedExamples([]);
+
+    try {
+      const nextResult = await fetchDictionarySearchResult(
+        trimmedQuery,
+        nextAbortController.signal,
+      );
+
+      if (nextAbortController.signal.aborted) {
+        return;
+      }
+
+      if (nextResult !== null) {
+        const historyTerm = nextResult.word.trim() || trimmedQuery;
+
+        setSearchHistory((currentHistory) =>
+          [
+            historyTerm,
+            ...currentHistory.filter(
+              (term) => term.toLowerCase() !== historyTerm.toLowerCase(),
+            ),
+          ].slice(0, 6),
+        );
+        syncSavedWordFromSearchResult(nextResult);
+      }
+
+      setSearchResult(nextResult);
+      setSearchStatus(nextResult === null ? "empty" : "success");
+    } catch {
+      if (nextAbortController.signal.aborted) {
+        return;
+      }
+
+      setSearchResult(null);
+      setSearchStatus("error");
+    }
+  }
+
+  useEffect(() => {
+    if (dictionaryMode !== "ko-en") {
+      enrichedSearchMeaningKeyRef.current = null;
+      aiMeaningAbortControllerRef.current?.abort();
+      return;
+    }
+
+    if (searchStatus !== "success" || searchResult === null) {
+      return;
+    }
+
+    const searchMeaningKey = createSearchResultMeaningKey(searchResult);
+
+    if (enrichedSearchMeaningKeyRef.current === searchMeaningKey) {
+      return;
+    }
+
+    const nextAbortController = new AbortController();
+
+    aiMeaningAbortControllerRef.current?.abort();
+    aiMeaningAbortControllerRef.current = nextAbortController;
+    enrichedSearchMeaningKeyRef.current = searchMeaningKey;
+
+    void (async () => {
+      try {
+        const hasMissingTranslatedMeanings = searchResult.sections.some(
+          (section) =>
+            section.items.some((item) => item.translatedMeaning === null),
+        );
+        let nextResult = searchResult;
+
+        if (hasMissingTranslatedMeanings) {
+          nextResult = await hydrateDictionarySearchResultTranslations(
+            searchResult,
+            nextAbortController.signal,
+          );
+
+          if (nextAbortController.signal.aborted) {
+            return;
+          }
+        }
+
+        nextResult = await naturalizeDictionarySearchResultMeanings(
+          nextResult,
+          nextAbortController.signal,
+        );
+
+        if (nextAbortController.signal.aborted) {
+          return;
+        }
+
+        if (nextResult === searchResult) {
+          return;
+        }
+
+        syncSavedWordFromSearchResult(nextResult);
+        setSearchResult(nextResult);
+      } catch {
+        return;
+      }
+    })();
+
+    return () => {
+      nextAbortController.abort();
+    };
+  }, [
+    dictionaryMode,
+    searchResult,
+    searchStatus,
+    syncSavedWordFromSearchResult,
+  ]);
+
+  function handleSaveSearchResult() {
+    if (searchResult === null) {
+      return;
+    }
+
+    let nextFeedback: "saved" | "existing" = "saved";
+
+    setWords((currentWords) => {
+      const existingWord =
+        currentWords.find(
+          (word) => word.word.toLowerCase() === searchResult.word.toLowerCase(),
+        ) ?? null;
+
+      if (existingWord?.saved) {
+        nextFeedback = "existing";
+      }
+
+      const nextWord = createVocabularyEntryFromSearchResult(
+        searchResult,
+        existingWord ?? undefined,
+      );
+
+      if (existingWord === null) {
+        return [nextWord, ...currentWords];
+      }
+
+      return currentWords.map((word) =>
+        word.id === existingWord.id ? nextWord : word,
+      );
+    });
+
+    setSearchSaveFeedback(nextFeedback);
+  }
+
+  function clearSearchHistory() {
+    setSearchHistory([]);
+  }
+
+  async function handleGenerateAiExample() {
+    if (searchResult === null) {
+      return;
+    }
+
+    if (aiExampleStatus === "success" && aiGeneratedExamples.length > 0) {
+      aiExampleAbortControllerRef.current?.abort();
+      setAiGeneratedExamples([]);
+      setAiExampleStatus("idle");
+      return;
+    }
+
+    const aiExampleRequests = createAiExampleRequests(
+      searchResult,
+      dictionaryMode,
+    );
+
+    if (aiExampleRequests.length === 0) {
+      setAiGeneratedExamples([]);
+      setAiExampleStatus("error");
+      return;
+    }
+
+    aiExampleAbortControllerRef.current?.abort();
+
+    const nextAbortController = new AbortController();
+
+    aiExampleAbortControllerRef.current = nextAbortController;
+    setAiGeneratedExamples([]);
+    setAiExampleStatus("loading");
+
+    try {
+      const nextExamples = await Promise.all(
+        aiExampleRequests.map((request) =>
+          fetchAiGeneratedExample(request, nextAbortController.signal),
+        ),
+      );
+
+      if (nextAbortController.signal.aborted) {
+        return;
+      }
+
+      setAiGeneratedExamples(nextExamples);
+      setAiExampleStatus("success");
+    } catch {
+      if (nextAbortController.signal.aborted) {
+        return;
+      }
+
+      setAiGeneratedExamples([]);
+      setAiExampleStatus("error");
+    }
+  }
+
+  return {
+    searchQuery,
+    searchStatus,
+    searchResult,
+    searchHistory,
+    emptySearchSuggestions,
+    matchedSearchWord,
+    isSearchResultSaved,
+    searchSaveFeedback,
+    aiExampleStatus,
+    aiGeneratedExamples,
+    handleChangeSearchQuery,
+    handleSearchSubmit,
+    handleSaveSearchResult,
+    handleGenerateAiExample,
+    clearSearchHistory,
+  };
+}

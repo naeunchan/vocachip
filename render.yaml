@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: vocachip-ai-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run start:api
+    envVars:
+      - key: NODE_VERSION
+        value: 24.14.1
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: AI_ALLOWED_ORIGIN
+        sync: false

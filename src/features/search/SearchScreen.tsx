@@ -19,6 +19,7 @@ interface SearchScreenProps {
 	isSaved: boolean;
 	isPronouncingResult: boolean;
 	aiExampleStatus: AiExampleStatus;
+	isAiMeaningLoading: boolean;
 	aiGeneratedExamples: AiGeneratedExample[];
 	onSaveResult: () => void;
 	onSpeakResult: (word: string, audioUrl?: string | null) => void;
@@ -113,6 +114,7 @@ export function SearchScreen({
 	isSaved,
 	isPronouncingResult,
 	aiExampleStatus,
+	isAiMeaningLoading,
 	aiGeneratedExamples,
 	onSaveResult,
 	onSpeakResult,
@@ -126,8 +128,10 @@ export function SearchScreen({
 	const hasSearchActivity = searchStatus !== "idle";
 	const searchModeLabel = dictionaryMode === "ko-en" ? "한영" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
+	const isSearchLoading = searchStatus === "loading" || isAiMeaningLoading;
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
+	const searchLoadingCopy = isAiMeaningLoading ? "AI가 뜻을 정리하고 있어요." : "사전에서 단어를 찾고 있어요.";
 
 	function handleConfirmClearHistory() {
 		onClearHistory();
@@ -228,12 +232,16 @@ export function SearchScreen({
 				) : null}
 			</section>
 
-			{searchStatus === "loading" ? (
-				<section className="content-card search-empty-card">
+			{isSearchLoading ? (
+				<section className="content-card search-empty-card search-loading-card" aria-live="polite">
 					<div className="search-state-header" aria-hidden="true">
 						<SearchIcon icon="submit" />
 					</div>
 					<h3>검색 중</h3>
+					<div className="search-loading-bar" role="progressbar" aria-label="검색 중">
+						<span className="search-loading-bar__fill" />
+					</div>
+					<p className="search-loading-copy">{searchLoadingCopy}</p>
 				</section>
 			) : null}
 
@@ -280,7 +288,7 @@ export function SearchScreen({
 				</section>
 			) : null}
 
-			{searchStatus === "success" && searchResult !== null ? (
+			{searchStatus === "success" && searchResult !== null && !isAiMeaningLoading ? (
 				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search">
 					<div className="search-result-hero">
 						<div className="search-result-lockup">
@@ -352,7 +360,7 @@ export function SearchScreen({
 										const aiExample = getAiExample(sectionIndex, index);
 
 										return (
-											<div key={`${section.label}-${index + 1}`} className={`search-definition-item ${index === 0 ? "search-definition-item--primary" : ""}`}>
+											<div key={`${section.label}-${index + 1}`} className="search-definition-item">
 												<div className="search-definition-index">{index + 1}</div>
 												<div className="search-definition-copy">
 													<strong>{displayMeaning}</strong>

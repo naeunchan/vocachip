@@ -75,6 +75,7 @@ function App() {
     emptySearchSuggestions,
     isSearchResultSaved,
     aiExampleStatus,
+    isAiMeaningLoading,
     aiGeneratedExamples,
     handleChangeSearchQuery,
     handleSearchSubmit,
@@ -269,6 +270,7 @@ function App() {
               onSelectDictionaryMode={setDictionaryMode}
               isSaved={isSearchResultSaved}
               aiExampleStatus={aiExampleStatus}
+              isAiMeaningLoading={isAiMeaningLoading}
               aiGeneratedExamples={aiGeneratedExamples}
               isPronouncingResult={
                 searchResult !== null &&

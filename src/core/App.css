@@ -2020,11 +2020,6 @@
   gap: 6px;
 }
 
-.search-definition-item--primary {
-  border: 1px solid rgba(49, 130, 246, 0.12);
-  background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
-}
-
 .search-definition-index {
   display: inline-flex;
   justify-content: center;
@@ -2051,11 +2046,6 @@
   font-size: 15px;
   line-height: 1.42;
   font-weight: 700;
-}
-
-.search-definition-item--primary .search-definition-copy strong {
-  font-size: 17px;
-  line-height: 1.38;
 }
 
 .search-definition-copy p {
@@ -2095,6 +2085,51 @@
   display: grid;
   gap: 12px;
   padding: 20px 18px;
+}
+
+.search-loading-card {
+  gap: 14px;
+}
+
+.search-loading-copy {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.search-loading-bar {
+  position: relative;
+  overflow: hidden;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(49, 130, 246, 0.12);
+}
+
+.search-loading-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3182f6 0%, #1b64da 100%);
+  animation: search-loading-bar-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes search-loading-bar-slide {
+  0% {
+    transform: translateX(-115%);
+  }
+
+  100% {
+    transform: translateX(260%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-loading-bar__fill {
+    width: 100%;
+    animation: none;
+  }
 }
 
 .search-empty-card .subtle-button {
@@ -2520,8 +2555,7 @@
   gap: 10px;
 }
 
-.search-definition-item,
-.search-definition-item--primary {
+.search-definition-item {
   --definition-copy-font-size: 16px;
   --definition-copy-font-weight: 600;
   --definition-copy-line-height: 1.55;
@@ -2533,10 +2567,6 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-}
-
-.search-definition-item--primary {
-  --definition-copy-font-size: 17px;
 }
 
 .search-definition-index {
@@ -2559,12 +2589,6 @@
 
 .search-definition-copy strong {
   color: var(--grey900);
-  font-size: var(--definition-copy-font-size);
-  line-height: var(--definition-copy-line-height);
-  font-weight: var(--definition-copy-font-weight);
-}
-
-.search-definition-item--primary .search-definition-copy strong {
   font-size: var(--definition-copy-font-size);
   line-height: var(--definition-copy-line-height);
   font-weight: var(--definition-copy-font-weight);
@@ -3176,7 +3200,6 @@ input:focus-visible {
 :root[data-theme="dark"] .search-tool-row,
 :root[data-theme="dark"] .search-definition-section,
 :root[data-theme="dark"] .search-definition-item,
-:root[data-theme="dark"] .search-definition-item--primary,
 :root[data-theme="dark"] .search-feedback-card,
 :root[data-theme="dark"] .search-feedback-card .subtle-button,
 :root[data-theme="dark"] .bottom-nav,
@@ -3350,8 +3373,7 @@ input:focus-visible {
 
 :root[data-theme="dark"] .wordbook-session-stat:first-child,
 :root[data-theme="dark"] .wordbook-meaning-panel,
-:root[data-theme="dark"] .search-feedback-card,
-:root[data-theme="dark"] .search-definition-item--primary {
+:root[data-theme="dark"] .search-feedback-card {
   background: var(--accent-soft);
 }
 

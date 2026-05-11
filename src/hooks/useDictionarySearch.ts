@@ -62,6 +62,7 @@ export function useDictionarySearch({
   >(null);
   const [aiExampleStatus, setAiExampleStatus] =
     useState<AiExampleStatus>("idle");
+  const [isAiMeaningLoading, setIsAiMeaningLoading] = useState(false);
   const [aiGeneratedExamples, setAiGeneratedExamples] = useState<
     AiGeneratedExample[]
   >([]);
@@ -128,6 +129,7 @@ export function useDictionarySearch({
     setSearchResult(null);
     setSearchSaveFeedback(null);
     setAiExampleStatus("idle");
+    setIsAiMeaningLoading(false);
     setAiGeneratedExamples([]);
     enrichedSearchMeaningKeyRef.current = null;
   }
@@ -153,6 +155,7 @@ export function useDictionarySearch({
     setSearchResult(null);
     setSearchSaveFeedback(null);
     setAiExampleStatus("idle");
+    setIsAiMeaningLoading(false);
     setAiGeneratedExamples([]);
 
     try {
@@ -164,6 +167,9 @@ export function useDictionarySearch({
       if (nextAbortController.signal.aborted) {
         return;
       }
+
+      const shouldLoadAiMeanings =
+        dictionaryMode === "ko-en" && nextResult !== null;
 
       if (nextResult !== null) {
         const historyTerm = nextResult.word.trim() || trimmedQuery;
@@ -179,6 +185,7 @@ export function useDictionarySearch({
         syncSavedWordFromSearchResult(nextResult);
       }
 
+      setIsAiMeaningLoading(shouldLoadAiMeanings);
       setSearchResult(nextResult);
       setSearchStatus(nextResult === null ? "empty" : "success");
     } catch {
@@ -186,6 +193,7 @@ export function useDictionarySearch({
         return;
       }
 
+      setIsAiMeaningLoading(false);
       setSearchResult(null);
       setSearchStatus("error");
     }
@@ -195,6 +203,7 @@ export function useDictionarySearch({
     if (dictionaryMode !== "ko-en") {
       enrichedSearchMeaningKeyRef.current = null;
       aiMeaningAbortControllerRef.current?.abort();
+      setIsAiMeaningLoading(false);
       return;
     }
 
@@ -213,6 +222,7 @@ export function useDictionarySearch({
     aiMeaningAbortControllerRef.current?.abort();
     aiMeaningAbortControllerRef.current = nextAbortController;
     enrichedSearchMeaningKeyRef.current = searchMeaningKey;
+    setIsAiMeaningLoading(true);
 
     void (async () => {
       try {
@@ -225,6 +235,8 @@ export function useDictionarySearch({
           return;
         }
 
+        setIsAiMeaningLoading(false);
+
         if (nextResult === searchResult) {
           return;
         }
@@ -232,6 +244,10 @@ export function useDictionarySearch({
         syncSavedWordFromSearchResult(nextResult);
         setSearchResult(nextResult);
       } catch {
+        if (!nextAbortController.signal.aborted) {
+          setIsAiMeaningLoading(false);
+        }
+
         return;
       }
     })();
@@ -348,6 +364,7 @@ export function useDictionarySearch({
     isSearchResultSaved,
     searchSaveFeedback,
     aiExampleStatus,
+    isAiMeaningLoading,
     aiGeneratedExamples,
     handleChangeSearchQuery,
     handleSearchSubmit,

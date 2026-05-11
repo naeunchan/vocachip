@@ -14,7 +14,8 @@ interface AiExampleRequest {
   itemIndex: number;
 }
 
-const DEFAULT_AI_EXAMPLE_ENDPOINT = "/api/ai/example";
+const DEFAULT_AI_EXAMPLE_ENDPOINT =
+  "https://vocationary.onrender.com/api/ai/example";
 
 function getAiExampleEndpoint() {
   return (

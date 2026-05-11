@@ -39,8 +39,8 @@ Render에서 Blueprint로 배포하거나 Web Service를 직접 만들 때 아�
 Render 배포가 끝나면 발급된 API 주소를 앱 빌드 환경변수에 넣어 주세요.
 
 ```bash
-VITE_AI_MEANING_ENDPOINT=https://vocachip-ai-api.onrender.com/api/ai/meanings
-VITE_AI_EXAMPLE_ENDPOINT=https://vocachip-ai-api.onrender.com/api/ai/example
+VITE_AI_MEANING_ENDPOINT=https://vocationary.onrender.com/api/ai/meanings
+VITE_AI_EXAMPLE_ENDPOINT=https://vocationary.onrender.com/api/ai/example
 ```
 
 ## 배포하기

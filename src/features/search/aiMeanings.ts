@@ -15,7 +15,8 @@ interface AiMeaningRequest {
   items: AiMeaningRequestItem[];
 }
 
-const DEFAULT_AI_MEANING_ENDPOINT = "/api/ai/meanings";
+const DEFAULT_AI_MEANING_ENDPOINT =
+  "https://vocationary.onrender.com/api/ai/meanings";
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
 
 function getAiMeaningEndpoint() {

@@ -4,7 +4,6 @@ import type {
   DictionarySearchSection,
 } from "./types";
 
-const maxDefinitionsPerSection = 3;
 const maxRelatedWords = 8;
 const relatedWordTimeoutMs = 2200;
 const relatedWordCache = new Map<string, string[]>();
@@ -174,10 +173,6 @@ function addUniqueDefinition(
   const definitionKey = normalizeDefinitionKey(item.meaning);
 
   if (seenKeys.has(definitionKey)) {
-    return;
-  }
-
-  if (section.items.length >= maxDefinitionsPerSection) {
     return;
   }
 

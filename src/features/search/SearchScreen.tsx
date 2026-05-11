@@ -1,4 +1,4 @@
-import { Badge, Button, SegmentedControl } from "@toss/tds-mobile";
+import { Badge, Button, Loader, SegmentedControl } from "@toss/tds-mobile";
 import { useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
@@ -345,34 +345,41 @@ export function SearchScreen({
 						</p>
 					) : null}
 
-					<div className="search-definition-stack">
-						{searchDisplaySections.map((section, sectionIndex) => (
-							<section key={section.label} className="search-definition-section">
-								<div className="search-definition-heading">
-									<div className="search-definition-heading__meta">
-										<span className="search-definition-heading__part">{section.label}</span>
-									</div>
-									<div className="search-definition-rule" />
-								</div>
-								<div className="search-definition-item-list">
-									{section.items.map((item, index) => {
-										const displayMeaning = getDefinitionMeaning(item);
-										const aiExample = getAiExample(sectionIndex, index);
+					<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>
+						{isGeneratingAiExample ? (
+							<div className="search-ai-example-loading-popover" role="status" aria-live="polite">
+								<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" />
+							</div>
+						) : null}
 
-										return (
-											<div key={`${section.label}-${index + 1}`} className="search-definition-item">
-												<div className="search-definition-index">{index + 1}</div>
-												<div className="search-definition-copy">
-													<strong>{displayMeaning}</strong>
-													{aiExampleStatus === "loading" ? <p className="search-definition-ai-example search-definition-ai-example--state">AI 예문을 만들고 있어요.</p> : null}
-													{areAiExamplesVisible && aiExample !== null ? <p className="search-definition-ai-example">{aiExample.sentence}</p> : null}
+						<div className="search-definition-stack">
+							{searchDisplaySections.map((section, sectionIndex) => (
+								<section key={section.label} className="search-definition-section">
+									<div className="search-definition-heading">
+										<div className="search-definition-heading__meta">
+											<span className="search-definition-heading__part">{section.label}</span>
+										</div>
+										<div className="search-definition-rule" />
+									</div>
+									<div className="search-definition-item-list">
+										{section.items.map((item, index) => {
+											const displayMeaning = getDefinitionMeaning(item);
+											const aiExample = getAiExample(sectionIndex, index);
+
+											return (
+												<div key={`${section.label}-${index + 1}`} className="search-definition-item">
+													<div className="search-definition-index">{index + 1}</div>
+													<div className="search-definition-copy">
+														<strong>{displayMeaning}</strong>
+														{areAiExamplesVisible && aiExample !== null ? <p className="search-definition-ai-example">{aiExample.sentence}</p> : null}
+													</div>
 												</div>
-											</div>
-										);
-									})}
-								</div>
-							</section>
-						))}
+											);
+										})}
+									</div>
+								</section>
+							))}
+						</div>
 					</div>
 				</article>
 			) : null}

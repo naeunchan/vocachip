@@ -84,6 +84,7 @@ loadEnvFile(".env.local");
 
 const port = parsePort(process.env.PORT ?? process.env.AI_API_PORT, 8787);
 const host = resolveHost();
+const healthCheckPaths = new Set(["/", "/health", "/healthz"]);
 
 async function handleAiRequest(request, response, routeHandler) {
   setCorsHeaders(response);
@@ -115,10 +116,7 @@ const server = createServer((request, response) => {
   const baseUrl = `http://${request.headers.host ?? "127.0.0.1"}`;
   const url = new URL(request.url ?? "/", baseUrl);
 
-  if (
-    request.method === "GET" &&
-    (url.pathname === "/" || url.pathname === "/healthz")
-  ) {
+  if (request.method === "GET" && healthCheckPaths.has(url.pathname)) {
     sendJson(response, 200, { ok: true, service: "vocachip-ai-api" });
     return;
   }

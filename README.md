@@ -30,7 +30,7 @@ Render에서 Blueprint로 배포하거나 Web Service를 직접 만들 때 아�
 
 - Build Command: `npm install`
 - Start Command: `node server/index.js`
-- Health Check Path: `/healthz`
+- Health Check Path: `/health`
 - Environment Variables:
   - `OPENAI_API_KEY`: OpenAI API 키
   - `OPENAI_MODEL`: `gpt-4.1-mini`

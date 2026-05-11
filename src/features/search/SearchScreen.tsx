@@ -2,10 +2,9 @@ import { Badge, Button, SegmentedControl } from "@toss/tds-mobile";
 import { useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
-import type { VocabularyEntry } from "../../entities/vocabulary/mockData";
 import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
 
-const KOREAN_MEANING_PENDING_COPY = "한글 뜻을 불러오는 중이에요.";
+const AI_MEANING_PENDING_COPY = "AI가 뜻을 정리하는 중이에요.";
 
 interface SearchScreenProps {
 	searchQuery: string;
@@ -17,7 +16,6 @@ interface SearchScreenProps {
 	emptySuggestions: string[];
 	dictionaryMode: DictionaryMode;
 	onSelectDictionaryMode: (mode: DictionaryMode) => void;
-	matchedWord: VocabularyEntry | null;
 	isSaved: boolean;
 	isPronouncingResult: boolean;
 	aiExampleStatus: AiExampleStatus;
@@ -102,10 +100,6 @@ function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "boo
 	);
 }
 
-function hasKoreanText(value: string | null | undefined) {
-	return value !== null && value !== undefined && /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(value);
-}
-
 export function SearchScreen({
 	searchQuery,
 	onChangeSearchQuery,
@@ -116,7 +110,6 @@ export function SearchScreen({
 	emptySuggestions,
 	dictionaryMode,
 	onSelectDictionaryMode,
-	matchedWord,
 	isSaved,
 	isPronouncingResult,
 	aiExampleStatus,
@@ -141,7 +134,7 @@ export function SearchScreen({
 		setIsClearHistoryDialogOpen(false);
 	}
 
-	function getDefinitionMeaning(item: DictionarySearchDefinition, sectionIndex: number, itemIndex: number) {
+	function getDefinitionMeaning(item: DictionarySearchDefinition) {
 		if (dictionaryMode === "en-en") {
 			return item.meaning;
 		}
@@ -152,13 +145,7 @@ export function SearchScreen({
 			return translatedMeaning;
 		}
 
-		const savedKoreanMeaning = matchedWord?.meaning.trim() ?? "";
-
-		if (sectionIndex === 0 && itemIndex === 0 && hasKoreanText(savedKoreanMeaning)) {
-			return savedKoreanMeaning;
-		}
-
-		return KOREAN_MEANING_PENDING_COPY;
+		return AI_MEANING_PENDING_COPY;
 	}
 
 	function getAiExample(sectionIndex: number, itemIndex: number) {
@@ -361,7 +348,7 @@ export function SearchScreen({
 								</div>
 								<div className="search-definition-item-list">
 									{section.items.map((item, index) => {
-										const displayMeaning = getDefinitionMeaning(item, sectionIndex, index);
+										const displayMeaning = getDefinitionMeaning(item);
 										const aiExample = getAiExample(sectionIndex, index);
 
 										return (

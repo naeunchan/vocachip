@@ -73,7 +73,6 @@ function App() {
     searchResult,
     searchHistory,
     emptySearchSuggestions,
-    matchedSearchWord,
     isSearchResultSaved,
     aiExampleStatus,
     aiGeneratedExamples,
@@ -268,7 +267,6 @@ function App() {
               emptySuggestions={emptySearchSuggestions}
               dictionaryMode={dictionaryMode}
               onSelectDictionaryMode={setDictionaryMode}
-              matchedWord={matchedSearchWord}
               isSaved={isSearchResultSaved}
               aiExampleStatus={aiExampleStatus}
               aiGeneratedExamples={aiGeneratedExamples}

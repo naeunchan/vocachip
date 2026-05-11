@@ -15,10 +15,7 @@ import {
   fetchAiGeneratedExample,
 } from "../features/search/aiExamples";
 import { naturalizeDictionarySearchResultMeanings } from "../features/search/aiMeanings";
-import {
-  fetchDictionarySearchResult,
-  hydrateDictionarySearchResultTranslations,
-} from "../features/search/freeDictionary";
+import { fetchDictionarySearchResult } from "../features/search/freeDictionary";
 import type {
   AiExampleStatus,
   AiGeneratedExample,
@@ -219,25 +216,8 @@ export function useDictionarySearch({
 
     void (async () => {
       try {
-        const hasMissingTranslatedMeanings = searchResult.sections.some(
-          (section) =>
-            section.items.some((item) => item.translatedMeaning === null),
-        );
-        let nextResult = searchResult;
-
-        if (hasMissingTranslatedMeanings) {
-          nextResult = await hydrateDictionarySearchResultTranslations(
-            searchResult,
-            nextAbortController.signal,
-          );
-
-          if (nextAbortController.signal.aborted) {
-            return;
-          }
-        }
-
-        nextResult = await naturalizeDictionarySearchResultMeanings(
-          nextResult,
+        const nextResult = await naturalizeDictionarySearchResultMeanings(
+          searchResult,
           nextAbortController.signal,
         );
 

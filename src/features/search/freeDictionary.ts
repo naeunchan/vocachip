@@ -5,12 +5,8 @@ import type {
 } from "./types";
 
 const maxDefinitionsPerSection = 3;
-const maxTranslationRequestsPerSearch = 9;
 const maxRelatedWords = 8;
-const translationByteLimit = 500;
-const translationTimeoutMs = 3500;
 const relatedWordTimeoutMs = 2200;
-const translationCache = new Map<string, string | null>();
 const relatedWordCache = new Map<string, string[]>();
 
 interface RelatedWordQueryConfig {
@@ -50,12 +46,6 @@ interface FreeDictionaryEntry {
   phonetic?: string;
   phonetics?: FreeDictionaryPhonetic[];
   meanings?: FreeDictionaryMeaning[];
-}
-
-interface MyMemoryTranslationResponse {
-  responseData?: {
-    translatedText?: string;
-  };
 }
 
 interface DatamuseWord {
@@ -266,17 +256,6 @@ function buildInlineRelatedWords(
   return collectUniqueRelatedTerms([...inlineSynonyms, ...rawAntonyms], query);
 }
 
-function getTranslationCacheKey(text: string) {
-  return text.toLowerCase();
-}
-
-function isTranslationWorthUsing(sourceText: string, translatedText: string) {
-  return (
-    translatedText.length > 0 &&
-    translatedText.toLowerCase() !== sourceText.toLowerCase()
-  );
-}
-
 async function fetchWithTimeout(
   url: string,
   timeoutMs: number,
@@ -297,98 +276,6 @@ async function fetchWithTimeout(
     window.clearTimeout(timeoutId);
     signal?.removeEventListener("abort", abortTimeoutRequest);
   }
-}
-
-async function translateTextToKorean(text: string, signal?: AbortSignal) {
-  const normalizedText = text.trim().replace(/\s+/g, " ");
-  const cacheKey = getTranslationCacheKey(normalizedText);
-  const cachedTranslation = translationCache.get(cacheKey);
-
-  if (cachedTranslation !== undefined) {
-    return cachedTranslation;
-  }
-
-  if (
-    normalizedText.length === 0 ||
-    new TextEncoder().encode(normalizedText).length > translationByteLimit
-  ) {
-    translationCache.set(cacheKey, null);
-    return null;
-  }
-
-  const params = new URLSearchParams({
-    q: normalizedText,
-    langpair: "en|ko",
-  });
-
-  try {
-    const response = await fetchWithTimeout(
-      `https://api.mymemory.translated.net/get?${params.toString()}`,
-      translationTimeoutMs,
-      signal,
-    );
-
-    if (!response.ok) {
-      translationCache.set(cacheKey, null);
-      return null;
-    }
-
-    const data = (await response.json()) as MyMemoryTranslationResponse;
-    const translatedText = data.responseData?.translatedText?.trim() ?? "";
-    const result = isTranslationWorthUsing(normalizedText, translatedText)
-      ? translatedText
-      : null;
-
-    translationCache.set(cacheKey, result);
-    return result;
-  } catch {
-    if (!signal?.aborted) {
-      translationCache.set(cacheKey, null);
-    }
-
-    return null;
-  }
-}
-
-async function translateSectionsToKorean(
-  sections: DictionarySearchSection[],
-  limit = maxTranslationRequestsPerSearch,
-  signal?: AbortSignal,
-) {
-  await Promise.all(
-    sections
-      .flatMap((section) => section.items)
-      .filter((item) => item.translatedMeaning === null)
-      .slice(0, limit)
-      .map(async (item) => {
-        item.translatedMeaning = await translateTextToKorean(
-          item.meaning,
-          signal,
-        );
-      }),
-  );
-}
-
-export async function hydrateDictionarySearchResultTranslations(
-  result: DictionarySearchResult,
-  signal?: AbortSignal,
-): Promise<DictionarySearchResult> {
-  const nextResult: DictionarySearchResult = {
-    ...result,
-    relatedWords: [...result.relatedWords],
-    sections: result.sections.map((section) => ({
-      ...section,
-      items: section.items.map((item) => ({ ...item })),
-    })),
-  };
-
-  await translateSectionsToKorean(
-    nextResult.sections,
-    Number.POSITIVE_INFINITY,
-    signal,
-  );
-
-  return nextResult;
 }
 
 async function fetchRelatedWords(query: string, signal?: AbortSignal) {
@@ -523,11 +410,6 @@ export async function fetchDictionarySearchResult(
       ? Promise.resolve<string[]>([])
       : fetchRelatedWords(relatedWordSeed, signal);
 
-  await translateSectionsToKorean(
-    sections,
-    maxTranslationRequestsPerSearch,
-    signal,
-  );
   const relatedWords = collectUniqueRelatedTerms(
     [...inlineRelatedWords, ...(await relatedWordsPromise)],
     query,

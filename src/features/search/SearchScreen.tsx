@@ -346,11 +346,14 @@ export function SearchScreen({
 					) : null}
 
 					<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>
-						{isGeneratingAiExample ? (
-							<div className="search-ai-example-loading-popover" role="status" aria-live="polite">
-								<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" />
-							</div>
-						) : null}
+						<div
+							className="search-ai-example-loading-popover"
+							role={isGeneratingAiExample ? "status" : undefined}
+							aria-live={isGeneratingAiExample ? "polite" : undefined}
+							aria-hidden={!isGeneratingAiExample}
+						>
+							<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" />
+						</div>
 
 						<div className="search-definition-stack">
 							{searchDisplaySections.map((section, sectionIndex) => (

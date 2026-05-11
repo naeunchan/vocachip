@@ -29,7 +29,7 @@ npm run dev
 Render에서 Blueprint로 배포하거나 Web Service를 직접 만들 때 아래 값으로 설정해 주세요.
 
 - Build Command: `npm install`
-- Start Command: `npm run start:api`
+- Start Command: `node server/index.js`
 - Health Check Path: `/healthz`
 - Environment Variables:
   - `OPENAI_API_KEY`: OpenAI API 키

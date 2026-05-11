@@ -8,8 +8,8 @@
   },
   "scripts": {
     "dev": "granite dev",
-    "dev:api": "node server/openai-api.mjs",
-    "start:api": "node server/openai-api.mjs",
+    "dev:api": "node server/index.js",
+    "start:api": "node server/index.js",
     "build": "ait build",
     "deploy": "ait deploy",
     "lint": "eslint .",

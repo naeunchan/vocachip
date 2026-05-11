@@ -292,7 +292,7 @@ export function SearchScreen({
 				</section>
 			) : null}
 
-			{searchStatus === "success" && searchResult !== null && !isAiMeaningLoading ? (
+			{searchStatus === "success" && searchResult !== null ? (
 				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search">
 					<div className="search-result-hero">
 						<div className="search-result-lockup">

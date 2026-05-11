@@ -1,10 +1,14 @@
 import { Badge, Button, Loader, SegmentedControl } from "@toss/tds-mobile";
+import type { CSSProperties } from "react";
 import { useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
 import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
 
 const AI_MEANING_PENDING_COPY = "AI가 뜻을 정리하는 중이에요.";
+const AI_EXAMPLE_LOADER_STYLE = {
+	"--label-color": "var(--search-ai-example-loader-label)",
+} as CSSProperties;
 
 interface SearchScreenProps {
 	searchQuery: string;
@@ -352,7 +356,7 @@ export function SearchScreen({
 							aria-live={isGeneratingAiExample ? "polite" : undefined}
 							aria-hidden={!isGeneratingAiExample}
 						>
-							<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" />
+							<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" style={AI_EXAMPLE_LOADER_STYLE} />
 						</div>
 
 						<div className="search-definition-stack">

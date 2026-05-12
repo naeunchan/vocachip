@@ -1,3 +1,4 @@
+import { Badge, Text } from "@toss/tds-mobile";
 import { useEffect, useRef, useState } from "react";
 
 import "./App.css";
@@ -26,6 +27,36 @@ import { type VocabularyEntry } from "../entities/vocabulary/mockData";
 import { SearchScreen } from "../features/search/SearchScreen";
 import { SettingsScreen } from "../features/settings/SettingsScreen";
 import { WordbookScreen } from "../features/wordbook/WordbookScreen";
+
+function TopAdBanner() {
+  return (
+    <aside className="top-ad-banner" aria-label="광고 배너">
+      <div className="top-ad-banner__content">
+        <Badge size="small" color="blue" variant="weak">
+          광고
+        </Badge>
+        <div className="top-ad-banner__copy">
+          <Text
+            typography="t6"
+            fontWeight="bold"
+            color="var(--text-primary)"
+            display="block"
+          >
+            하루 5분 영어 루틴
+          </Text>
+          <Text
+            typography="t7"
+            fontWeight="regular"
+            color="var(--text-secondary)"
+            display="block"
+          >
+            AI 예문으로 오늘 단어를 더 빠르게 복습해요
+          </Text>
+        </div>
+      </div>
+    </aside>
+  );
+}
 
 function App() {
   const [initialAppState] = useState(() => loadInitialAppState());
@@ -225,6 +256,7 @@ function App() {
       className={`app-shell ${activeScreen === "wordbook" ? "app-shell--wordbook" : ""}`}
     >
       <div className="app-frame">
+        <TopAdBanner />
         <main
           className={`screen-body ${activeScreen === "wordbook" ? "screen-body--wordbook" : ""}`}
         >

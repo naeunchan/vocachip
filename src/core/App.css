@@ -41,6 +41,30 @@
   gap: 16px;
 }
 
+.top-ad-banner {
+  display: flex;
+  align-items: center;
+  min-height: 72px;
+  border: 1px solid rgba(49, 130, 246, 0.14);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f2f7ff 100%);
+  box-shadow: var(--shadow-soft);
+}
+
+.top-ad-banner__content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.top-ad-banner__copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 .app-shell--wordbook {
   padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
 }
@@ -3220,6 +3244,11 @@ input:focus-visible {
     var(--darkThemeBackgroundLevelB01) 0%,
     var(--darkThemeBackground) 100%
   );
+}
+
+:root[data-theme="dark"] .top-ad-banner {
+  border-color: var(--line-soft);
+  background: linear-gradient(135deg, var(--surface-strong) 0%, #202c4d 100%);
 }
 
 :root[data-theme="dark"] .settings-mode-button,

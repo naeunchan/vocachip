@@ -131,10 +131,9 @@ export function SearchScreen({
 	const hasSearchActivity = searchStatus !== "idle";
 	const searchModeLabel = dictionaryMode === "ko-en" ? "한영" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
-	const isSearchLoading = searchStatus === "loading" || isAiMeaningLoading;
+	const isSearchLoading = searchStatus === "loading";
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
-	const searchLoadingCopy = isAiMeaningLoading ? "AI가 뜻을 정리하고 있어요." : "사전에서 단어를 찾고 있어요.";
 
 	useEffect(() => {
 		if (searchStatus !== "loading") {
@@ -180,6 +179,7 @@ export function SearchScreen({
 					className={`search-compose-form ${hasSearchActivity ? "search-compose-form--active" : ""}`}
 					onSubmit={(event) => {
 						event.preventDefault();
+						event.currentTarget.querySelector<HTMLInputElement>("#search-word-input")?.blur();
 						onSubmitSearch(searchQuery);
 					}}
 				>
@@ -258,7 +258,7 @@ export function SearchScreen({
 					<div className="search-loading-bar" role="progressbar" aria-label="검색 중">
 						<span className="search-loading-bar__fill" />
 					</div>
-					<p className="search-loading-copy">{searchLoadingCopy}</p>
+					<p className="search-loading-copy">사전에서 단어를 찾고 있어요.</p>
 				</section>
 			) : null}
 
@@ -359,6 +359,12 @@ export function SearchScreen({
 					{aiExampleStatus === "error" ? (
 						<p className="search-ai-example-feedback" role="status">
 							AI 예문을 만들 수 없어요. 잠시 후 다시 시도해 주세요.
+						</p>
+					) : null}
+
+					{isAiMeaningLoading ? (
+						<p className="search-ai-meaning-feedback" role="status">
+							AI가 뜻을 정리하고 있어요.
 						</p>
 					) : null}
 

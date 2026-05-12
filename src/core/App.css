@@ -1824,7 +1824,8 @@
   opacity: 1;
 }
 
-.search-ai-example-feedback {
+.search-ai-example-feedback,
+.search-ai-meaning-feedback {
   margin: 14px 0 0;
   border-radius: 14px;
   padding: 10px 12px;
@@ -1832,6 +1833,11 @@
   font-size: 13px;
   line-height: 1.5;
   background: rgba(25, 31, 40, 0.04);
+}
+
+.search-ai-meaning-feedback {
+  color: var(--accent-strong);
+  background: rgba(49, 130, 246, 0.08);
 }
 
 .search-definition-region {
@@ -3626,9 +3632,15 @@ input:focus-visible {
   background: var(--search-ai-button-background);
 }
 
-:root[data-theme="dark"] .search-ai-example-feedback {
+:root[data-theme="dark"] .search-ai-example-feedback,
+:root[data-theme="dark"] .search-ai-meaning-feedback {
   color: var(--study-text-muted);
   background: var(--surface-muted);
+}
+
+:root[data-theme="dark"] .search-ai-meaning-feedback {
+  color: var(--search-ai-button-color);
+  background: var(--search-ai-button-background);
 }
 
 :root[data-theme="dark"] .search-definition-ai-example {

@@ -2087,6 +2087,8 @@
   padding: 9px 8px;
   border-radius: 12px;
   background: #f9fafc;
+  content-visibility: auto;
+  contain-intrinsic-size: 52px;
 }
 
 .search-definition-item + .search-definition-item {
@@ -2129,6 +2131,30 @@
   margin: 0;
   color: var(--text-secondary);
   line-height: 1.55;
+}
+
+.search-definition-more-button {
+  appearance: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  border: 1px solid rgba(49, 130, 246, 0.16);
+  border-radius: 14px;
+  padding: 0 16px;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  background: rgba(49, 130, 246, 0.08);
+  cursor: pointer;
+}
+
+.search-definition-more-button span:last-child {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .search-bottom-actions {
@@ -3646,6 +3672,12 @@ input:focus-visible {
 :root[data-theme="dark"] .search-definition-ai-example {
   color: var(--study-text-strong);
   background: var(--accent-soft);
+}
+
+:root[data-theme="dark"] .search-definition-more-button {
+  border-color: var(--search-ai-button-border);
+  color: var(--search-ai-button-color);
+  background: var(--search-ai-button-background);
 }
 
 :root[data-theme="dark"] .search-ai-example-loading-popover {

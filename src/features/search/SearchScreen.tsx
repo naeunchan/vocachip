@@ -8,6 +8,8 @@ import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, D
 const AI_EXAMPLE_LOADER_STYLE = {
 	"--label-color": "var(--search-ai-example-loader-label)",
 } as CSSProperties;
+const INITIAL_VISIBLE_DEFINITION_COUNT = 24;
+const DEFINITION_RENDER_BATCH_SIZE = 24;
 
 interface SearchScreenProps {
 	searchQuery: string;
@@ -104,6 +106,47 @@ function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "boo
 	);
 }
 
+function countDefinitions(sections: DictionarySearchResult["sections"]) {
+	return sections.reduce((totalCount, section) => totalCount + section.items.length, 0);
+}
+
+function createDefinitionRenderKey(result: DictionarySearchResult | null) {
+	if (result === null) {
+		return "empty";
+	}
+
+	return [
+		result.word.toLowerCase(),
+		...result.sections.flatMap((section) => [
+			section.label.toLowerCase(),
+			...section.items.map((item) => item.meaning),
+		]),
+	].join("\u001f");
+}
+
+function getVisibleSearchSections(sections: DictionarySearchResult["sections"], visibleDefinitionCount: number) {
+	let remainingDefinitionCount = visibleDefinitionCount;
+
+	return sections.flatMap((section) => {
+		if (remainingDefinitionCount <= 0) {
+			return [];
+		}
+
+		const items = section.items.slice(0, remainingDefinitionCount);
+
+		remainingDefinitionCount -= items.length;
+
+		return items.length > 0
+			? [
+					{
+						...section,
+						items,
+					},
+				]
+			: [];
+	});
+}
+
 export function SearchScreen({
 	searchQuery,
 	onChangeSearchQuery,
@@ -126,8 +169,14 @@ export function SearchScreen({
 	onClearHistory,
 }: SearchScreenProps) {
 	const [isClearHistoryDialogOpen, setIsClearHistoryDialogOpen] = useState(false);
+	const [visibleDefinitionCount, setVisibleDefinitionCount] = useState(INITIAL_VISIBLE_DEFINITION_COUNT);
 	const historyItems = searchHistory;
 	const searchDisplaySections = searchResult === null ? [] : searchResult.sections;
+	const totalDefinitionCount = countDefinitions(searchDisplaySections);
+	const visibleSearchDisplaySections = getVisibleSearchSections(searchDisplaySections, visibleDefinitionCount);
+	const hasHiddenDefinitions = visibleDefinitionCount < totalDefinitionCount;
+	const visibleDefinitionDisplayCount = Math.min(visibleDefinitionCount, totalDefinitionCount);
+	const definitionRenderKey = createDefinitionRenderKey(searchResult);
 	const hasSearchActivity = searchStatus !== "idle";
 	const searchModeLabel = dictionaryMode === "ko-en" ? "한영" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
@@ -149,9 +198,17 @@ export function SearchScreen({
 		};
 	}, [searchQuery, searchStatus]);
 
+	useEffect(() => {
+		setVisibleDefinitionCount(INITIAL_VISIBLE_DEFINITION_COUNT);
+	}, [definitionRenderKey]);
+
 	function handleConfirmClearHistory() {
 		onClearHistory();
 		setIsClearHistoryDialogOpen(false);
+	}
+
+	function handleShowMoreDefinitions() {
+		setVisibleDefinitionCount((currentCount) => Math.min(currentCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount));
 	}
 
 	function getDefinitionMeaning(item: DictionarySearchDefinition) {
@@ -379,7 +436,7 @@ export function SearchScreen({
 						</div>
 
 						<div className="search-definition-stack">
-							{searchDisplaySections.map((section, sectionIndex) => (
+							{visibleSearchDisplaySections.map((section, sectionIndex) => (
 								<section key={section.label} className="search-definition-section">
 									<div className="search-definition-heading">
 										<div className="search-definition-heading__meta">
@@ -405,6 +462,12 @@ export function SearchScreen({
 									</div>
 								</section>
 							))}
+							{hasHiddenDefinitions ? (
+								<button className="search-definition-more-button" type="button" onClick={handleShowMoreDefinitions}>
+									<span>뜻 더 보기</span>
+									<span>{visibleDefinitionDisplayCount} / {totalDefinitionCount}</span>
+								</button>
+							) : null}
 						</div>
 					</div>
 				</article>

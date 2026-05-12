@@ -315,6 +315,10 @@ export function useDictionarySearch({
           cacheKoreanDictionarySearchResult(searchResult.word, nextResult);
         }
 
+        if (dictionaryMode === "en-en") {
+          return;
+        }
+
         syncSavedWordFromSearchResult(nextResult);
         setSearchResult(nextResult);
       } catch {

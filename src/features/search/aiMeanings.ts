@@ -17,6 +17,7 @@ interface AiMeaningRequest {
 
 const DEFAULT_AI_MEANING_ENDPOINT =
   "https://vocationary.onrender.com/api/ai/meanings";
+const AI_MEANING_REQUEST_TIMEOUT_MS = 8000;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
 
 function getAiMeaningEndpoint() {
@@ -28,6 +29,30 @@ function getAiMeaningEndpoint() {
 
 function createMeaningItemId(sectionIndex: number, itemIndex: number) {
   return `${sectionIndex}:${itemIndex}`;
+}
+
+function createTimedSignal(signal: AbortSignal, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+  const abortRequest = () => {
+    controller.abort();
+  };
+
+  if (signal.aborted) {
+    controller.abort();
+  } else {
+    signal.addEventListener("abort", abortRequest, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener("abort", abortRequest);
+    },
+  };
 }
 
 function getRecord(value: unknown) {
@@ -214,6 +239,12 @@ export async function naturalizeDictionarySearchResultMeanings(
     return result;
   }
 
+  if (signal.aborted) {
+    return result;
+  }
+
+  const requestSignal = createTimedSignal(signal, AI_MEANING_REQUEST_TIMEOUT_MS);
+
   try {
     const response = await fetch(getAiMeaningEndpoint(), {
       method: "POST",
@@ -221,7 +252,7 @@ export async function naturalizeDictionarySearchResultMeanings(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(request),
-      signal,
+      signal: requestSignal.signal,
     });
 
     if (!response.ok) {
@@ -267,5 +298,7 @@ export async function naturalizeDictionarySearchResultMeanings(
     };
   } catch {
     return result;
+  } finally {
+    requestSignal.cleanup();
   }
 }

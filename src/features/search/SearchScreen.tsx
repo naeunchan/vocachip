@@ -1,11 +1,10 @@
 import { Badge, Button, Loader, SegmentedControl } from "@toss/tds-mobile";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
 import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
 
-const AI_MEANING_PENDING_COPY = "AI가 뜻을 정리하는 중이에요.";
 const AI_EXAMPLE_LOADER_STYLE = {
 	"--label-color": "var(--search-ai-example-loader-label)",
 } as CSSProperties;
@@ -137,6 +136,20 @@ export function SearchScreen({
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
 	const searchLoadingCopy = isAiMeaningLoading ? "AI가 뜻을 정리하고 있어요." : "사전에서 단어를 찾고 있어요.";
 
+	useEffect(() => {
+		if (searchStatus !== "loading") {
+			return;
+		}
+
+		const frameId = window.requestAnimationFrame(() => {
+			window.scrollTo({ top: 0, behavior: "auto" });
+		});
+
+		return () => {
+			window.cancelAnimationFrame(frameId);
+		};
+	}, [searchQuery, searchStatus]);
+
 	function handleConfirmClearHistory() {
 		onClearHistory();
 		setIsClearHistoryDialogOpen(false);
@@ -153,7 +166,7 @@ export function SearchScreen({
 			return translatedMeaning;
 		}
 
-		return AI_MEANING_PENDING_COPY;
+		return item.meaning;
 	}
 
 	function getAiExample(sectionIndex: number, itemIndex: number) {

@@ -20,6 +20,7 @@ const DEFAULT_AI_MEANING_ENDPOINT =
 const AI_MEANING_REQUEST_TIMEOUT_MS = 30000;
 const AI_MEANING_BATCH_SIZE = 8;
 const AI_MEANING_BATCH_CONCURRENCY = 3;
+const MAX_AUTO_TRANSLATED_MEANINGS = 24;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
 
 function getAiMeaningEndpoint() {
@@ -319,7 +320,10 @@ export async function naturalizeDictionarySearchResultMeanings(
   result: DictionarySearchResult,
   signal: AbortSignal,
 ): Promise<DictionarySearchResult> {
-  const requestItems = createAiMeaningRequestItems(result);
+  const requestItems = createAiMeaningRequestItems(result).slice(
+    0,
+    MAX_AUTO_TRANSLATED_MEANINGS,
+  );
 
   if (requestItems.length === 0) {
     return result;

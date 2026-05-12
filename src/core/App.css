@@ -95,6 +95,17 @@
   padding: 20px;
 }
 
+.app-error-card {
+  display: grid;
+  gap: 12px;
+}
+
+.app-error-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
 .content-card h3,
 .flash-card h2,
 .search-detail-card h2,
@@ -2087,8 +2098,6 @@
   padding: 9px 8px;
   border-radius: 12px;
   background: #f9fafc;
-  content-visibility: auto;
-  contain-intrinsic-size: 52px;
 }
 
 .search-definition-item + .search-definition-item {

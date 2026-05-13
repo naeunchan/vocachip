@@ -1610,6 +1610,16 @@
   overflow: hidden;
 }
 
+.search-dictionary-card__content {
+  position: relative;
+  z-index: 1;
+}
+
+.search-dictionary-card--ai-meaning-loading .search-dictionary-card__content {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .search-dictionary-card--compact-search .search-result-toolbar {
   position: static;
 }
@@ -1850,16 +1860,132 @@
   background: rgba(25, 31, 40, 0.04);
 }
 
+.search-ai-meaning-skeleton {
+  --search-skeleton-base: rgba(224, 231, 242, 0.86);
+  --search-skeleton-highlight: rgba(247, 250, 255, 0.98);
+
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  border-radius: inherit;
+  padding: inherit;
+  background: var(--surface);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.search-dictionary-card--ai-meaning-loading .search-ai-meaning-skeleton {
+  opacity: 1;
+  visibility: visible;
+}
+
+.search-ai-meaning-skeleton__hero {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(25, 31, 40, 0.06);
+}
+
+.search-ai-meaning-skeleton__title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-ai-meaning-skeleton__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.search-ai-meaning-skeleton__line,
+.search-ai-meaning-skeleton__icon,
+.search-ai-meaning-skeleton__index {
+  display: block;
+  background: var(--search-skeleton-base);
+}
+
+.search-dictionary-card--ai-meaning-loading .search-ai-meaning-skeleton__line,
+.search-dictionary-card--ai-meaning-loading .search-ai-meaning-skeleton__icon,
+.search-dictionary-card--ai-meaning-loading .search-ai-meaning-skeleton__index {
+  background-image: linear-gradient(
+    90deg,
+    var(--search-skeleton-base) 0%,
+    var(--search-skeleton-highlight) 48%,
+    var(--search-skeleton-base) 100%
+  );
+  background-size: 220% 100%;
+  animation: search-skeleton-shimmer 1.15s ease-in-out infinite;
+}
+
+.search-ai-meaning-skeleton__line {
+  border-radius: 999px;
+}
+
+.search-ai-meaning-skeleton__line--title {
+  width: min(42%, 184px);
+  height: 32px;
+}
+
+.search-ai-meaning-skeleton__line--phonetic {
+  width: 112px;
+  height: 16px;
+}
+
+.search-ai-meaning-skeleton__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+}
+
+.search-ai-meaning-skeleton__definition-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.search-ai-meaning-skeleton__definition {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.search-ai-meaning-skeleton__index {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+
+.search-ai-meaning-skeleton__copy {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.search-ai-meaning-skeleton__line--meaning {
+  width: 92%;
+  height: 16px;
+}
+
+.search-ai-meaning-skeleton__line--sub {
+  width: 64%;
+  height: 14px;
+}
+
 .search-ai-meaning-overlay {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: inherit;
-  background: rgba(248, 250, 252, 0.68);
-  backdrop-filter: blur(6px);
+  background: rgba(248, 250, 252, 0.28);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -1875,10 +2001,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   border: 1px solid rgba(49, 130, 246, 0.16);
-  border-radius: 22px;
+  border-radius: 30px;
   padding: 0;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
@@ -2270,9 +2396,25 @@
   }
 }
 
+@keyframes search-skeleton-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .search-loading-bar__fill {
     width: 100%;
+    animation: none;
+  }
+
+  .search-ai-meaning-skeleton__line,
+  .search-ai-meaning-skeleton__icon,
+  .search-ai-meaning-skeleton__index {
     animation: none;
   }
 }
@@ -3711,8 +3853,19 @@ input:focus-visible {
   box-shadow: var(--shadow-soft);
 }
 
+:root[data-theme="dark"] .search-ai-meaning-skeleton {
+  --search-skeleton-base: rgba(91, 105, 128, 0.44);
+  --search-skeleton-highlight: rgba(132, 150, 178, 0.5);
+
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .search-ai-meaning-skeleton__hero {
+  border-color: var(--line-soft);
+}
+
 :root[data-theme="dark"] .search-ai-meaning-overlay {
-  background: rgba(14, 18, 28, 0.7);
+  background: rgba(14, 18, 28, 0.32);
 }
 
 :root[data-theme="dark"] .search-definition-ai-example {

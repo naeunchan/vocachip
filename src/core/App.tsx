@@ -112,6 +112,7 @@ function App() {
     handleSearchSubmit,
     handleSaveSearchResult,
     handleGenerateAiExample,
+    handleRequestVisibleMeaningTranslations,
     clearSearchHistory,
   } = useDictionarySearch({
     dictionaryMode,
@@ -311,6 +312,7 @@ function App() {
               onSaveResult={handleSaveSearchResult}
               onSpeakResult={playPronunciation}
               onGenerateAiExample={handleGenerateAiExample}
+              onRequestVisibleMeanings={handleRequestVisibleMeaningTranslations}
               onSelectHistory={handleSearchSubmit}
               onClearHistory={clearSearchHistory}
             />

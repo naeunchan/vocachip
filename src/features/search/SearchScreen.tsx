@@ -3,13 +3,12 @@ import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
+import { DEFINITION_RENDER_BATCH_SIZE, INITIAL_VISIBLE_DEFINITION_COUNT } from "./displayConfig";
 import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
 
 const AI_EXAMPLE_LOADER_STYLE = {
 	"--label-color": "var(--search-ai-example-loader-label)",
 } as CSSProperties;
-const INITIAL_VISIBLE_DEFINITION_COUNT = 24;
-const DEFINITION_RENDER_BATCH_SIZE = 24;
 
 interface SearchScreenProps {
 	searchQuery: string;
@@ -29,6 +28,7 @@ interface SearchScreenProps {
 	onSaveResult: () => void;
 	onSpeakResult: (word: string, audioUrl?: string | null) => void;
 	onGenerateAiExample: () => void;
+	onRequestVisibleMeanings: (visibleDefinitionCount: number) => void;
 	onSelectHistory: (query: string) => void;
 	onClearHistory: () => void;
 }
@@ -165,6 +165,7 @@ export function SearchScreen({
 	onSaveResult,
 	onSpeakResult,
 	onGenerateAiExample,
+	onRequestVisibleMeanings,
 	onSelectHistory,
 	onClearHistory,
 }: SearchScreenProps) {
@@ -208,7 +209,10 @@ export function SearchScreen({
 	}
 
 	function handleShowMoreDefinitions() {
-		setVisibleDefinitionCount((currentCount) => Math.min(currentCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount));
+		const nextVisibleDefinitionCount = Math.min(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount);
+
+		setVisibleDefinitionCount(nextVisibleDefinitionCount);
+		onRequestVisibleMeanings(nextVisibleDefinitionCount);
 	}
 
 	function getDefinitionMeaning(item: DictionarySearchDefinition) {

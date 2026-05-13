@@ -33,6 +33,10 @@ function createMeaningItemId(sectionIndex: number, itemIndex: number) {
   return `${sectionIndex}:${itemIndex}`;
 }
 
+function hasKoreanMeaning(value: string | null | undefined) {
+  return value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value);
+}
+
 function chunkItems<T>(items: T[], size: number) {
   const chunks: T[][] = [];
 
@@ -221,15 +225,47 @@ function parseAiMeaningPayload(
   return meanings;
 }
 
-function createAiMeaningRequestItems(result: DictionarySearchResult) {
-  return result.sections.flatMap((section, sectionIndex) =>
-    section.items.map((item, itemIndex) => ({
-      id: createMeaningItemId(sectionIndex, itemIndex),
-      partOfSpeech: section.label.toLowerCase(),
-      definition: item.meaning,
-      currentMeaning: item.translatedMeaning?.trim() || null,
-    })),
-  );
+function createAiMeaningRequestItems(
+  result: DictionarySearchResult,
+  maxDefinitionCount?: number,
+) {
+  const requestItems: AiMeaningRequestItem[] = [];
+  const definitionCountLimit =
+    maxDefinitionCount === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, maxDefinitionCount);
+  let definitionCount = 0;
+
+  for (let sectionIndex = 0; sectionIndex < result.sections.length; sectionIndex += 1) {
+    const section = result.sections[sectionIndex];
+
+    if (section === undefined) {
+      continue;
+    }
+
+    for (let itemIndex = 0; itemIndex < section.items.length; itemIndex += 1) {
+      const item = section.items[itemIndex];
+
+      if (item === undefined || definitionCount >= definitionCountLimit) {
+        return requestItems;
+      }
+
+      definitionCount += 1;
+
+      if (hasKoreanMeaning(item.translatedMeaning)) {
+        continue;
+      }
+
+      requestItems.push({
+        id: createMeaningItemId(sectionIndex, itemIndex),
+        partOfSpeech: section.label.toLowerCase(),
+        definition: item.meaning,
+        currentMeaning: item.translatedMeaning?.trim() || null,
+      });
+    }
+  }
+
+  return requestItems;
 }
 
 function createAiMeaningRequest(
@@ -318,8 +354,9 @@ async function fetchAiMeaningsInBatches(
 export async function naturalizeDictionarySearchResultMeanings(
   result: DictionarySearchResult,
   signal: AbortSignal,
+  maxDefinitionCount?: number,
 ): Promise<DictionarySearchResult> {
-  const requestItems = createAiMeaningRequestItems(result);
+  const requestItems = createAiMeaningRequestItems(result, maxDefinitionCount);
 
   if (requestItems.length === 0) {
     return result;

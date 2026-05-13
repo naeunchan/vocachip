@@ -22,7 +22,9 @@ import {
   createDictionarySearchDefinitionKey,
   getCachedDictionarySearchResult,
   hasCompleteKoreanMeanings,
+  hasKoreanMeaningsThroughCount,
 } from "../features/search/searchResultCache";
+import { INITIAL_VISIBLE_DEFINITION_COUNT } from "../features/search/displayConfig";
 import type {
   AiExampleStatus,
   AiGeneratedExample,
@@ -202,7 +204,11 @@ export function useDictionarySearch({
       setSearchResult(nextResult);
       setSearchStatus("success");
       setIsAiMeaningLoading(
-        dictionaryMode === "ko-en" && !hasCompleteKoreanMeanings(nextResult),
+        dictionaryMode === "ko-en" &&
+          !hasKoreanMeaningsThroughCount(
+            nextResult,
+            INITIAL_VISIBLE_DEFINITION_COUNT,
+          ),
       );
       return;
     }
@@ -220,7 +226,10 @@ export function useDictionarySearch({
       const shouldLoadAiMeanings =
         dictionaryMode === "ko-en" &&
         nextResult !== null &&
-        !hasCompleteKoreanMeanings(nextResult);
+        !hasKoreanMeaningsThroughCount(
+          nextResult,
+          INITIAL_VISIBLE_DEFINITION_COUNT,
+        );
 
       if (nextResult !== null) {
         cacheEnglishDictionarySearchResult(trimmedQuery, nextResult);
@@ -247,7 +256,8 @@ export function useDictionarySearch({
     }
 
     const searchMeaningKey = createDictionarySearchDefinitionKey(searchResult);
-    const enrichmentKey = `${dictionaryMode}:${searchMeaningKey}`;
+    const initialMeaningCount = INITIAL_VISIBLE_DEFINITION_COUNT;
+    const enrichmentKey = `${dictionaryMode}:${searchMeaningKey}:${initialMeaningCount}`;
     const cachedSearchResult = getCachedDictionarySearchResult(
       searchResult.word,
     );
@@ -269,12 +279,26 @@ export function useDictionarySearch({
       return;
     }
 
-    const hasCachedKoreanResult =
+    if (
+      dictionaryMode === "ko-en" &&
+      hasKoreanMeaningsThroughCount(searchResult, initialMeaningCount)
+    ) {
+      cacheKoreanDictionarySearchResult(searchResult.word, searchResult);
+      enrichedSearchMeaningKeyRef.current = enrichmentKey;
+      setIsAiMeaningLoading(false);
+      return;
+    }
+
+    const hasCachedInitialKoreanResult =
       cachedSearchResult?.definitionKey === searchMeaningKey &&
-      cachedSearchResult.koreanResult !== null;
+      cachedSearchResult.koreanResult !== null &&
+      hasKoreanMeaningsThroughCount(
+        cachedSearchResult.koreanResult,
+        initialMeaningCount,
+      );
     const shouldTranslateMeanings =
       dictionaryMode === "ko-en" ||
-      (dictionaryMode === "en-en" && !hasCachedKoreanResult);
+      (dictionaryMode === "en-en" && !hasCachedInitialKoreanResult);
 
     if (!shouldTranslateMeanings) {
       enrichedSearchMeaningKeyRef.current = null;
@@ -299,6 +323,7 @@ export function useDictionarySearch({
         const nextResult = await naturalizeDictionarySearchResultMeanings(
           searchResult,
           nextAbortController.signal,
+          initialMeaningCount,
         );
 
         if (nextAbortController.signal.aborted) {
@@ -311,9 +336,7 @@ export function useDictionarySearch({
           return;
         }
 
-        if (hasCompleteKoreanMeanings(nextResult)) {
-          cacheKoreanDictionarySearchResult(searchResult.word, nextResult);
-        }
+        cacheKoreanDictionarySearchResult(searchResult.word, nextResult);
 
         if (dictionaryMode === "en-en") {
           return;
@@ -376,6 +399,62 @@ export function useDictionarySearch({
 
   function clearSearchHistory() {
     setSearchHistory([]);
+  }
+
+  async function handleRequestVisibleMeaningTranslations(
+    visibleDefinitionCount: number,
+  ) {
+    if (
+      dictionaryMode !== "ko-en" ||
+      searchStatus !== "success" ||
+      searchResult === null ||
+      hasKoreanMeaningsThroughCount(searchResult, visibleDefinitionCount)
+    ) {
+      return;
+    }
+
+    const searchMeaningKey = createDictionarySearchDefinitionKey(searchResult);
+    const enrichmentKey = `${dictionaryMode}:${searchMeaningKey}:${visibleDefinitionCount}`;
+
+    if (
+      enrichedSearchMeaningKeyRef.current === enrichmentKey &&
+      isAiMeaningLoading
+    ) {
+      return;
+    }
+
+    const nextAbortController = new AbortController();
+
+    aiMeaningAbortControllerRef.current?.abort();
+    aiMeaningAbortControllerRef.current = nextAbortController;
+    enrichedSearchMeaningKeyRef.current = enrichmentKey;
+    setIsAiMeaningLoading(true);
+
+    try {
+      const nextResult = await naturalizeDictionarySearchResultMeanings(
+        searchResult,
+        nextAbortController.signal,
+        visibleDefinitionCount,
+      );
+
+      if (nextAbortController.signal.aborted) {
+        return;
+      }
+
+      setIsAiMeaningLoading(false);
+
+      if (nextResult === searchResult) {
+        return;
+      }
+
+      cacheKoreanDictionarySearchResult(searchResult.word, nextResult);
+      syncSavedWordFromSearchResult(nextResult);
+      setSearchResult(nextResult);
+    } catch {
+      if (!nextAbortController.signal.aborted) {
+        setIsAiMeaningLoading(false);
+      }
+    }
   }
 
   async function handleGenerateAiExample() {
@@ -448,6 +527,7 @@ export function useDictionarySearch({
     handleSearchSubmit,
     handleSaveSearchResult,
     handleGenerateAiExample,
+    handleRequestVisibleMeaningTranslations,
     clearSearchHistory,
   };
 }

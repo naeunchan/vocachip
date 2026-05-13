@@ -71,8 +71,33 @@ function hasKoreanMeaning(value: string | null | undefined) {
   return value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value);
 }
 
+function getDefinitionItems(result: DictionarySearchResult) {
+  return result.sections.flatMap((section) => section.items);
+}
+
+export function hasAnyKoreanMeanings(result: DictionarySearchResult) {
+  return getDefinitionItems(result).some((item) =>
+    hasKoreanMeaning(item.translatedMeaning),
+  );
+}
+
 export function hasCompleteKoreanMeanings(result: DictionarySearchResult) {
-  const items = result.sections.flatMap((section) => section.items);
+  const items = getDefinitionItems(result);
+
+  return (
+    items.length > 0 &&
+    items.every((item) => hasKoreanMeaning(item.translatedMeaning))
+  );
+}
+
+export function hasKoreanMeaningsThroughCount(
+  result: DictionarySearchResult,
+  definitionCount: number,
+) {
+  const items = getDefinitionItems(result).slice(
+    0,
+    Math.max(0, definitionCount),
+  );
 
   return (
     items.length > 0 &&
@@ -193,7 +218,7 @@ export function getCachedDictionarySearchResult(
     englishResult: cloneSearchResult(cacheEntry.englishResult),
     koreanResult:
       cacheEntry.koreanResult !== null &&
-      hasCompleteKoreanMeanings(cacheEntry.koreanResult)
+      hasAnyKoreanMeanings(cacheEntry.koreanResult)
         ? cloneSearchResult(cacheEntry.koreanResult)
         : null,
   };
@@ -211,7 +236,7 @@ export function cacheEnglishDictionarySearchResult(
   const shouldKeepKoreanResult =
     existingEntry?.definitionKey === definitionKey &&
     existingEntry.koreanResult !== null &&
-    hasCompleteKoreanMeanings(existingEntry.koreanResult);
+    hasAnyKoreanMeanings(existingEntry.koreanResult);
   const now = Date.now();
   const entry: SearchResultCacheEntry = {
     query: queryKey,
@@ -235,7 +260,7 @@ export function cacheKoreanDictionarySearchResult(
   query: string,
   result: DictionarySearchResult,
 ) {
-  if (!hasCompleteKoreanMeanings(result)) {
+  if (!hasAnyKoreanMeanings(result)) {
     return;
   }
 

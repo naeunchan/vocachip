@@ -147,6 +147,50 @@ function getVisibleSearchSections(sections: DictionarySearchResult["sections"], 
 	});
 }
 
+function SearchDictionarySkeleton() {
+	return (
+		<div className="search-ai-meaning-skeleton" aria-hidden="true">
+			<div className="search-ai-meaning-skeleton__hero">
+				<div className="search-ai-meaning-skeleton__title-row">
+					<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--title" />
+					<div className="search-ai-meaning-skeleton__actions">
+						<span className="search-ai-meaning-skeleton__icon" />
+						<span className="search-ai-meaning-skeleton__icon" />
+					</div>
+				</div>
+				<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--phonetic" />
+			</div>
+			<div className="search-ai-meaning-skeleton__definition-stack">
+				{[0, 1].map((item) => (
+					<div className="search-ai-meaning-skeleton__definition" key={item}>
+						<span className="search-ai-meaning-skeleton__index" />
+						<div className="search-ai-meaning-skeleton__copy">
+							<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--meaning" />
+							<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--sub" />
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function SearchDictionarySpinnerOverlay({ isVisible, label }: { isVisible: boolean; label: string }) {
+	return (
+		<div
+			className="search-ai-meaning-overlay"
+			role={isVisible ? "status" : undefined}
+			aria-label={isVisible ? label : undefined}
+			aria-live={isVisible ? "polite" : undefined}
+			aria-hidden={!isVisible}
+		>
+			<div className="search-ai-meaning-popover">
+				<Loader size="large" type="primary" />
+			</div>
+		</div>
+	);
+}
+
 export function SearchScreen({
 	searchQuery,
 	onChangeSearchQuery,
@@ -311,16 +355,10 @@ export function SearchScreen({
 			</section>
 
 			{isSearchLoading ? (
-				<section className="content-card search-empty-card search-loading-card" aria-live="polite">
-					<div className="search-state-header" aria-hidden="true">
-						<SearchIcon icon="submit" />
-					</div>
-					<h3>검색 중</h3>
-					<div className="search-loading-bar" role="progressbar" aria-label="검색 중">
-						<span className="search-loading-bar__fill" />
-					</div>
-					<p className="search-loading-copy">사전에서 단어를 찾고 있어요.</p>
-				</section>
+				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search search-dictionary-card--ai-meaning-loading" aria-busy="true">
+					<SearchDictionarySkeleton />
+					<SearchDictionarySpinnerOverlay isVisible={true} label="검색 중" />
+				</article>
 			) : null}
 
 			{searchStatus === "error" ? (
@@ -371,41 +409,8 @@ export function SearchScreen({
 					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isAiMeaningLoading ? "search-dictionary-card--ai-meaning-loading" : ""}`}
 					aria-busy={isAiMeaningLoading}
 				>
-					<div className="search-ai-meaning-skeleton" aria-hidden="true">
-						<div className="search-ai-meaning-skeleton__hero">
-							<div className="search-ai-meaning-skeleton__title-row">
-								<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--title" />
-								<div className="search-ai-meaning-skeleton__actions">
-									<span className="search-ai-meaning-skeleton__icon" />
-									<span className="search-ai-meaning-skeleton__icon" />
-								</div>
-							</div>
-							<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--phonetic" />
-						</div>
-						<div className="search-ai-meaning-skeleton__definition-stack">
-							{[0, 1].map((item) => (
-								<div className="search-ai-meaning-skeleton__definition" key={item}>
-									<span className="search-ai-meaning-skeleton__index" />
-									<div className="search-ai-meaning-skeleton__copy">
-										<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--meaning" />
-										<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--sub" />
-									</div>
-								</div>
-							))}
-						</div>
-					</div>
-
-					<div
-						className="search-ai-meaning-overlay"
-						role={isAiMeaningLoading ? "status" : undefined}
-						aria-label={isAiMeaningLoading ? "AI 뜻 정리 중" : undefined}
-						aria-live={isAiMeaningLoading ? "polite" : undefined}
-						aria-hidden={!isAiMeaningLoading}
-					>
-						<div className="search-ai-meaning-popover">
-							<Loader size="large" type="primary" />
-						</div>
-					</div>
+					<SearchDictionarySkeleton />
+					<SearchDictionarySpinnerOverlay isVisible={isAiMeaningLoading} label="AI 뜻 정리 중" />
 
 					<div className="search-dictionary-card__content" aria-hidden={isAiMeaningLoading}>
 						<div className="search-result-hero">

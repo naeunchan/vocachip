@@ -420,8 +420,10 @@ export function SearchScreen({
 					) : null}
 
 					{isAiMeaningLoading ? (
-						<div className="search-ai-meaning-progress" role="progressbar" aria-label="AI 뜻 정리 중">
-							<span className="search-ai-meaning-progress__fill" />
+						<div className="search-ai-meaning-popover" role="status" aria-label="AI 뜻 정리 중">
+							<div className="search-ai-meaning-progress" role="progressbar" aria-label="AI 뜻 정리 중">
+								<span className="search-ai-meaning-progress__fill" />
+							</div>
 						</div>
 					) : null}
 

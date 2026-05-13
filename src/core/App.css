@@ -2339,6 +2339,22 @@
   font-weight: 700;
 }
 
+.search-definition-more-button:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.search-definition-more-spinner {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(49, 130, 246, 0.18);
+  border-top-color: currentColor;
+  border-right-color: currentColor;
+  border-radius: 50%;
+  animation: search-toss-spinner-spin 720ms linear infinite;
+}
+
 .search-bottom-actions {
   display: grid;
   gap: 12px;
@@ -2435,7 +2451,8 @@
   .search-ai-meaning-skeleton__line,
   .search-ai-meaning-skeleton__icon,
   .search-ai-meaning-skeleton__index,
-  .search-toss-spinner {
+  .search-toss-spinner,
+  .search-definition-more-spinner {
     animation: none;
   }
 }

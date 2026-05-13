@@ -228,7 +228,7 @@ export function SearchScreen({
 	const searchModeLabel = dictionaryMode === "ko-en" ? "한영" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
 	const isSearchLoading = searchStatus === "loading";
-	const isMeaningLoadingVisible = isAiMeaningLoading || isExpandedMeaningLoading;
+	const isCardMeaningLoadingVisible = isAiMeaningLoading && !isExpandedMeaningLoading;
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
 
@@ -425,13 +425,13 @@ export function SearchScreen({
 
 			{searchStatus === "success" && searchResult !== null ? (
 				<article
-					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isMeaningLoadingVisible ? "search-dictionary-card--ai-meaning-loading" : ""}`}
-					aria-busy={isMeaningLoadingVisible}
+					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isCardMeaningLoadingVisible ? "search-dictionary-card--ai-meaning-loading" : ""}`}
+					aria-busy={isAiMeaningLoading || isExpandedMeaningLoading}
 				>
 					<SearchDictionarySkeleton />
-					<SearchDictionarySpinnerOverlay isVisible={isMeaningLoadingVisible} label="AI 뜻 정리 중" />
+					<SearchDictionarySpinnerOverlay isVisible={isCardMeaningLoadingVisible} label="AI 뜻 정리 중" />
 
-					<div className="search-dictionary-card__content" aria-hidden={isMeaningLoadingVisible}>
+					<div className="search-dictionary-card__content" aria-hidden={isCardMeaningLoadingVisible}>
 						<div className="search-result-hero">
 							<div className="search-result-lockup">
 								<div className="search-result-title-row">
@@ -524,9 +524,10 @@ export function SearchScreen({
 										</div>
 									</section>
 								))}
-								{hasHiddenDefinitions ? (
-									<button className="search-definition-more-button" type="button" onClick={handleShowMoreDefinitions}>
-										<span>뜻 더 보기</span>
+								{hasHiddenDefinitions || isExpandedMeaningLoading ? (
+									<button className="search-definition-more-button" type="button" onClick={handleShowMoreDefinitions} disabled={isExpandedMeaningLoading || !hasHiddenDefinitions} aria-busy={isExpandedMeaningLoading}>
+										<span>{isExpandedMeaningLoading ? "번역 중" : "뜻 더 보기"}</span>
+										{isExpandedMeaningLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
 										<span>{visibleDefinitionDisplayCount} / {totalDefinitionCount}</span>
 									</button>
 								) : null}

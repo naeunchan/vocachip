@@ -379,7 +379,7 @@ export function SearchScreen({
 							<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--phonetic" />
 						</div>
 						<div className="search-ai-meaning-skeleton__definition-stack">
-							{[0, 1, 2].map((item) => (
+							{[0, 1].map((item) => (
 								<div className="search-ai-meaning-skeleton__definition" key={item}>
 									<span className="search-ai-meaning-skeleton__index" />
 									<div className="search-ai-meaning-skeleton__copy">

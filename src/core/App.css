@@ -1607,6 +1607,8 @@
 }
 
 .search-dictionary-card--ai-meaning-loading {
+  height: 220px;
+  min-height: 220px;
   overflow: hidden;
 }
 
@@ -1869,7 +1871,7 @@
   z-index: 2;
   display: grid;
   align-content: start;
-  gap: 18px;
+  gap: 16px;
   border-radius: inherit;
   padding: inherit;
   background: var(--surface);
@@ -1945,7 +1947,7 @@
 
 .search-ai-meaning-skeleton__definition-stack {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .search-ai-meaning-skeleton__definition {

@@ -1601,8 +1601,13 @@
 }
 
 .search-dictionary-card {
+  position: relative;
   padding: 16px 18px 18px;
   overflow: visible;
+}
+
+.search-dictionary-card--ai-meaning-loading {
+  overflow: hidden;
 }
 
 .search-dictionary-card--compact-search .search-result-toolbar {
@@ -1845,13 +1850,33 @@
   background: rgba(25, 31, 40, 0.04);
 }
 
+.search-ai-meaning-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: rgba(248, 250, 252, 0.68);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.search-dictionary-card--ai-meaning-loading .search-ai-meaning-overlay {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .search-ai-meaning-popover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 72px;
   height: 72px;
-  margin: 14px 0 0;
   border: 1px solid rgba(49, 130, 246, 0.16);
   border-radius: 22px;
   padding: 0;
@@ -3684,6 +3709,10 @@ input:focus-visible {
   border-color: var(--search-ai-button-border);
   background: var(--surface-strong);
   box-shadow: var(--shadow-soft);
+}
+
+:root[data-theme="dark"] .search-ai-meaning-overlay {
+  background: rgba(14, 18, 28, 0.7);
 }
 
 :root[data-theme="dark"] .search-definition-ai-example {

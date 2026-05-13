@@ -363,7 +363,22 @@ export function SearchScreen({
 			) : null}
 
 			{searchStatus === "success" && searchResult !== null ? (
-				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search">
+				<article
+					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isAiMeaningLoading ? "search-dictionary-card--ai-meaning-loading" : ""}`}
+					aria-busy={isAiMeaningLoading}
+				>
+					<div
+						className="search-ai-meaning-overlay"
+						role={isAiMeaningLoading ? "status" : undefined}
+						aria-label={isAiMeaningLoading ? "AI 뜻 정리 중" : undefined}
+						aria-live={isAiMeaningLoading ? "polite" : undefined}
+						aria-hidden={!isAiMeaningLoading}
+					>
+						<div className="search-ai-meaning-popover">
+							<Loader size="medium" type="primary" />
+						</div>
+					</div>
+
 					<div className="search-result-hero">
 						<div className="search-result-lockup">
 							<div className="search-result-title-row">
@@ -417,12 +432,6 @@ export function SearchScreen({
 						<p className="search-ai-example-feedback" role="status">
 							AI 예문을 만들 수 없어요. 잠시 후 다시 시도해 주세요.
 						</p>
-					) : null}
-
-					{isAiMeaningLoading ? (
-						<div className="search-ai-meaning-popover" role="status" aria-label="AI 뜻 정리 중">
-							<Loader size="medium" type="primary" />
-						</div>
 					) : null}
 
 					<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>

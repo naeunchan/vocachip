@@ -1846,34 +1846,17 @@
 }
 
 .search-ai-meaning-popover {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  width: min(240px, 100%);
-  min-height: 54px;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
   margin: 14px 0 0;
   border: 1px solid rgba(49, 130, 246, 0.16);
-  border-radius: 18px;
-  padding: 0 16px;
+  border-radius: 22px;
+  padding: 0;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
-}
-
-.search-ai-meaning-progress {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(49, 130, 246, 0.12);
-}
-
-.search-ai-meaning-progress__fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 42%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #3182f6 0%, #1b64da 100%);
-  animation: search-loading-bar-slide 1.15s ease-in-out infinite;
 }
 
 .search-definition-region {
@@ -2263,8 +2246,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .search-loading-bar__fill,
-  .search-ai-meaning-progress__fill {
+  .search-loading-bar__fill {
     width: 100%;
     animation: none;
   }
@@ -3702,10 +3684,6 @@ input:focus-visible {
   border-color: var(--search-ai-button-border);
   background: var(--surface-strong);
   box-shadow: var(--shadow-soft);
-}
-
-:root[data-theme="dark"] .search-ai-meaning-progress {
-  background: var(--search-ai-button-background);
 }
 
 :root[data-theme="dark"] .search-definition-ai-example {

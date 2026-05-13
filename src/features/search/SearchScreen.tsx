@@ -420,9 +420,9 @@ export function SearchScreen({
 					) : null}
 
 					{isAiMeaningLoading ? (
-						<p className="search-ai-meaning-feedback" role="status">
-							AI가 뜻을 정리하고 있어요.
-						</p>
+						<div className="search-ai-meaning-progress" role="progressbar" aria-label="AI 뜻 정리 중">
+							<span className="search-ai-meaning-progress__fill" />
+						</div>
 					) : null}
 
 					<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>

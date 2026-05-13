@@ -1835,8 +1835,7 @@
   opacity: 1;
 }
 
-.search-ai-example-feedback,
-.search-ai-meaning-feedback {
+.search-ai-example-feedback {
   margin: 14px 0 0;
   border-radius: 14px;
   padding: 10px 12px;
@@ -1846,9 +1845,22 @@
   background: rgba(25, 31, 40, 0.04);
 }
 
-.search-ai-meaning-feedback {
-  color: var(--accent-strong);
-  background: rgba(49, 130, 246, 0.08);
+.search-ai-meaning-progress {
+  position: relative;
+  overflow: hidden;
+  height: 5px;
+  margin: 14px 0 0;
+  border-radius: 999px;
+  background: rgba(49, 130, 246, 0.12);
+}
+
+.search-ai-meaning-progress__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3182f6 0%, #1b64da 100%);
+  animation: search-loading-bar-slide 1.15s ease-in-out infinite;
 }
 
 .search-definition-region {
@@ -2238,7 +2250,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .search-loading-bar__fill {
+  .search-loading-bar__fill,
+  .search-ai-meaning-progress__fill {
     width: 100%;
     animation: none;
   }
@@ -3667,14 +3680,12 @@ input:focus-visible {
   background: var(--search-ai-button-background);
 }
 
-:root[data-theme="dark"] .search-ai-example-feedback,
-:root[data-theme="dark"] .search-ai-meaning-feedback {
+:root[data-theme="dark"] .search-ai-example-feedback {
   color: var(--study-text-muted);
   background: var(--surface-muted);
 }
 
-:root[data-theme="dark"] .search-ai-meaning-feedback {
-  color: var(--search-ai-button-color);
+:root[data-theme="dark"] .search-ai-meaning-progress {
   background: var(--search-ai-button-background);
 }
 

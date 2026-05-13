@@ -29,7 +29,7 @@ interface SearchScreenProps {
 	onSaveResult: () => void;
 	onSpeakResult: (word: string, audioUrl?: string | null) => void;
 	onGenerateAiExample: () => void;
-	onRequestVisibleMeanings: (visibleDefinitionCount: number) => void;
+	onRequestVisibleMeanings: (visibleDefinitionCount: number) => Promise<void>;
 	onSelectHistory: (query: string) => void;
 	onClearHistory: () => void;
 }
@@ -251,31 +251,35 @@ export function SearchScreen({
 		setIsExpandedMeaningLoading(false);
 	}, [definitionRenderKey]);
 
-	useEffect(() => {
-		if (isAiMeaningLoading) {
-			return;
-		}
-
-		setIsExpandedMeaningLoading(false);
-	}, [isAiMeaningLoading]);
-
 	function handleConfirmClearHistory() {
 		onClearHistory();
 		setIsClearHistoryDialogOpen(false);
 	}
 
-	function handleShowMoreDefinitions() {
+	async function handleShowMoreDefinitions() {
+		if (isExpandedMeaningLoading) {
+			return;
+		}
+
 		const nextVisibleDefinitionCount = Math.min(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount);
 		const shouldLoadExpandedMeanings =
 			dictionaryMode === "ko-en" &&
 			searchResult !== null &&
 			!hasKoreanMeaningsThroughCount(searchResult, nextVisibleDefinitionCount);
 
-		if (shouldLoadExpandedMeanings) {
-			setIsExpandedMeaningLoading(true);
+		if (!shouldLoadExpandedMeanings) {
+			setVisibleDefinitionCount(nextVisibleDefinitionCount);
+			return;
 		}
-		setVisibleDefinitionCount(nextVisibleDefinitionCount);
-		onRequestVisibleMeanings(nextVisibleDefinitionCount);
+
+		setIsExpandedMeaningLoading(true);
+
+		try {
+			await onRequestVisibleMeanings(nextVisibleDefinitionCount);
+			setVisibleDefinitionCount(nextVisibleDefinitionCount);
+		} finally {
+			setIsExpandedMeaningLoading(false);
+		}
 	}
 
 	function getDefinitionMeaning(item: DictionarySearchDefinition) {

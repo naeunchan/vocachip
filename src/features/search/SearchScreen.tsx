@@ -185,7 +185,7 @@ function SearchDictionarySpinnerOverlay({ isVisible, label }: { isVisible: boole
 			aria-hidden={!isVisible}
 		>
 			<div className="search-ai-meaning-popover">
-				<Loader size="large" type="primary" />
+				<span className="search-toss-spinner" aria-hidden="true" />
 			</div>
 		</div>
 	);

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
 import { DEFINITION_RENDER_BATCH_SIZE, INITIAL_VISIBLE_DEFINITION_COUNT } from "./displayConfig";
+import { hasKoreanMeaningsThroughCount } from "./searchResultCache";
 import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
 
 const AI_EXAMPLE_LOADER_STYLE = {
@@ -215,6 +216,7 @@ export function SearchScreen({
 }: SearchScreenProps) {
 	const [isClearHistoryDialogOpen, setIsClearHistoryDialogOpen] = useState(false);
 	const [visibleDefinitionCount, setVisibleDefinitionCount] = useState(INITIAL_VISIBLE_DEFINITION_COUNT);
+	const [isExpandedMeaningLoading, setIsExpandedMeaningLoading] = useState(false);
 	const historyItems = searchHistory;
 	const searchDisplaySections = searchResult === null ? [] : searchResult.sections;
 	const totalDefinitionCount = countDefinitions(searchDisplaySections);
@@ -226,6 +228,7 @@ export function SearchScreen({
 	const searchModeLabel = dictionaryMode === "ko-en" ? "한영" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
 	const isSearchLoading = searchStatus === "loading";
+	const isMeaningLoadingVisible = isAiMeaningLoading || isExpandedMeaningLoading;
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
 
@@ -245,7 +248,16 @@ export function SearchScreen({
 
 	useEffect(() => {
 		setVisibleDefinitionCount(INITIAL_VISIBLE_DEFINITION_COUNT);
+		setIsExpandedMeaningLoading(false);
 	}, [definitionRenderKey]);
+
+	useEffect(() => {
+		if (isAiMeaningLoading) {
+			return;
+		}
+
+		setIsExpandedMeaningLoading(false);
+	}, [isAiMeaningLoading]);
 
 	function handleConfirmClearHistory() {
 		onClearHistory();
@@ -254,7 +266,14 @@ export function SearchScreen({
 
 	function handleShowMoreDefinitions() {
 		const nextVisibleDefinitionCount = Math.min(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount);
+		const shouldLoadExpandedMeanings =
+			dictionaryMode === "ko-en" &&
+			searchResult !== null &&
+			!hasKoreanMeaningsThroughCount(searchResult, nextVisibleDefinitionCount);
 
+		if (shouldLoadExpandedMeanings) {
+			setIsExpandedMeaningLoading(true);
+		}
 		setVisibleDefinitionCount(nextVisibleDefinitionCount);
 		onRequestVisibleMeanings(nextVisibleDefinitionCount);
 	}
@@ -406,13 +425,13 @@ export function SearchScreen({
 
 			{searchStatus === "success" && searchResult !== null ? (
 				<article
-					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isAiMeaningLoading ? "search-dictionary-card--ai-meaning-loading" : ""}`}
-					aria-busy={isAiMeaningLoading}
+					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isMeaningLoadingVisible ? "search-dictionary-card--ai-meaning-loading" : ""}`}
+					aria-busy={isMeaningLoadingVisible}
 				>
 					<SearchDictionarySkeleton />
-					<SearchDictionarySpinnerOverlay isVisible={isAiMeaningLoading} label="AI 뜻 정리 중" />
+					<SearchDictionarySpinnerOverlay isVisible={isMeaningLoadingVisible} label="AI 뜻 정리 중" />
 
-					<div className="search-dictionary-card__content" aria-hidden={isAiMeaningLoading}>
+					<div className="search-dictionary-card__content" aria-hidden={isMeaningLoadingVisible}>
 						<div className="search-result-hero">
 							<div className="search-result-lockup">
 								<div className="search-result-title-row">

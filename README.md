@@ -8,11 +8,11 @@ Apps in Toss 프로젝트입니다.
 npm run dev
 ```
 
-## AI API 설정
+## 백엔드 API 설정
 
-OpenAI API 키는 브라우저에 노출하면 안 되기 때문에 서버 전용 환경변수로만 설정해요.
+OpenAI API 키와 Dictionary API 키는 브라우저에 노출하면 안 되기 때문에 서버 전용 환경변수로만 설정해요.
 
-1. `.env.example`을 참고해서 `.env.local`을 만들고 `OPENAI_API_KEY`를 넣어 주세요.
+1. `.env.example`을 참고해서 `.env.local`을 만들고 `OPENAI_API_KEY`, `DICTIONARY_API_KEY`를 넣어 주세요.
 2. 로컬 테스트는 터미널 2개에서 실행해요.
 
 ```bash
@@ -20,9 +20,9 @@ npm run dev:api
 npm run dev
 ```
 
-3. 배포 환경에서는 같은 값을 서버리스/백엔드 환경변수로 등록해 주세요. 프론트에는 `VITE_AI_*` 엔드포인트만 노출할 수 있어요.
+3. 배포 환경에서는 같은 값을 서버리스/백엔드 환경변수로 등록해 주세요. 프론트에는 `VITE_*_ENDPOINT` 값만 노출할 수 있어요.
 
-### Render로 AI API 배포하기
+### Render로 백엔드 API 배포하기
 
 이 저장소에는 Render Blueprint 설정인 `render.yaml`이 포함되어 있어요.
 
@@ -34,6 +34,8 @@ Render에서 Blueprint로 배포하거나 Web Service를 직접 만들 때 아�
 - Environment Variables:
   - `OPENAI_API_KEY`: OpenAI API 키
   - `OPENAI_MODEL`: `gpt-4.1-mini`
+  - `DICTIONARY_API_KEY`: dictionaryapi.com API 키
+  - `DICTIONARY_API_REFERENCE`: `collegiate`
   - `AI_ALLOWED_ORIGIN`: 앱 프론트 주소
 
 Render 배포가 끝나면 발급된 API 주소를 앱 빌드 환경변수에 넣어 주세요.
@@ -41,6 +43,7 @@ Render 배포가 끝나면 발급된 API 주소를 앱 빌드 환경변수에 �
 ```bash
 VITE_AI_MEANING_ENDPOINT=https://vocationary.onrender.com/api/ai/meanings
 VITE_AI_EXAMPLE_ENDPOINT=https://vocationary.onrender.com/api/ai/example
+VITE_DICTIONARY_ENDPOINT=https://vocationary.onrender.com/api/dictionary/search
 ```
 
 ## 배포하기

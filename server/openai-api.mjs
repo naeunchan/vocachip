@@ -85,6 +85,17 @@ loadEnvFile(".env.local");
 const port = parsePort(process.env.PORT ?? process.env.AI_API_PORT, 8787);
 const host = resolveHost();
 const healthCheckPaths = new Set(["/", "/health", "/healthz"]);
+const dictionaryApiBaseUrl = "https://www.dictionaryapi.com/api/v3/references";
+
+function getDictionaryApiKey() {
+  return process.env.DICTIONARY_API_KEY?.trim() ?? "";
+}
+
+function getDictionaryApiReference() {
+  const reference = process.env.DICTIONARY_API_REFERENCE?.trim() || "collegiate";
+
+  return /^[a-z0-9-]+$/i.test(reference) ? reference : "collegiate";
+}
 
 async function handleAiRequest(request, response, routeHandler) {
   setCorsHeaders(response);
@@ -112,6 +123,59 @@ async function handleAiRequest(request, response, routeHandler) {
   }
 }
 
+async function handleDictionaryRequest(request, response, url) {
+  setCorsHeaders(response);
+
+  if (request.method === "OPTIONS") {
+    response.statusCode = 204;
+    response.end();
+    return;
+  }
+
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const word = url.searchParams.get("word")?.trim() ?? "";
+
+  if (word.length === 0) {
+    sendJson(response, 400, { error: "word query is required" });
+    return;
+  }
+
+  const apiKey = getDictionaryApiKey();
+
+  if (apiKey.length === 0) {
+    sendJson(response, 503, {
+      error: "Dictionary API key is not configured",
+    });
+    return;
+  }
+
+  const reference = getDictionaryApiReference();
+  const upstreamUrl = new URL(
+    `${dictionaryApiBaseUrl}/${reference}/json/${encodeURIComponent(word)}`,
+  );
+
+  upstreamUrl.searchParams.set("key", apiKey);
+
+  try {
+    const upstreamResponse = await fetch(upstreamUrl);
+
+    if (!upstreamResponse.ok) {
+      sendJson(response, 502, { error: "Dictionary API request failed" });
+      return;
+    }
+
+    const payload = await upstreamResponse.json();
+
+    sendJson(response, 200, payload);
+  } catch {
+    sendJson(response, 502, { error: "Dictionary API request failed" });
+  }
+}
+
 const server = createServer((request, response) => {
   const baseUrl = `http://${request.headers.host ?? "127.0.0.1"}`;
   const url = new URL(request.url ?? "/", baseUrl);
@@ -128,6 +192,11 @@ const server = createServer((request, response) => {
 
   if (url.pathname === "/api/ai/example") {
     void handleAiRequest(request, response, createExample);
+    return;
+  }
+
+  if (url.pathname === "/api/dictionary/search") {
+    void handleDictionaryRequest(request, response, url);
     return;
   }
 

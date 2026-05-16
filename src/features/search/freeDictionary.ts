@@ -7,6 +7,8 @@ import type {
 const maxRelatedWords = 8;
 const relatedWordTimeoutMs = 2200;
 const relatedWordCache = new Map<string, string[]>();
+const defaultDictionaryEndpoint =
+  "https://vocationary.onrender.com/api/dictionary/search";
 
 interface RelatedWordQueryConfig {
   parameter: "rel_syn" | "rel_trg" | "rel_spc" | "rel_gen" | "ml";
@@ -22,30 +24,34 @@ const relatedWordQueryConfigs: RelatedWordQueryConfig[] = [
   { parameter: "ml", max: 6, weight: 1 },
 ];
 
-interface FreeDictionaryDefinition {
-  definition: string;
-  synonyms?: string[];
-  antonyms?: string[];
-}
-
-interface FreeDictionaryMeaning {
-  partOfSpeech: string;
-  definitions: FreeDictionaryDefinition[];
-  synonyms?: string[];
-  antonyms?: string[];
-}
-
-interface FreeDictionaryPhonetic {
-  text?: string;
+interface MerriamWebsterSound {
   audio?: string;
 }
 
-interface FreeDictionaryEntry {
-  word: string;
-  phonetic?: string;
-  phonetics?: FreeDictionaryPhonetic[];
-  meanings?: FreeDictionaryMeaning[];
+interface MerriamWebsterPronunciation {
+  mw?: string;
+  sound?: MerriamWebsterSound;
 }
+
+interface MerriamWebsterHeadword {
+  hw?: string;
+  prs?: MerriamWebsterPronunciation[];
+}
+
+interface MerriamWebsterMeta {
+  id?: string;
+  stems?: string[];
+}
+
+interface MerriamWebsterEntry {
+  meta?: MerriamWebsterMeta;
+  hwi?: MerriamWebsterHeadword;
+  fl?: string;
+  shortdef?: string[];
+  def?: unknown[];
+}
+
+type MerriamWebsterResponseItem = MerriamWebsterEntry | string;
 
 interface DatamuseWord {
   word?: string;
@@ -59,51 +65,116 @@ interface RankedRelatedWord {
   bestPosition: number;
 }
 
-function normalizeAudioUrl(audioUrl: string | undefined) {
-  if (audioUrl === undefined || audioUrl.trim().length === 0) {
-    return null;
-  }
-
-  return audioUrl.startsWith("//") ? `https:${audioUrl}` : audioUrl;
+function getDictionaryEndpoint() {
+  return (
+    import.meta.env.VITE_DICTIONARY_ENDPOINT?.trim() ||
+    defaultDictionaryEndpoint
+  );
 }
 
-function pickPhonetic(entries: FreeDictionaryEntry[]) {
+function createDictionaryEndpointUrl() {
+  return new URL(getDictionaryEndpoint(), window.location.origin);
+}
+
+function isMerriamWebsterEntry(
+  item: MerriamWebsterResponseItem,
+): item is MerriamWebsterEntry {
+  return typeof item === "object" && item !== null;
+}
+
+function cleanMerriamWebsterText(value: string) {
+  return value
+    .replace(/\*/g, "")
+    .replace(/\{bc\}/g, ": ")
+    .replace(/\{(?:[^{}|]+)\|([^{}|]+)(?:\|[^{}]*)*\}/g, "$1")
+    .replace(/\{\/?[a-z_]+\}/gi, "")
+    .replace(/\{[^{}]*\}/g, "")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeHeadword(value: string | undefined) {
+  if (value === undefined) {
+    return "";
+  }
+
+  return cleanMerriamWebsterText(value).replace(/:\d+$/, "").trim();
+}
+
+function pickWord(entries: MerriamWebsterEntry[], query: string) {
   for (const entry of entries) {
-    if (entry.phonetic?.trim()) {
-      return entry.phonetic.trim();
+    const headword = normalizeHeadword(entry.hwi?.hw);
+
+    if (headword.length > 0) {
+      return headword;
     }
 
-    const phonetic = entry.phonetics?.find((item) => item.text?.trim());
+    const entryId = normalizeHeadword(entry.meta?.id);
 
-    if (phonetic?.text?.trim()) {
-      return phonetic.text.trim();
+    if (entryId.length > 0) {
+      return entryId;
+    }
+  }
+
+  return query;
+}
+
+function pickPhonetic(entries: MerriamWebsterEntry[]) {
+  for (const entry of entries) {
+    const pronunciation = entry.hwi?.prs?.find((item) => item.mw?.trim());
+    const writtenPronunciation = pronunciation?.mw?.trim();
+
+    if (writtenPronunciation) {
+      return `/${writtenPronunciation}/`;
     }
   }
 
   return null;
 }
 
-function isPreferredUsAudio(audioUrl: string) {
-  const normalizedAudioUrl = audioUrl.toLowerCase();
+function getAudioSubdirectory(audioName: string) {
+  const normalizedAudioName = audioName.toLowerCase();
 
-  return (
-    normalizedAudioUrl.includes("-us.") ||
-    normalizedAudioUrl.includes("_us.") ||
-    normalizedAudioUrl.includes("/us/")
-  );
+  if (normalizedAudioName.startsWith("bix")) {
+    return "bix";
+  }
+
+  if (normalizedAudioName.startsWith("gg")) {
+    return "gg";
+  }
+
+  if (!/^[a-z]/.test(normalizedAudioName)) {
+    return "number";
+  }
+
+  return normalizedAudioName[0] ?? "";
 }
 
-function pickAudioUrl(entries: FreeDictionaryEntry[]) {
-  const audioUrls = entries.flatMap(
-    (entry) =>
-      entry.phonetics
-        ?.map((item) => item.audio?.trim())
-        .filter((audioUrl): audioUrl is string => Boolean(audioUrl)) ?? [],
-  );
+function createAudioUrl(audioName: string | undefined) {
+  const normalizedAudioName = audioName?.trim();
 
-  const preferredAudioUrl = audioUrls.find(isPreferredUsAudio) ?? audioUrls[0];
+  if (!normalizedAudioName) {
+    return null;
+  }
 
-  return normalizeAudioUrl(preferredAudioUrl);
+  const audioSubdirectory = getAudioSubdirectory(normalizedAudioName);
+
+  return `https://media.merriam-webster.com/audio/prons/en/us/mp3/${audioSubdirectory}/${normalizedAudioName}.mp3`;
+}
+
+function pickAudioUrl(entries: MerriamWebsterEntry[]) {
+  for (const entry of entries) {
+    for (const pronunciation of entry.hwi?.prs ?? []) {
+      const audioUrl = createAudioUrl(pronunciation.sound?.audio);
+
+      if (audioUrl !== null) {
+        return audioUrl;
+      }
+    }
+  }
+
+  return null;
 }
 
 function normalizeDefinitionKey(value: string) {
@@ -111,7 +182,7 @@ function normalizeDefinitionKey(value: string) {
 }
 
 function normalizeRelatedTerm(value: string) {
-  return value.trim().replace(/\s+/g, " ");
+  return cleanMerriamWebsterText(value).trim().replace(/\s+/g, " ");
 }
 
 function isValidRelatedTerm(term: string, query: string) {
@@ -151,9 +222,9 @@ function collectUniqueRelatedTerms(terms: string[], query: string) {
 }
 
 function createDefinitionItem(
-  definition: FreeDictionaryDefinition,
+  definition: string,
 ): DictionarySearchDefinition | null {
-  const meaning = definition.definition.trim().replace(/\s+/g, " ");
+  const meaning = cleanMerriamWebsterText(definition);
 
   if (meaning.length === 0) {
     return null;
@@ -180,41 +251,75 @@ function addUniqueDefinition(
   section.items.push(item);
 }
 
-function buildSections(entries: FreeDictionaryEntry[]) {
+function collectDefinitionTextValues(value: unknown, definitions: string[]) {
+  if (typeof value === "string") {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    if (value[0] === "text" && typeof value[1] === "string") {
+      definitions.push(value[1]);
+      return;
+    }
+
+    value.forEach((item) => collectDefinitionTextValues(item, definitions));
+    return;
+  }
+
+  if (typeof value === "object" && value !== null) {
+    Object.values(value).forEach((item) =>
+      collectDefinitionTextValues(item, definitions),
+    );
+  }
+}
+
+function getDefinitions(entry: MerriamWebsterEntry) {
+  const shortDefinitions = entry.shortdef ?? [];
+
+  if (shortDefinitions.length > 0) {
+    return shortDefinitions;
+  }
+
+  const definitions: string[] = [];
+
+  collectDefinitionTextValues(entry.def, definitions);
+
+  return definitions;
+}
+
+function buildSections(entries: MerriamWebsterEntry[]) {
   const sectionMap = new Map<string, DictionarySearchSection>();
   const sectionDefinitionKeyMap = new Map<string, Set<string>>();
 
   for (const entry of entries) {
-    for (const meaning of entry.meanings ?? []) {
-      const label = meaning.partOfSpeech.trim();
+    const label = cleanMerriamWebsterText(entry.fl ?? "definition");
 
-      if (label.length === 0) {
-        continue;
-      }
+    if (label.length === 0) {
+      continue;
+    }
 
-      let currentSection = sectionMap.get(label);
+    let currentSection = sectionMap.get(label);
 
-      if (currentSection === undefined) {
-        currentSection = {
-          label,
-          items: [],
-        };
-        sectionMap.set(label, currentSection);
-        sectionDefinitionKeyMap.set(label, new Set());
-      }
+    if (currentSection === undefined) {
+      currentSection = {
+        label,
+        items: [],
+      };
+      sectionMap.set(label, currentSection);
+      sectionDefinitionKeyMap.set(label, new Set());
+    }
 
-      const seenKeys = sectionDefinitionKeyMap.get(label);
+    const seenKeys = sectionDefinitionKeyMap.get(label);
 
-      if (seenKeys === undefined) {
-        continue;
-      }
+    if (seenKeys === undefined) {
+      continue;
+    }
 
-      for (const definition of meaning.definitions) {
-        const item = createDefinitionItem(definition);
+    for (const definition of getDefinitions(entry)) {
+      const item = createDefinitionItem(definition);
 
-        if (item !== null) {
-          addUniqueDefinition(currentSection, seenKeys, item);
-        }
+      if (item !== null) {
+        addUniqueDefinition(currentSection, seenKeys, item);
       }
     }
   }
@@ -223,32 +328,13 @@ function buildSections(entries: FreeDictionaryEntry[]) {
 }
 
 function buildInlineRelatedWords(
-  entries: FreeDictionaryEntry[],
+  entries: MerriamWebsterEntry[],
   query: string,
 ) {
-  const rawSynonyms = entries.flatMap((entry) =>
-    (entry.meanings ?? []).flatMap((meaning) => [
-      ...(meaning.synonyms ?? []),
-      ...meaning.definitions.flatMap((definition) => [
-        ...(definition.synonyms ?? []),
-      ]),
-    ]),
+  return collectUniqueRelatedTerms(
+    entries.flatMap((entry) => entry.meta?.stems ?? []),
+    query,
   );
-
-  const inlineSynonyms = collectUniqueRelatedTerms(rawSynonyms, query);
-
-  if (inlineSynonyms.length >= maxRelatedWords) {
-    return inlineSynonyms;
-  }
-
-  const rawAntonyms = entries.flatMap((entry) =>
-    (entry.meanings ?? []).flatMap((meaning) => [
-      ...(meaning.antonyms ?? []),
-      ...meaning.definitions.flatMap((definition) => definition.antonyms ?? []),
-    ]),
-  );
-
-  return collectUniqueRelatedTerms([...inlineSynonyms, ...rawAntonyms], query);
 }
 
 async function fetchWithTimeout(
@@ -378,10 +464,11 @@ export async function fetchDictionarySearchResult(
   query: string,
   signal?: AbortSignal,
 ): Promise<DictionarySearchResult | null> {
-  const response = await fetch(
-    `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(query)}`,
-    { signal },
-  );
+  const endpointUrl = createDictionaryEndpointUrl();
+
+  endpointUrl.searchParams.set("word", query);
+
+  const response = await fetch(endpointUrl.toString(), { signal });
 
   if (response.status === 404) {
     return null;
@@ -391,10 +478,13 @@ export async function fetchDictionarySearchResult(
     throw new Error("사전 API 호출에 실패했어요.");
   }
 
-  const entries = (await response.json()) as FreeDictionaryEntry[];
+  const payload = (await response.json()) as MerriamWebsterResponseItem[];
+  const entries = Array.isArray(payload)
+    ? payload.filter(isMerriamWebsterEntry)
+    : [];
   const sections = buildSections(entries);
   const inlineRelatedWords = buildInlineRelatedWords(entries, query);
-  const relatedWordSeed = entries[0]?.word?.trim() || query;
+  const dictionaryWord = pickWord(entries, query);
 
   if (entries.length === 0 || sections.length === 0) {
     return null;
@@ -403,7 +493,7 @@ export async function fetchDictionarySearchResult(
   const relatedWordsPromise =
     inlineRelatedWords.length >= maxRelatedWords
       ? Promise.resolve<string[]>([])
-      : fetchRelatedWords(relatedWordSeed, signal);
+      : fetchRelatedWords(dictionaryWord, signal);
 
   const relatedWords = collectUniqueRelatedTerms(
     [...inlineRelatedWords, ...(await relatedWordsPromise)],
@@ -411,7 +501,7 @@ export async function fetchDictionarySearchResult(
   );
 
   return {
-    word: entries[0]?.word?.trim() || query,
+    word: dictionaryWord,
     phonetic: pickPhonetic(entries),
     audioUrl: pickAudioUrl(entries),
     sections,

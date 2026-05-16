@@ -1,11 +1,12 @@
 import { Badge, Button, Loader, SegmentedControl } from "@toss/tds-mobile";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { DictionaryMode } from "../../core/state/types";
+import { DEFINITION_RENDER_BATCH_SIZE, INITIAL_VISIBLE_DEFINITION_COUNT } from "./displayConfig";
+import { hasKoreanMeaningsThroughCount } from "./searchResultCache";
 import type { AiExampleStatus, AiGeneratedExample, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
 
-const AI_MEANING_PENDING_COPY = "AI가 뜻을 정리하는 중이에요.";
 const AI_EXAMPLE_LOADER_STYLE = {
 	"--label-color": "var(--search-ai-example-loader-label)",
 } as CSSProperties;
@@ -28,6 +29,7 @@ interface SearchScreenProps {
 	onSaveResult: () => void;
 	onSpeakResult: (word: string, audioUrl?: string | null) => void;
 	onGenerateAiExample: () => void;
+	onRequestVisibleMeanings: (visibleDefinitionCount: number) => Promise<void>;
 	onSelectHistory: (query: string) => void;
 	onClearHistory: () => void;
 }
@@ -105,6 +107,91 @@ function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "boo
 	);
 }
 
+function countDefinitions(sections: DictionarySearchResult["sections"]) {
+	return sections.reduce((totalCount, section) => totalCount + section.items.length, 0);
+}
+
+function createDefinitionRenderKey(result: DictionarySearchResult | null) {
+	if (result === null) {
+		return "empty";
+	}
+
+	return [
+		result.word.toLowerCase(),
+		...result.sections.flatMap((section) => [
+			section.label.toLowerCase(),
+			...section.items.map((item) => item.meaning),
+		]),
+	].join("\u001f");
+}
+
+function getVisibleSearchSections(sections: DictionarySearchResult["sections"], visibleDefinitionCount: number) {
+	let remainingDefinitionCount = visibleDefinitionCount;
+
+	return sections.flatMap((section) => {
+		if (remainingDefinitionCount <= 0) {
+			return [];
+		}
+
+		const items = section.items.slice(0, remainingDefinitionCount);
+
+		remainingDefinitionCount -= items.length;
+
+		return items.length > 0
+			? [
+					{
+						...section,
+						items,
+					},
+				]
+			: [];
+	});
+}
+
+function SearchDictionarySkeleton() {
+	return (
+		<div className="search-ai-meaning-skeleton" aria-hidden="true">
+			<div className="search-ai-meaning-skeleton__hero">
+				<div className="search-ai-meaning-skeleton__title-row">
+					<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--title" />
+					<div className="search-ai-meaning-skeleton__actions">
+						<span className="search-ai-meaning-skeleton__icon" />
+						<span className="search-ai-meaning-skeleton__icon" />
+					</div>
+				</div>
+				<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--phonetic" />
+			</div>
+			<div className="search-ai-meaning-skeleton__definition-stack">
+				{[0, 1].map((item) => (
+					<div className="search-ai-meaning-skeleton__definition" key={item}>
+						<span className="search-ai-meaning-skeleton__index" />
+						<div className="search-ai-meaning-skeleton__copy">
+							<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--meaning" />
+							<span className="search-ai-meaning-skeleton__line search-ai-meaning-skeleton__line--sub" />
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function SearchDictionarySpinnerOverlay({ isVisible, label }: { isVisible: boolean; label: string }) {
+	return (
+		<div
+			className="search-ai-meaning-overlay"
+			role={isVisible ? "status" : undefined}
+			aria-label={isVisible ? label : undefined}
+			aria-live={isVisible ? "polite" : undefined}
+			aria-hidden={!isVisible}
+		>
+			<div className="search-ai-meaning-popover">
+				<span className="search-toss-spinner" aria-hidden="true" />
+			</div>
+		</div>
+	);
+}
+
 export function SearchScreen({
 	searchQuery,
 	onChangeSearchQuery,
@@ -123,23 +210,76 @@ export function SearchScreen({
 	onSaveResult,
 	onSpeakResult,
 	onGenerateAiExample,
+	onRequestVisibleMeanings,
 	onSelectHistory,
 	onClearHistory,
 }: SearchScreenProps) {
 	const [isClearHistoryDialogOpen, setIsClearHistoryDialogOpen] = useState(false);
+	const [visibleDefinitionCount, setVisibleDefinitionCount] = useState(INITIAL_VISIBLE_DEFINITION_COUNT);
+	const [isExpandedMeaningLoading, setIsExpandedMeaningLoading] = useState(false);
 	const historyItems = searchHistory;
 	const searchDisplaySections = searchResult === null ? [] : searchResult.sections;
+	const totalDefinitionCount = countDefinitions(searchDisplaySections);
+	const visibleSearchDisplaySections = getVisibleSearchSections(searchDisplaySections, visibleDefinitionCount);
+	const hasHiddenDefinitions = visibleDefinitionCount < totalDefinitionCount;
+	const visibleDefinitionDisplayCount = Math.min(visibleDefinitionCount, totalDefinitionCount);
+	const definitionRenderKey = createDefinitionRenderKey(searchResult);
 	const hasSearchActivity = searchStatus !== "idle";
 	const searchModeLabel = dictionaryMode === "ko-en" ? "한영" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
-	const isSearchLoading = searchStatus === "loading" || isAiMeaningLoading;
+	const isSearchLoading = searchStatus === "loading";
+	const isCardMeaningLoadingVisible = isAiMeaningLoading && !isExpandedMeaningLoading;
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
-	const searchLoadingCopy = isAiMeaningLoading ? "AI가 뜻을 정리하고 있어요." : "사전에서 단어를 찾고 있어요.";
+
+	useEffect(() => {
+		if (searchStatus !== "loading") {
+			return;
+		}
+
+		const frameId = window.requestAnimationFrame(() => {
+			window.scrollTo({ top: 0, behavior: "auto" });
+		});
+
+		return () => {
+			window.cancelAnimationFrame(frameId);
+		};
+	}, [searchQuery, searchStatus]);
+
+	useEffect(() => {
+		setVisibleDefinitionCount(INITIAL_VISIBLE_DEFINITION_COUNT);
+		setIsExpandedMeaningLoading(false);
+	}, [definitionRenderKey]);
 
 	function handleConfirmClearHistory() {
 		onClearHistory();
 		setIsClearHistoryDialogOpen(false);
+	}
+
+	async function handleShowMoreDefinitions() {
+		if (isExpandedMeaningLoading) {
+			return;
+		}
+
+		const nextVisibleDefinitionCount = Math.min(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount);
+		const shouldLoadExpandedMeanings =
+			dictionaryMode === "ko-en" &&
+			searchResult !== null &&
+			!hasKoreanMeaningsThroughCount(searchResult, nextVisibleDefinitionCount);
+
+		if (!shouldLoadExpandedMeanings) {
+			setVisibleDefinitionCount(nextVisibleDefinitionCount);
+			return;
+		}
+
+		setIsExpandedMeaningLoading(true);
+
+		try {
+			await onRequestVisibleMeanings(nextVisibleDefinitionCount);
+			setVisibleDefinitionCount(nextVisibleDefinitionCount);
+		} finally {
+			setIsExpandedMeaningLoading(false);
+		}
 	}
 
 	function getDefinitionMeaning(item: DictionarySearchDefinition) {
@@ -153,7 +293,7 @@ export function SearchScreen({
 			return translatedMeaning;
 		}
 
-		return AI_MEANING_PENDING_COPY;
+		return item.meaning;
 	}
 
 	function getAiExample(sectionIndex: number, itemIndex: number) {
@@ -167,6 +307,7 @@ export function SearchScreen({
 					className={`search-compose-form ${hasSearchActivity ? "search-compose-form--active" : ""}`}
 					onSubmit={(event) => {
 						event.preventDefault();
+						event.currentTarget.querySelector<HTMLInputElement>("#search-word-input")?.blur();
 						onSubmitSearch(searchQuery);
 					}}
 				>
@@ -237,16 +378,10 @@ export function SearchScreen({
 			</section>
 
 			{isSearchLoading ? (
-				<section className="content-card search-empty-card search-loading-card" aria-live="polite">
-					<div className="search-state-header" aria-hidden="true">
-						<SearchIcon icon="submit" />
-					</div>
-					<h3>검색 중</h3>
-					<div className="search-loading-bar" role="progressbar" aria-label="검색 중">
-						<span className="search-loading-bar__fill" />
-					</div>
-					<p className="search-loading-copy">{searchLoadingCopy}</p>
-				</section>
+				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search search-dictionary-card--ai-meaning-loading" aria-busy="true">
+					<SearchDictionarySkeleton />
+					<SearchDictionarySpinnerOverlay isVisible={true} label="검색 중" />
+				</article>
 			) : null}
 
 			{searchStatus === "error" ? (
@@ -293,99 +428,114 @@ export function SearchScreen({
 			) : null}
 
 			{searchStatus === "success" && searchResult !== null ? (
-				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search">
-					<div className="search-result-hero">
-						<div className="search-result-lockup">
-							<div className="search-result-title-row">
-								<div className="search-result-title-main">
-									<h2>{searchResult.word}</h2>
-									{isSaved ? (
-										<Badge size="small" color="blue" variant="weak" className="search-result-status-badge">
-											저장됨
-										</Badge>
-									) : null}
+				<article
+					className={`search-detail-card search-dictionary-card search-dictionary-card--compact-search ${isCardMeaningLoadingVisible ? "search-dictionary-card--ai-meaning-loading" : ""}`}
+					aria-busy={isAiMeaningLoading || isExpandedMeaningLoading}
+				>
+					<SearchDictionarySkeleton />
+					<SearchDictionarySpinnerOverlay isVisible={isCardMeaningLoadingVisible} label="AI 뜻 정리 중" />
+
+					<div className="search-dictionary-card__content" aria-hidden={isCardMeaningLoadingVisible}>
+						<div className="search-result-hero">
+							<div className="search-result-lockup">
+								<div className="search-result-title-row">
+									<div className="search-result-title-main">
+										<h2>{searchResult.word}</h2>
+										{isSaved ? (
+											<Badge size="small" color="blue" variant="weak" className="search-result-status-badge">
+												저장됨
+											</Badge>
+										) : null}
+									</div>
+									<div className="search-result-actions search-result-title-actions">
+										<button
+											className={`subtle-button search-result-button search-result-icon-button search-result-ai-button ${areAiExamplesVisible ? "active" : ""} ${isSaved ? "search-result-ai-button--saved-result" : ""}`}
+											type="button"
+											aria-label={aiExampleButtonLabel}
+											aria-busy={isGeneratingAiExample}
+											aria-pressed={areAiExamplesVisible}
+											onClick={onGenerateAiExample}
+											disabled={isGeneratingAiExample}
+										>
+											<SearchIcon icon="ai" />
+										</button>
+										<button
+											className={`subtle-button search-result-button search-result-icon-button ${isSaved ? "active" : ""}`}
+											type="button"
+											aria-label={isSaved ? "단어장 저장됨" : "단어장에 저장"}
+											onClick={onSaveResult}
+											disabled={isSaved}
+										>
+											<SearchIcon icon="bookmark" />
+										</button>
+									</div>
 								</div>
-								<div className="search-result-actions search-result-title-actions">
+								<div className="search-result-meta-line">
+									{searchResult.phonetic ? <p className="search-result-phonetic">{searchResult.phonetic}</p> : null}
 									<button
-										className={`subtle-button search-result-button search-result-icon-button search-result-ai-button ${areAiExamplesVisible ? "active" : ""} ${isSaved ? "search-result-ai-button--saved-result" : ""}`}
+										className={`subtle-button search-result-button search-result-pronunciation-button ${isPronouncingResult ? "active" : ""}`}
 										type="button"
-										aria-label={aiExampleButtonLabel}
-										aria-busy={isGeneratingAiExample}
-										aria-pressed={areAiExamplesVisible}
-										onClick={onGenerateAiExample}
-										disabled={isGeneratingAiExample}
+										aria-label="발음 재생"
+										aria-pressed={isPronouncingResult}
+										onClick={() => onSpeakResult(searchResult.word, searchResult.audioUrl)}
 									>
-										<SearchIcon icon="ai" />
-									</button>
-									<button
-										className={`subtle-button search-result-button search-result-icon-button ${isSaved ? "active" : ""}`}
-										type="button"
-										aria-label={isSaved ? "단어장 저장됨" : "단어장에 저장"}
-										onClick={onSaveResult}
-										disabled={isSaved}
-									>
-										<SearchIcon icon="bookmark" />
+										<SearchIcon icon="sound" />
 									</button>
 								</div>
 							</div>
-							<div className="search-result-meta-line">
-								{searchResult.phonetic ? <p className="search-result-phonetic">{searchResult.phonetic}</p> : null}
-								<button
-									className={`subtle-button search-result-button search-result-pronunciation-button ${isPronouncingResult ? "active" : ""}`}
-									type="button"
-									aria-label="발음 재생"
-									aria-pressed={isPronouncingResult}
-									onClick={() => onSpeakResult(searchResult.word, searchResult.audioUrl)}
-								>
-									<SearchIcon icon="sound" />
-								</button>
+						</div>
+
+						{aiExampleStatus === "error" ? (
+							<p className="search-ai-example-feedback" role="status">
+								AI 예문을 만들 수 없어요. 잠시 후 다시 시도해 주세요.
+							</p>
+						) : null}
+
+						<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>
+							<div
+								className="search-ai-example-loading-popover"
+								role={isGeneratingAiExample ? "status" : undefined}
+								aria-live={isGeneratingAiExample ? "polite" : undefined}
+								aria-hidden={!isGeneratingAiExample}
+							>
+								<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" style={AI_EXAMPLE_LOADER_STYLE} />
 							</div>
-						</div>
-					</div>
 
-					{aiExampleStatus === "error" ? (
-						<p className="search-ai-example-feedback" role="status">
-							AI 예문을 만들 수 없어요. 잠시 후 다시 시도해 주세요.
-						</p>
-					) : null}
-
-					<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>
-						<div
-							className="search-ai-example-loading-popover"
-							role={isGeneratingAiExample ? "status" : undefined}
-							aria-live={isGeneratingAiExample ? "polite" : undefined}
-							aria-hidden={!isGeneratingAiExample}
-						>
-							<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" style={AI_EXAMPLE_LOADER_STYLE} />
-						</div>
-
-						<div className="search-definition-stack">
-							{searchDisplaySections.map((section, sectionIndex) => (
-								<section key={section.label} className="search-definition-section">
-									<div className="search-definition-heading">
-										<div className="search-definition-heading__meta">
-											<span className="search-definition-heading__part">{section.label}</span>
+							<div className="search-definition-stack">
+								{visibleSearchDisplaySections.map((section, sectionIndex) => (
+									<section key={section.label} className="search-definition-section">
+										<div className="search-definition-heading">
+											<div className="search-definition-heading__meta">
+												<span className="search-definition-heading__part">{section.label}</span>
+											</div>
+											<div className="search-definition-rule" />
 										</div>
-										<div className="search-definition-rule" />
-									</div>
-									<div className="search-definition-item-list">
-										{section.items.map((item, index) => {
-											const displayMeaning = getDefinitionMeaning(item);
-											const aiExample = getAiExample(sectionIndex, index);
+										<div className="search-definition-item-list">
+											{section.items.map((item, index) => {
+												const displayMeaning = getDefinitionMeaning(item);
+												const aiExample = getAiExample(sectionIndex, index);
 
-											return (
-												<div key={`${section.label}-${index + 1}`} className="search-definition-item">
-													<div className="search-definition-index">{index + 1}</div>
-													<div className="search-definition-copy">
-														<strong>{displayMeaning}</strong>
-														{areAiExamplesVisible && aiExample !== null ? <p className="search-definition-ai-example">{aiExample.sentence}</p> : null}
+												return (
+													<div key={`${section.label}-${index + 1}`} className="search-definition-item">
+														<div className="search-definition-index">{index + 1}</div>
+														<div className="search-definition-copy">
+															<strong>{displayMeaning}</strong>
+															{areAiExamplesVisible && aiExample !== null ? <p className="search-definition-ai-example">{aiExample.sentence}</p> : null}
+														</div>
 													</div>
-												</div>
-											);
-										})}
-									</div>
-								</section>
-							))}
+												);
+											})}
+										</div>
+									</section>
+								))}
+								{hasHiddenDefinitions || isExpandedMeaningLoading ? (
+									<button className="search-definition-more-button" type="button" onClick={handleShowMoreDefinitions} disabled={isExpandedMeaningLoading || !hasHiddenDefinitions} aria-busy={isExpandedMeaningLoading}>
+										<span>{isExpandedMeaningLoading ? "번역 중" : "뜻 더 보기"}</span>
+										{isExpandedMeaningLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
+										<span>{visibleDefinitionDisplayCount} / {totalDefinitionCount}</span>
+									</button>
+								) : null}
+							</div>
 						</div>
 					</div>
 				</article>

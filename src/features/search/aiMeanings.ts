@@ -17,6 +17,9 @@ interface AiMeaningRequest {
 
 const DEFAULT_AI_MEANING_ENDPOINT =
   "https://vocationary.onrender.com/api/ai/meanings";
+const AI_MEANING_REQUEST_TIMEOUT_MS = 30000;
+const AI_MEANING_BATCH_SIZE = 8;
+const AI_MEANING_BATCH_CONCURRENCY = 3;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
 
 function getAiMeaningEndpoint() {
@@ -28,6 +31,44 @@ function getAiMeaningEndpoint() {
 
 function createMeaningItemId(sectionIndex: number, itemIndex: number) {
   return `${sectionIndex}:${itemIndex}`;
+}
+
+function hasKoreanMeaning(value: string | null | undefined) {
+  return value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value);
+}
+
+function chunkItems<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+function createTimedSignal(signal: AbortSignal, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+  const abortRequest = () => {
+    controller.abort();
+  };
+
+  if (signal.aborted) {
+    controller.abort();
+  } else {
+    signal.addEventListener("abort", abortRequest, { once: true });
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener("abort", abortRequest);
+    },
+  };
 }
 
 function getRecord(value: unknown) {
@@ -184,8 +225,52 @@ function parseAiMeaningPayload(
   return meanings;
 }
 
+function createAiMeaningRequestItems(
+  result: DictionarySearchResult,
+  maxDefinitionCount?: number,
+) {
+  const requestItems: AiMeaningRequestItem[] = [];
+  const definitionCountLimit =
+    maxDefinitionCount === undefined
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, maxDefinitionCount);
+  let definitionCount = 0;
+
+  for (let sectionIndex = 0; sectionIndex < result.sections.length; sectionIndex += 1) {
+    const section = result.sections[sectionIndex];
+
+    if (section === undefined) {
+      continue;
+    }
+
+    for (let itemIndex = 0; itemIndex < section.items.length; itemIndex += 1) {
+      const item = section.items[itemIndex];
+
+      if (item === undefined || definitionCount >= definitionCountLimit) {
+        return requestItems;
+      }
+
+      definitionCount += 1;
+
+      if (hasKoreanMeaning(item.translatedMeaning)) {
+        continue;
+      }
+
+      requestItems.push({
+        id: createMeaningItemId(sectionIndex, itemIndex),
+        partOfSpeech: section.label.toLowerCase(),
+        definition: item.meaning,
+        currentMeaning: item.translatedMeaning?.trim() || null,
+      });
+    }
+  }
+
+  return requestItems;
+}
+
 function createAiMeaningRequest(
   result: DictionarySearchResult,
+  items: AiMeaningRequestItem[],
 ): AiMeaningRequest {
   return {
     word: result.word,
@@ -193,26 +278,17 @@ function createAiMeaningRequest(
     targetLanguage: "ko",
     instruction:
       "각 definition을 한국어 사전 뜻처럼 자연스럽고 짧게 다듬어 주세요. 영어 원문은 넣지 말고 JSON { meanings: [{ id, meaning }] }로만 응답하세요.",
-    items: result.sections.flatMap((section, sectionIndex) =>
-      section.items.map((item, itemIndex) => ({
-        id: createMeaningItemId(sectionIndex, itemIndex),
-        partOfSpeech: section.label.toLowerCase(),
-        definition: item.meaning,
-        currentMeaning: item.translatedMeaning?.trim() || null,
-      })),
-    ),
+    items,
   };
 }
 
-export async function naturalizeDictionarySearchResultMeanings(
+async function fetchAiMeaningBatch(
   result: DictionarySearchResult,
+  requestItems: AiMeaningRequestItem[],
   signal: AbortSignal,
-): Promise<DictionarySearchResult> {
-  const request = createAiMeaningRequest(result);
-
-  if (request.items.length === 0) {
-    return result;
-  }
+) {
+  const request = createAiMeaningRequest(result, requestItems);
+  const requestSignal = createTimedSignal(signal, AI_MEANING_REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(getAiMeaningEndpoint(), {
@@ -221,15 +297,81 @@ export async function naturalizeDictionarySearchResultMeanings(
         "Content-Type": "application/json",
       },
       body: JSON.stringify(request),
-      signal,
+      signal: requestSignal.signal,
     });
 
     if (!response.ok) {
-      return result;
+      return new Map<string, string>();
     }
 
     const payload = (await response.json()) as unknown;
-    const meanings = parseAiMeaningPayload(payload, request.items);
+
+    return parseAiMeaningPayload(payload, requestItems);
+  } catch {
+    return new Map<string, string>();
+  } finally {
+    requestSignal.cleanup();
+  }
+}
+
+async function fetchAiMeaningsInBatches(
+  result: DictionarySearchResult,
+  requestItems: AiMeaningRequestItem[],
+  signal: AbortSignal,
+) {
+  const batches = chunkItems(requestItems, AI_MEANING_BATCH_SIZE);
+  const meanings = new Map<string, string>();
+  let nextBatchIndex = 0;
+
+  async function runNextBatch() {
+    while (nextBatchIndex < batches.length && !signal.aborted) {
+      const batch = batches[nextBatchIndex];
+
+      nextBatchIndex += 1;
+
+      if (batch === undefined) {
+        continue;
+      }
+
+      const batchMeanings = await fetchAiMeaningBatch(result, batch, signal);
+
+      for (const [id, meaning] of batchMeanings) {
+        meanings.set(id, meaning);
+      }
+    }
+  }
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(AI_MEANING_BATCH_CONCURRENCY, batches.length) },
+      runNextBatch,
+    ),
+  );
+
+  return meanings;
+}
+
+export async function naturalizeDictionarySearchResultMeanings(
+  result: DictionarySearchResult,
+  signal: AbortSignal,
+  maxDefinitionCount?: number,
+): Promise<DictionarySearchResult> {
+  const requestItems = createAiMeaningRequestItems(result, maxDefinitionCount);
+
+  if (requestItems.length === 0) {
+    return result;
+  }
+
+  if (signal.aborted) {
+    return result;
+  }
+
+  try {
+    const meanings = await fetchAiMeaningsInBatches(
+      result,
+      requestItems,
+      signal,
+    );
 
     if (meanings.size === 0) {
       return result;

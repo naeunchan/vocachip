@@ -3,7 +3,7 @@ export function setCorsHeaders(response) {
     "Access-Control-Allow-Origin",
     process.env.AI_ALLOWED_ORIGIN?.trim() || "*",
   );
-  response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 

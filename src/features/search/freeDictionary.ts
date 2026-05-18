@@ -460,6 +460,36 @@ async function fetchRelatedWords(query: string, signal?: AbortSignal) {
   }
 }
 
+function haveSameRelatedWords(left: string[], right: string[]) {
+  return (
+    left.length === right.length &&
+    left.every((term, index) => term === right[index])
+  );
+}
+
+export async function fetchDictionaryRelatedWords(
+  result: DictionarySearchResult,
+  signal?: AbortSignal,
+) {
+  if (result.relatedWords.length >= maxRelatedWords) {
+    return result;
+  }
+
+  const relatedWords = collectUniqueRelatedTerms(
+    [...result.relatedWords, ...(await fetchRelatedWords(result.word, signal))],
+    result.word,
+  );
+
+  if (haveSameRelatedWords(result.relatedWords, relatedWords)) {
+    return result;
+  }
+
+  return {
+    ...result,
+    relatedWords,
+  };
+}
+
 export async function fetchDictionarySearchResult(
   query: string,
   signal?: AbortSignal,
@@ -490,21 +520,11 @@ export async function fetchDictionarySearchResult(
     return null;
   }
 
-  const relatedWordsPromise =
-    inlineRelatedWords.length >= maxRelatedWords
-      ? Promise.resolve<string[]>([])
-      : fetchRelatedWords(dictionaryWord, signal);
-
-  const relatedWords = collectUniqueRelatedTerms(
-    [...inlineRelatedWords, ...(await relatedWordsPromise)],
-    query,
-  );
-
   return {
     word: dictionaryWord,
     phonetic: pickPhonetic(entries),
     audioUrl: pickAudioUrl(entries),
     sections,
-    relatedWords,
+    relatedWords: inlineRelatedWords,
   };
 }

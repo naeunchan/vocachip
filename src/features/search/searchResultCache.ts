@@ -67,6 +67,63 @@ function createEnglishSearchResult(result: DictionarySearchResult) {
   };
 }
 
+function mergeRelatedWords(left: string[], right: string[]) {
+  const seenWords = new Set<string>();
+  const mergedWords: string[] = [];
+
+  for (const word of [...left, ...right]) {
+    const cacheKey = word.trim().toLowerCase();
+
+    if (cacheKey.length === 0 || seenWords.has(cacheKey)) {
+      continue;
+    }
+
+    seenWords.add(cacheKey);
+    mergedWords.push(word);
+  }
+
+  return mergedWords;
+}
+
+function mergeKoreanSearchResult(
+  result: DictionarySearchResult,
+  existingResult: DictionarySearchResult | null,
+) {
+  if (existingResult === null) {
+    return cloneSearchResult(result);
+  }
+
+  return {
+    ...result,
+    relatedWords: mergeRelatedWords(
+      result.relatedWords,
+      existingResult.relatedWords,
+    ),
+    sections: result.sections.map((section, sectionIndex) => {
+      const existingSection = existingResult.sections[sectionIndex];
+
+      return {
+        ...section,
+        items: section.items.map((item, itemIndex) => {
+          if (hasKoreanMeaning(item.translatedMeaning)) {
+            return { ...item };
+          }
+
+          const existingMeaning =
+            existingSection?.items[itemIndex]?.translatedMeaning;
+
+          return {
+            ...item,
+            translatedMeaning: hasKoreanMeaning(existingMeaning)
+              ? existingMeaning
+              : item.translatedMeaning,
+          };
+        }),
+      };
+    }),
+  };
+}
+
 function hasKoreanMeaning(value: string | null | undefined) {
   return value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value);
 }
@@ -269,6 +326,14 @@ export function cacheKoreanDictionarySearchResult(
   const wordKey = normalizeCacheKey(result.word);
   const definitionKey = createDictionarySearchDefinitionKey(result);
   const existingEntry = cacheState.entries[queryKey] ?? cacheState.entries[wordKey];
+  const existingKoreanResult =
+    existingEntry?.definitionKey === definitionKey
+      ? existingEntry.koreanResult
+      : null;
+  const mergedKoreanResult = mergeKoreanSearchResult(
+    result,
+    existingKoreanResult,
+  );
   const now = Date.now();
   const entry: SearchResultCacheEntry = {
     query: queryKey,
@@ -278,7 +343,7 @@ export function cacheKoreanDictionarySearchResult(
       existingEntry?.definitionKey === definitionKey
         ? cloneSearchResult(existingEntry.englishResult)
         : createEnglishSearchResult(result),
-    koreanResult: cloneSearchResult(result),
+    koreanResult: mergedKoreanResult,
     updatedAt: existingEntry?.updatedAt ?? now,
     koreanUpdatedAt: now,
   };

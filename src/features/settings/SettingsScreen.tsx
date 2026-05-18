@@ -130,7 +130,7 @@ export function SettingsScreen({
     { key: "dark" as const, label: "다크" },
   ];
   const dictionaryModeItems = [
-    { key: "ko-en" as const, label: "한영" },
+    { key: "ko-en" as const, label: "영한" },
     { key: "en-en" as const, label: "영영" },
   ];
 

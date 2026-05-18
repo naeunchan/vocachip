@@ -12,5 +12,9 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4.1-mini
+      - key: DICTIONARY_API_KEY
+        sync: false
+      - key: DICTIONARY_API_REFERENCE
+        value: collegiate
       - key: AI_ALLOWED_ORIGIN
         sync: false

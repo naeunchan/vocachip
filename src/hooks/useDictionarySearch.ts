@@ -15,10 +15,7 @@ import {
   fetchAiGeneratedExample,
 } from "../features/search/aiExamples";
 import { naturalizeDictionarySearchResultMeanings } from "../features/search/aiMeanings";
-import {
-  fetchDictionaryRelatedWords,
-  fetchDictionarySearchResult,
-} from "../features/search/freeDictionary";
+import { fetchDictionarySearchResult } from "../features/search/freeDictionary";
 import {
   cacheEnglishDictionarySearchResult,
   cacheKoreanDictionarySearchResult,
@@ -92,10 +89,8 @@ export function useDictionarySearch({
   const searchAbortControllerRef = useRef<AbortController | null>(null);
   const aiExampleAbortControllerRef = useRef<AbortController | null>(null);
   const aiMeaningAbortControllerRef = useRef<AbortController | null>(null);
-  const relatedWordsAbortControllerRef = useRef<AbortController | null>(null);
   const searchResultRef = useRef<DictionarySearchResult | null>(null);
   const enrichedSearchMeaningKeyRef = useRef<string | null>(null);
-  const relatedWordsRequestKeyRef = useRef<string | null>(null);
   const matchedSearchWord =
     searchResult === null
       ? null
@@ -132,7 +127,6 @@ export function useDictionarySearch({
       searchAbortControllerRef.current?.abort();
       aiExampleAbortControllerRef.current?.abort();
       aiMeaningAbortControllerRef.current?.abort();
-      relatedWordsAbortControllerRef.current?.abort();
     };
   }, []);
 
@@ -177,7 +171,6 @@ export function useDictionarySearch({
     searchAbortControllerRef.current?.abort();
     aiExampleAbortControllerRef.current?.abort();
     aiMeaningAbortControllerRef.current?.abort();
-    relatedWordsAbortControllerRef.current?.abort();
     setSearchStatus("idle");
     setSearchResult(null);
     setSearchSaveFeedback(null);
@@ -185,7 +178,6 @@ export function useDictionarySearch({
     setIsAiMeaningLoading(false);
     setAiGeneratedExamples([]);
     enrichedSearchMeaningKeyRef.current = null;
-    relatedWordsRequestKeyRef.current = null;
   }
 
   async function handleSearchSubmit(nextQuery: string) {
@@ -200,14 +192,12 @@ export function useDictionarySearch({
     searchAbortControllerRef.current?.abort();
     aiExampleAbortControllerRef.current?.abort();
     aiMeaningAbortControllerRef.current?.abort();
-    relatedWordsAbortControllerRef.current?.abort();
 
     const nextAbortController = new AbortController();
     const cachedSearchResult = getCachedDictionarySearchResult(trimmedQuery);
 
     searchAbortControllerRef.current = nextAbortController;
     enrichedSearchMeaningKeyRef.current = null;
-    relatedWordsRequestKeyRef.current = null;
     setSearchSaveFeedback(null);
     setAiExampleStatus("idle");
     setIsAiMeaningLoading(false);
@@ -271,68 +261,6 @@ export function useDictionarySearch({
       setSearchStatus("error");
     }
   }
-
-  useEffect(() => {
-    if (searchStatus !== "success" || searchDefinitionKey === null) {
-      return;
-    }
-
-    const currentSearchResult = searchResultRef.current;
-
-    if (currentSearchResult === null) {
-      return;
-    }
-
-    const relatedWordsRequestKey = `${currentSearchResult.word}:${searchDefinitionKey}`;
-
-    if (relatedWordsRequestKeyRef.current === relatedWordsRequestKey) {
-      return;
-    }
-
-    const nextAbortController = new AbortController();
-
-    relatedWordsAbortControllerRef.current?.abort();
-    relatedWordsAbortControllerRef.current = nextAbortController;
-    relatedWordsRequestKeyRef.current = relatedWordsRequestKey;
-
-    void (async () => {
-      const nextResult = await fetchDictionaryRelatedWords(
-        currentSearchResult,
-        nextAbortController.signal,
-      );
-
-      if (
-        nextAbortController.signal.aborted ||
-        nextResult === currentSearchResult
-      ) {
-        return;
-      }
-
-      const currentResult = searchResultRef.current;
-
-      if (
-        currentResult === null ||
-        currentResult.word !== currentSearchResult.word ||
-        createDictionarySearchDefinitionKey(currentResult) !==
-          searchDefinitionKey
-      ) {
-        return;
-      }
-
-      const mergedResult = {
-        ...currentResult,
-        relatedWords: [...nextResult.relatedWords],
-      };
-
-      cacheEnglishDictionarySearchResult(currentSearchResult.word, mergedResult);
-      cacheKoreanDictionarySearchResult(currentSearchResult.word, mergedResult);
-      setSearchResult(mergedResult);
-    })();
-
-    return () => {
-      nextAbortController.abort();
-    };
-  }, [searchDefinitionKey, searchStatus]);
 
   useEffect(() => {
     if (searchStatus !== "success" || searchDefinitionKey === null) {
@@ -442,7 +370,7 @@ export function useDictionarySearch({
           createDictionarySearchDefinitionKey(latestResult) === searchMeaningKey
             ? {
                 ...nextResult,
-                relatedWords: [...latestResult.relatedWords],
+                relatedWords: [],
               }
             : nextResult;
 

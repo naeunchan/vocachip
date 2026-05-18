@@ -45,7 +45,7 @@ export function createDictionarySearchDefinitionKey(
 function cloneSearchResult(result: DictionarySearchResult) {
   return {
     ...result,
-    relatedWords: [...result.relatedWords],
+    relatedWords: [],
     sections: result.sections.map((section) => ({
       ...section,
       items: section.items.map((item) => ({ ...item })),
@@ -56,7 +56,7 @@ function cloneSearchResult(result: DictionarySearchResult) {
 function createEnglishSearchResult(result: DictionarySearchResult) {
   return {
     ...result,
-    relatedWords: [...result.relatedWords],
+    relatedWords: [],
     sections: result.sections.map((section) => ({
       ...section,
       items: section.items.map((item) => ({
@@ -65,24 +65,6 @@ function createEnglishSearchResult(result: DictionarySearchResult) {
       })),
     })),
   };
-}
-
-function mergeRelatedWords(left: string[], right: string[]) {
-  const seenWords = new Set<string>();
-  const mergedWords: string[] = [];
-
-  for (const word of [...left, ...right]) {
-    const cacheKey = word.trim().toLowerCase();
-
-    if (cacheKey.length === 0 || seenWords.has(cacheKey)) {
-      continue;
-    }
-
-    seenWords.add(cacheKey);
-    mergedWords.push(word);
-  }
-
-  return mergedWords;
 }
 
 function mergeKoreanSearchResult(
@@ -95,10 +77,7 @@ function mergeKoreanSearchResult(
 
   return {
     ...result,
-    relatedWords: mergeRelatedWords(
-      result.relatedWords,
-      existingResult.relatedWords,
-    ),
+    relatedWords: [],
     sections: result.sections.map((section, sectionIndex) => {
       const existingSection = existingResult.sections[sectionIndex];
 

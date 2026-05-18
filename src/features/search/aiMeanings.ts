@@ -404,7 +404,7 @@ export async function naturalizeDictionarySearchResultMeanings(
 
     return {
       ...result,
-      relatedWords: [...result.relatedWords],
+      relatedWords: [],
       sections,
     };
   } catch {

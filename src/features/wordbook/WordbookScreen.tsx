@@ -340,13 +340,13 @@ export function WordbookScreen({
   const currentMeaning =
     currentWord === null
       ? ""
-      : dictionaryMode === "ko-en"
+      : dictionaryMode === "en-ko"
         ? currentWord.meaning || currentWord.definition
         : currentWord.definition || currentWord.meaning;
   const currentDefinition =
     currentWord === null
       ? ""
-      : dictionaryMode === "ko-en"
+      : dictionaryMode === "en-ko"
         ? currentWord.definition
         : currentWord.meaning;
   const nextActionLabel = "다른 단어 보기";

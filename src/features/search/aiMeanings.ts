@@ -9,7 +9,7 @@ interface AiMeaningRequestItem {
 
 interface AiMeaningRequest {
   word: string;
-  dictionaryMode: "ko-en";
+  dictionaryMode: "en-ko";
   targetLanguage: "ko";
   instruction: string;
   items: AiMeaningRequestItem[];
@@ -274,7 +274,7 @@ function createAiMeaningRequest(
 ): AiMeaningRequest {
   return {
     word: result.word,
-    dictionaryMode: "ko-en",
+    dictionaryMode: "en-ko",
     targetLanguage: "ko",
     instruction:
       "각 definition을 한국어 사전 뜻처럼 자연스럽고 짧게 다듬어 주세요. 영어 원문은 넣지 말고 JSON { meanings: [{ id, meaning }] }로만 응답하세요.",

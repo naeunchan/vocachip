@@ -225,7 +225,7 @@ export function SearchScreen({
 	const visibleDefinitionDisplayCount = Math.min(visibleDefinitionCount, totalDefinitionCount);
 	const definitionRenderKey = createDefinitionRenderKey(searchResult);
 	const hasSearchActivity = searchStatus !== "idle";
-	const searchModeLabel = dictionaryMode === "ko-en" ? "영한" : "영영";
+	const searchModeLabel = dictionaryMode === "en-ko" ? "영한" : "영영";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
 	const isSearchLoading = searchStatus === "loading";
 	const isCardMeaningLoadingVisible = isAiMeaningLoading && !isExpandedMeaningLoading;
@@ -263,7 +263,7 @@ export function SearchScreen({
 
 		const nextVisibleDefinitionCount = Math.min(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount);
 		const shouldLoadExpandedMeanings =
-			dictionaryMode === "ko-en" &&
+			dictionaryMode === "en-ko" &&
 			searchResult !== null &&
 			!hasKoreanMeaningsThroughCount(searchResult, nextVisibleDefinitionCount);
 
@@ -318,7 +318,7 @@ export function SearchScreen({
 						aria-label="사전 모드 선택"
 						onChange={(value) => onSelectDictionaryMode(value as DictionaryMode)}
 					>
-						<SegmentedControl.Item value="ko-en">영한</SegmentedControl.Item>
+						<SegmentedControl.Item value="en-ko">영한</SegmentedControl.Item>
 						<SegmentedControl.Item value="en-en">영영</SegmentedControl.Item>
 					</SegmentedControl>
 					<div className={`search-compose-query-row ${hasSearchActivity ? "search-compose-query-row--active" : ""}`}>

@@ -39,7 +39,11 @@ function normalizeThemeMode(value: unknown): ThemeMode {
 }
 
 function normalizeDictionaryMode(value: unknown): DictionaryMode {
-  return value === "en-en" ? "en-en" : "ko-en";
+  if (value === "ko-en") {
+    return "en-ko";
+  }
+
+  return value === "en-en" ? "en-en" : "en-ko";
 }
 
 function normalizeNullableString(value: unknown): string | null {
@@ -170,7 +174,7 @@ function createDefaultAppState(): InitialAppState {
     history: [...defaultSearchHistory],
     studyEvents: [],
     themeMode: "system",
-    dictionaryMode: "ko-en",
+    dictionaryMode: "en-ko",
   };
 }
 

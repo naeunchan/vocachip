@@ -2,7 +2,7 @@ import type { LearningStatus } from "../../entities/vocabulary/mockData";
 
 export type ScreenKey = "wordbook" | "search" | "settings";
 export type ThemeMode = "system" | "light" | "dark";
-export type DictionaryMode = "ko-en" | "en-en";
+export type DictionaryMode = "en-ko" | "en-en";
 export type WordbookStage = "wordbook" | "learned" | "wrong";
 export type StudyRecallFeedback = "again" | "hard" | "easy";
 export type StudyEventType =

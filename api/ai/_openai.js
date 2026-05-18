@@ -209,7 +209,7 @@ export async function createNaturalMeanings(body) {
     schema: meaningResponseSchema,
     maxOutputTokens: Math.min(6000, 240 + request.items.length * 110),
     instructions: [
-      "당신은 영어 단어장용 한영 사전 편집자입니다.",
+      "당신은 영어 단어장용 영한 사전 편집자입니다.",
       "각 영어 definition을 한국어 학습자가 바로 이해할 수 있는 짧은 사전 뜻으로 다듬으세요.",
       "영어 원문, 예문, 번호, 불필요한 설명은 넣지 마세요.",
       "currentMeaning이 이미 자연스러우면 그 뜻을 유지해도 됩니다.",

@@ -46,7 +46,7 @@ function getSearchResultForMode(
   result: DictionarySearchResult,
   dictionaryMode: DictionaryMode,
 ) {
-  if (dictionaryMode !== "ko-en") {
+  if (dictionaryMode !== "en-ko") {
     return result;
   }
 
@@ -205,7 +205,7 @@ export function useDictionarySearch({
 
     if (cachedSearchResult !== null) {
       const nextResult =
-        dictionaryMode === "ko-en"
+        dictionaryMode === "en-ko"
           ? (cachedSearchResult.koreanResult ?? cachedSearchResult.englishResult)
           : cachedSearchResult.englishResult;
 
@@ -213,7 +213,7 @@ export function useDictionarySearch({
       setSearchResult(nextResult);
       setSearchStatus("success");
       setIsAiMeaningLoading(
-        dictionaryMode === "ko-en" &&
+        dictionaryMode === "en-ko" &&
           !hasKoreanMeaningsThroughCount(
             nextResult,
             INITIAL_VISIBLE_DEFINITION_COUNT,
@@ -236,7 +236,7 @@ export function useDictionarySearch({
       }
 
       const shouldLoadAiMeanings =
-        dictionaryMode === "ko-en" &&
+        dictionaryMode === "en-ko" &&
         nextResult !== null &&
         !hasKoreanMeaningsThroughCount(
           nextResult,
@@ -280,7 +280,7 @@ export function useDictionarySearch({
       currentSearchResult.word,
     );
 
-    if (dictionaryMode === "ko-en") {
+    if (dictionaryMode === "en-ko") {
       const nextResult = getSearchResultForMode(
         currentSearchResult,
         dictionaryMode,
@@ -304,7 +304,7 @@ export function useDictionarySearch({
     }
 
     if (
-      dictionaryMode === "ko-en" &&
+      dictionaryMode === "en-ko" &&
       hasKoreanMeaningsThroughCount(currentSearchResult, initialMeaningCount)
     ) {
       cacheKoreanDictionarySearchResult(
@@ -324,7 +324,7 @@ export function useDictionarySearch({
         initialMeaningCount,
       );
     const shouldTranslateMeanings =
-      dictionaryMode === "ko-en" ||
+      dictionaryMode === "en-ko" ||
       (dictionaryMode === "en-en" && !hasCachedInitialKoreanResult);
 
     if (!shouldTranslateMeanings) {
@@ -343,7 +343,7 @@ export function useDictionarySearch({
     aiMeaningAbortControllerRef.current?.abort();
     aiMeaningAbortControllerRef.current = nextAbortController;
     enrichedSearchMeaningKeyRef.current = enrichmentKey;
-    setIsAiMeaningLoading(dictionaryMode === "ko-en");
+    setIsAiMeaningLoading(dictionaryMode === "en-ko");
 
     void (async () => {
       try {
@@ -446,7 +446,7 @@ export function useDictionarySearch({
     visibleDefinitionCount: number,
   ) {
     if (
-      dictionaryMode !== "ko-en" ||
+      dictionaryMode !== "en-ko" ||
       searchStatus !== "success" ||
       searchResult === null ||
       hasKoreanMeaningsThroughCount(searchResult, visibleDefinitionCount)

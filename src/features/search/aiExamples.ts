@@ -51,7 +51,7 @@ export function createAiExampleRequests(
       const definition = item.meaning.trim();
       const translatedMeaning = item.translatedMeaning?.trim() ?? "";
       const meaning =
-        dictionaryMode === "ko-en" && translatedMeaning.length > 0
+        dictionaryMode === "en-ko" && translatedMeaning.length > 0
           ? translatedMeaning
           : definition;
 

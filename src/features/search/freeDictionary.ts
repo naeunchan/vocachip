@@ -36,6 +36,12 @@ interface MerriamWebsterEntry {
 
 type MerriamWebsterResponseItem = MerriamWebsterEntry | string;
 
+interface DefinitionGroup {
+  senseNumber: string;
+  definitions: string[];
+  seenDefinitionKeys: Set<string>;
+}
+
 function getDictionaryEndpoint() {
   return (
     import.meta.env.VITE_DICTIONARY_ENDPOINT?.trim() ||
@@ -152,10 +158,221 @@ function normalizeDefinitionKey(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function getRecord(value: unknown) {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function getStringField(value: unknown, key: string) {
+  const record = getRecord(value);
+  const fieldValue = record?.[key];
+
+  return typeof fieldValue === "string" ? fieldValue : null;
+}
+
+function cleanDefinitionText(value: string) {
+  return cleanMerriamWebsterText(value)
+    .replace(/^:\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getTopSenseNumber(value: string | null) {
+  return value?.match(/\d+/)?.[0] ?? null;
+}
+
+function getOrCreateDefinitionGroup(
+  groups: DefinitionGroup[],
+  senseNumber: string,
+) {
+  const existingGroup = groups.find(
+    (group) => group.senseNumber === senseNumber,
+  );
+
+  if (existingGroup !== undefined) {
+    return existingGroup;
+  }
+
+  const nextGroup: DefinitionGroup = {
+    senseNumber,
+    definitions: [],
+    seenDefinitionKeys: new Set(),
+  };
+
+  groups.push(nextGroup);
+
+  return nextGroup;
+}
+
+function addDefinitionToGroup(group: DefinitionGroup, definition: string) {
+  const normalizedDefinition = cleanDefinitionText(definition);
+
+  if (normalizedDefinition.length === 0) {
+    return;
+  }
+
+  const definitionKey = normalizeDefinitionKey(normalizedDefinition);
+
+  if (group.seenDefinitionKeys.has(definitionKey)) {
+    return;
+  }
+
+  group.seenDefinitionKeys.add(definitionKey);
+  group.definitions.push(normalizedDefinition);
+}
+
+function collectDefinitionTextsFromDt(value: unknown, definitions: string[]) {
+  if (!Array.isArray(value)) {
+    return;
+  }
+
+  for (const item of value) {
+    if (
+      Array.isArray(item) &&
+      item[0] === "text" &&
+      typeof item[1] === "string"
+    ) {
+      definitions.push(item[1]);
+    }
+  }
+}
+
+function collectSenseDefinitionTexts(sense: Record<string, unknown>) {
+  const definitions: string[] = [];
+  const sdsense = getRecord(sense.sdsense);
+  const supplementalLabel = getStringField(sdsense, "sd");
+
+  collectDefinitionTextsFromDt(sense.dt, definitions);
+
+  if (sdsense !== null) {
+    const supplementalDefinitions: string[] = [];
+
+    collectDefinitionTextsFromDt(sdsense.dt, supplementalDefinitions);
+
+    for (const definition of supplementalDefinitions) {
+      definitions.push(
+        supplementalLabel === null
+          ? definition
+          : `${supplementalLabel}: ${definition}`,
+      );
+    }
+  }
+
+  return definitions;
+}
+
+function addSenseDefinitions(
+  groups: DefinitionGroup[],
+  sense: unknown,
+  activeSenseNumber: string | null,
+) {
+  const senseRecord = getRecord(sense);
+
+  if (senseRecord === null) {
+    return activeSenseNumber;
+  }
+
+  const explicitSenseNumber = getTopSenseNumber(getStringField(sense, "sn"));
+  const nextSenseNumber = explicitSenseNumber ?? activeSenseNumber;
+
+  if (nextSenseNumber === null) {
+    return activeSenseNumber;
+  }
+
+  const group = getOrCreateDefinitionGroup(groups, nextSenseNumber);
+
+  for (const definition of collectSenseDefinitionTexts(senseRecord)) {
+    addDefinitionToGroup(group, definition);
+  }
+
+  return nextSenseNumber;
+}
+
+function collectDefinitionGroupsFromSseq(
+  value: unknown,
+  groups: DefinitionGroup[],
+  activeSenseNumber: string | null,
+) {
+  if (!Array.isArray(value)) {
+    return activeSenseNumber;
+  }
+
+  let currentSenseNumber = activeSenseNumber;
+  let pendingSenseNumber: string | null = null;
+
+  for (const item of value) {
+    if (!Array.isArray(item)) {
+      continue;
+    }
+
+    const [type, payload] = item;
+
+    if (type === "sen") {
+      pendingSenseNumber = getTopSenseNumber(getStringField(payload, "sn"));
+      currentSenseNumber = pendingSenseNumber ?? currentSenseNumber;
+      continue;
+    }
+
+    if (type === "sense") {
+      currentSenseNumber = addSenseDefinitions(
+        groups,
+        payload,
+        pendingSenseNumber ?? currentSenseNumber,
+      );
+      pendingSenseNumber = null;
+      continue;
+    }
+
+    if (type === "bs") {
+      currentSenseNumber = addSenseDefinitions(
+        groups,
+        getRecord(payload)?.sense,
+        pendingSenseNumber ?? currentSenseNumber,
+      );
+      pendingSenseNumber = null;
+      continue;
+    }
+
+    if (type === "pseq") {
+      currentSenseNumber = collectDefinitionGroupsFromSseq(
+        payload,
+        groups,
+        pendingSenseNumber ?? currentSenseNumber,
+      );
+      pendingSenseNumber = null;
+      continue;
+    }
+
+    currentSenseNumber = collectDefinitionGroupsFromSseq(
+      item,
+      groups,
+      pendingSenseNumber ?? currentSenseNumber,
+    );
+    pendingSenseNumber = null;
+  }
+
+  return currentSenseNumber;
+}
+
+function getDetailedDefinitions(entry: MerriamWebsterEntry) {
+  const groups: DefinitionGroup[] = [];
+
+  for (const definitionBlock of entry.def ?? []) {
+    const sseq = getRecord(definitionBlock)?.sseq;
+
+    collectDefinitionGroupsFromSseq(sseq, groups, null);
+  }
+
+  return groups
+    .map((group) => group.definitions.join("; "))
+    .filter((definition) => definition.length > 0);
+}
+
 function createDefinitionItem(
   definition: string,
 ): DictionarySearchDefinition | null {
-  const meaning = cleanMerriamWebsterText(definition);
+  const meaning = cleanDefinitionText(definition);
 
   if (meaning.length === 0) {
     return null;
@@ -205,6 +422,12 @@ function collectDefinitionTextValues(value: unknown, definitions: string[]) {
 }
 
 function getDefinitions(entry: MerriamWebsterEntry) {
+  const detailedDefinitions = getDetailedDefinitions(entry);
+
+  if (detailedDefinitions.length > 0) {
+    return detailedDefinitions;
+  }
+
   const shortDefinitions = entry.shortdef ?? [];
 
   if (shortDefinitions.length > 0) {

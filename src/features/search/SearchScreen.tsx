@@ -247,6 +247,29 @@ export function SearchScreen({
 	const isSearchLoading = searchStatus === "loading";
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
+	const pendingDefinitionTranslationDialog =
+		pendingDefinitionTranslationTarget === null || searchResult === null
+			? null
+			: (() => {
+					const section = searchResult.sections[pendingDefinitionTranslationTarget.sectionIndex];
+					const item = section?.items[pendingDefinitionTranslationTarget.itemIndex];
+
+					if (section === undefined || item === undefined) {
+						return null;
+					}
+
+					return {
+						word: searchResult.word,
+						partOfSpeech: section.label,
+						definition: item.meaning,
+						translatedMeaning: null,
+						sectionIndex: pendingDefinitionTranslationTarget.sectionIndex,
+						itemIndex: pendingDefinitionTranslationTarget.itemIndex,
+						status: "loading" as const,
+					};
+				})();
+	const activeDefinitionTranslationDialog =
+		definitionTranslationDialog ?? pendingDefinitionTranslationDialog;
 
 	useEffect(() => {
 		if (searchStatus !== "loading") {
@@ -329,6 +352,12 @@ export function SearchScreen({
 				onRequestDefinitionTranslation(sectionIndex, itemIndex);
 			}, 0);
 		});
+	}
+
+	function handleCloseDefinitionTranslation() {
+		clearQueuedDefinitionTranslation();
+		setPendingDefinitionTranslationTarget(null);
+		onCloseDefinitionTranslation();
 	}
 
 	return (
@@ -580,13 +609,13 @@ export function SearchScreen({
 				</article>
 			) : null}
 
-			{definitionTranslationDialog !== null ? (
+			{activeDefinitionTranslationDialog !== null ? (
 				<div
 					className="modal-backdrop"
 					role="presentation"
 					onClick={(event) => {
 						if (event.target === event.currentTarget) {
-							onCloseDefinitionTranslation();
+							handleCloseDefinitionTranslation();
 						}
 					}}
 				>
@@ -594,31 +623,32 @@ export function SearchScreen({
 						<div className="search-translation-modal__header">
 							<div>
 								<h3 id="search-translation-title">한글 번역</h3>
-								<p>{definitionTranslationDialog.word} · {definitionTranslationDialog.partOfSpeech}</p>
+								<p>{activeDefinitionTranslationDialog.word} · {activeDefinitionTranslationDialog.partOfSpeech}</p>
 							</div>
-							<button className="search-translation-modal__close" type="button" aria-label="번역 닫기" onClick={onCloseDefinitionTranslation}>
+							<button className="search-translation-modal__close" type="button" aria-label="번역 닫기" onClick={handleCloseDefinitionTranslation}>
 								<SearchIcon icon="clear" />
 							</button>
 						</div>
 						<div className="search-translation-modal__body">
-							<p className="search-translation-modal__definition">{definitionTranslationDialog.definition}</p>
-							{definitionTranslationDialog.status === "loading" ? (
+							<p className="search-translation-modal__definition">{activeDefinitionTranslationDialog.definition}</p>
+							{activeDefinitionTranslationDialog.status === "loading" ? (
 								<div className="search-translation-modal__loader" role="status" aria-live="polite">
-									<Loader size="medium" type="primary" label="번역하고 있어요" style={AI_EXAMPLE_LOADER_STYLE} />
+									<span className="search-toss-spinner search-translation-modal__spinner" aria-hidden="true" />
+									<span className="search-translation-modal__loader-label">번역하고 있어요</span>
 								</div>
 							) : null}
-							{definitionTranslationDialog.status === "success" ? (
-								<strong className="search-translation-modal__meaning">{definitionTranslationDialog.translatedMeaning}</strong>
+							{activeDefinitionTranslationDialog.status === "success" ? (
+								<strong className="search-translation-modal__meaning">{activeDefinitionTranslationDialog.translatedMeaning}</strong>
 							) : null}
-							{definitionTranslationDialog.status === "error" ? (
+							{activeDefinitionTranslationDialog.status === "error" ? (
 								<p className="search-translation-modal__error">번역을 만들 수 없어요. 잠시 후 다시 시도해 주세요.</p>
 							) : null}
 						</div>
 						<div className="modal-actions search-translation-modal__actions">
-							{definitionTranslationDialog.status === "error" ? (
+							{activeDefinitionTranslationDialog.status === "error" ? (
 								<Button
 									className="modal-action-button"
-									onClick={() => onRequestDefinitionTranslation(definitionTranslationDialog.sectionIndex, definitionTranslationDialog.itemIndex)}
+									onClick={() => handleRequestDefinitionTranslation(activeDefinitionTranslationDialog.sectionIndex, activeDefinitionTranslationDialog.itemIndex)}
 									size="large"
 									variant="weak"
 									color="dark"
@@ -627,7 +657,7 @@ export function SearchScreen({
 									다시 시도
 								</Button>
 							) : null}
-							<Button className="modal-action-button" onClick={onCloseDefinitionTranslation} size="large" color="dark" type="button">
+							<Button className="modal-action-button" onClick={handleCloseDefinitionTranslation} size="large" color="dark" type="button">
 								닫기
 							</Button>
 						</div>

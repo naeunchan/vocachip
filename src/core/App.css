@@ -3478,12 +3478,27 @@
 	--search-ai-example-loader-label: var(--text-primary);
 
 	display: flex;
+	flex-direction: column;
 	justify-content: center;
 	align-items: center;
+	gap: 12px;
 	min-height: 104px;
 	border: 1px solid rgba(49, 130, 246, 0.12);
 	border-radius: 18px;
 	background: rgba(49, 130, 246, 0.05);
+}
+
+.search-translation-modal__spinner {
+	width: 40px;
+	height: 40px;
+	border-width: 3px;
+}
+
+.search-translation-modal__loader-label {
+	color: var(--search-ai-example-loader-label);
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.4;
 }
 
 .search-translation-modal__meaning {

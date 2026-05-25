@@ -1,6 +1,6 @@
 import { Badge, Button, Loader } from "@toss/tds-mobile";
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DEFINITION_RENDER_BATCH_SIZE, INITIAL_VISIBLE_DEFINITION_COUNT } from "./displayConfig";
 import type { AiExampleStatus, AiGeneratedExample, DefinitionTranslationDialog, DictionarySearchDefinition, DictionarySearchResult, SearchStatus } from "./types";
@@ -39,6 +39,11 @@ interface VisibleSearchSection {
 	label: string;
 	items: VisibleSearchDefinition[];
 	sourceSectionIndex: number;
+}
+
+interface DefinitionTranslationTarget {
+	sectionIndex: number;
+	itemIndex: number;
 }
 
 function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "bookmark" | "clock" | "warning" | "trash" }) {
@@ -226,6 +231,10 @@ export function SearchScreen({
 }: SearchScreenProps) {
 	const [isClearHistoryDialogOpen, setIsClearHistoryDialogOpen] = useState(false);
 	const [visibleDefinitionCount, setVisibleDefinitionCount] = useState(INITIAL_VISIBLE_DEFINITION_COUNT);
+	const [pendingDefinitionTranslationTarget, setPendingDefinitionTranslationTarget] =
+		useState<DefinitionTranslationTarget | null>(null);
+	const queuedDefinitionTranslationFrameRef = useRef<number | null>(null);
+	const queuedDefinitionTranslationTimeoutRef = useRef<number | null>(null);
 	const historyItems = searchHistory;
 	const searchDisplaySections = searchResult === null ? [] : searchResult.sections;
 	const totalDefinitionCount = countDefinitions(searchDisplaySections);
@@ -255,7 +264,21 @@ export function SearchScreen({
 
 	useEffect(() => {
 		setVisibleDefinitionCount(INITIAL_VISIBLE_DEFINITION_COUNT);
+		setPendingDefinitionTranslationTarget(null);
+		clearQueuedDefinitionTranslation();
 	}, [definitionRenderKey]);
+
+	useEffect(() => {
+		if (definitionTranslationDialog !== null) {
+			setPendingDefinitionTranslationTarget(null);
+		}
+	}, [definitionTranslationDialog]);
+
+	useEffect(() => {
+		return () => {
+			clearQueuedDefinitionTranslation();
+		};
+	}, []);
 
 	function handleConfirmClearHistory() {
 		onClearHistory();
@@ -270,6 +293,42 @@ export function SearchScreen({
 
 	function getAiExample(sectionIndex: number, itemIndex: number) {
 		return aiGeneratedExamples.find((example) => example.sectionIndex === sectionIndex && example.itemIndex === itemIndex) ?? null;
+	}
+
+	function clearQueuedDefinitionTranslation() {
+		if (queuedDefinitionTranslationFrameRef.current !== null) {
+			window.cancelAnimationFrame(queuedDefinitionTranslationFrameRef.current);
+			queuedDefinitionTranslationFrameRef.current = null;
+		}
+
+		if (queuedDefinitionTranslationTimeoutRef.current !== null) {
+			window.clearTimeout(queuedDefinitionTranslationTimeoutRef.current);
+			queuedDefinitionTranslationTimeoutRef.current = null;
+		}
+	}
+
+	function isSameDefinitionTranslationTarget(
+		target: DefinitionTranslationTarget | null,
+		sectionIndex: number,
+		itemIndex: number,
+	) {
+		return target?.sectionIndex === sectionIndex && target.itemIndex === itemIndex;
+	}
+
+	function handleRequestDefinitionTranslation(
+		sectionIndex: number,
+		itemIndex: number,
+	) {
+		clearQueuedDefinitionTranslation();
+		setPendingDefinitionTranslationTarget({ sectionIndex, itemIndex });
+
+		queuedDefinitionTranslationFrameRef.current = window.requestAnimationFrame(() => {
+			queuedDefinitionTranslationFrameRef.current = null;
+			queuedDefinitionTranslationTimeoutRef.current = window.setTimeout(() => {
+				queuedDefinitionTranslationTimeoutRef.current = null;
+				onRequestDefinitionTranslation(sectionIndex, itemIndex);
+			}, 0);
+		});
 	}
 
 	return (
@@ -471,10 +530,16 @@ export function SearchScreen({
 										<div className="search-definition-item-list">
 											{section.items.map((item, index) => {
 												const aiExample = getAiExample(section.sourceSectionIndex, item.sourceItemIndex);
+												const isPendingTranslation = isSameDefinitionTranslationTarget(
+													pendingDefinitionTranslationTarget,
+													section.sourceSectionIndex,
+													item.sourceItemIndex,
+												);
 												const isTranslationLoading =
-													definitionTranslationDialog?.status === "loading" &&
-													definitionTranslationDialog.sectionIndex === section.sourceSectionIndex &&
-													definitionTranslationDialog.itemIndex === item.sourceItemIndex;
+													isPendingTranslation ||
+													(definitionTranslationDialog?.status === "loading" &&
+														definitionTranslationDialog.sectionIndex === section.sourceSectionIndex &&
+														definitionTranslationDialog.itemIndex === item.sourceItemIndex);
 												const hasTranslatedMeaning = (item.translatedMeaning?.trim().length ?? 0) > 0;
 
 												return (
@@ -488,11 +553,11 @@ export function SearchScreen({
 																	type="button"
 																	aria-label={`${section.label} ${index + 1}번 뜻 한글 번역 보기`}
 																	aria-busy={isTranslationLoading}
-																	onClick={() => onRequestDefinitionTranslation(section.sourceSectionIndex, item.sourceItemIndex)}
+																	onClick={() => handleRequestDefinitionTranslation(section.sourceSectionIndex, item.sourceItemIndex)}
 																	disabled={isTranslationLoading}
 																>
 																	{isTranslationLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
-																	<span>{hasTranslatedMeaning ? "번역 보기" : "번역"}</span>
+																	<span>{isTranslationLoading ? "번역 중" : hasTranslatedMeaning ? "번역 보기" : "번역"}</span>
 																</button>
 															</div>
 															{areAiExamplesVisible && aiExample !== null ? <p className="search-definition-ai-example">{aiExample.sentence}</p> : null}

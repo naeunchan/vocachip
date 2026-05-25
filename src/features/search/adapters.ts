@@ -69,7 +69,7 @@ export function createVocabularyEntryFromSearchResult(
     definition: firstItem?.meaning ?? existingWord?.definition ?? result.word,
     usageTip:
       existingWord?.usageTip ??
-      "영영사전에서 불러온 정의를 먼저 익혀 보세요.",
+      "사전에서 불러온 정의를 먼저 익혀 보세요.",
     saved: true,
     status: existingWord?.status ?? "memorize",
     reviewIntervalDays:

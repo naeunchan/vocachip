@@ -13,7 +13,6 @@ import {
   STORAGE_VERSION_KEY,
 } from "./constants";
 import type {
-  DictionaryMode,
   StudyEvent,
   StudyEventType,
   StudyRecallFeedback,
@@ -26,7 +25,6 @@ interface InitialAppState {
   history: string[];
   studyEvents: StudyEvent[];
   themeMode: ThemeMode;
-  dictionaryMode: DictionaryMode;
 }
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -36,14 +34,6 @@ function normalizeThemeMode(value: unknown): ThemeMode {
   return value === "light" || value === "dark" || value === "system"
     ? value
     : "system";
-}
-
-function normalizeDictionaryMode(value: unknown): DictionaryMode {
-  if (value === "ko-en") {
-    return "en-ko";
-  }
-
-  return value === "en-en" ? "en-en" : "en-ko";
 }
 
 function normalizeNullableString(value: unknown): string | null {
@@ -174,7 +164,6 @@ function createDefaultAppState(): InitialAppState {
     history: [...defaultSearchHistory],
     studyEvents: [],
     themeMode: "system",
-    dictionaryMode: "en-ko",
   };
 }
 
@@ -220,7 +209,8 @@ function clearLegacyStorage() {
   window.localStorage.removeItem(LEGACY_STORAGE_KEYS.history);
   window.localStorage.removeItem(LEGACY_STORAGE_KEYS.studyEvents);
   window.localStorage.removeItem(LEGACY_STORAGE_KEYS.theme);
-  window.localStorage.removeItem(LEGACY_STORAGE_KEYS.dictionaryMode);
+  window.localStorage.removeItem("vocachip.dictionary-mode");
+  window.localStorage.removeItem("vocahip.dictionary-mode");
 }
 
 function readPersistedAppState(defaultState: InitialAppState): InitialAppState {
@@ -254,17 +244,6 @@ function readPersistedAppState(defaultState: InitialAppState): InitialAppState {
         ),
       ),
     ),
-    dictionaryMode: normalizeDictionaryMode(
-      readStoredValue(
-        STORAGE_KEYS.dictionaryMode,
-        normalizeDictionaryMode(
-          readStoredValue(
-            LEGACY_STORAGE_KEYS.dictionaryMode,
-            defaultState.dictionaryMode,
-          ),
-        ),
-      ),
-    ),
   };
 }
 
@@ -276,7 +255,6 @@ function writePersistedAppState(state: InitialAppState) {
     trimStudyEvents(state.studyEvents),
   );
   writeStoredValue(STORAGE_KEYS.theme, state.themeMode);
-  writeStoredValue(STORAGE_KEYS.dictionaryMode, state.dictionaryMode);
 }
 
 export function loadInitialAppState(): InitialAppState {

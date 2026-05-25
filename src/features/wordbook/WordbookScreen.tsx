@@ -1,7 +1,7 @@
 import { type CSSProperties, type KeyboardEvent } from "react";
 import { Button } from "@toss/tds-mobile";
 
-import type { DictionaryMode, WordbookStage } from "../../core/state/types";
+import type { WordbookStage } from "../../core/state/types";
 import { type VocabularyEntry } from "../../entities/vocabulary/mockData";
 
 interface WordbookScreenProps {
@@ -9,7 +9,6 @@ interface WordbookScreenProps {
   wordbookCounts: Record<WordbookStage, number>;
   onSelectWordbookStage: (stage: WordbookStage) => void;
   currentWord: VocabularyEntry | null;
-  dictionaryMode: DictionaryMode;
   showMeaning: boolean;
   isPronouncingWord: boolean;
   onToggleMeaning: () => void;
@@ -275,7 +274,6 @@ export function WordbookScreen({
   wordbookCounts,
   onSelectWordbookStage,
   currentWord,
-  dictionaryMode,
   showMeaning,
   isPronouncingWord,
   onToggleMeaning,
@@ -340,15 +338,11 @@ export function WordbookScreen({
   const currentMeaning =
     currentWord === null
       ? ""
-      : dictionaryMode === "en-ko"
-        ? currentWord.meaning || currentWord.definition
-        : currentWord.definition || currentWord.meaning;
+      : currentWord.meaning || currentWord.definition;
   const currentDefinition =
     currentWord === null
       ? ""
-      : dictionaryMode === "en-ko"
-        ? currentWord.definition
-        : currentWord.meaning;
+      : currentWord.definition;
   const nextActionLabel = "다른 단어 보기";
   const wordbookSearchButtonStyle: CSSProperties & Record<string, string> = {
     "--button-background-color": "#3182F6",

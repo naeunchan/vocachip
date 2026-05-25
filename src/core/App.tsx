@@ -73,10 +73,6 @@ function App() {
     STORAGE_KEYS.theme,
     initialAppState.themeMode,
   );
-  const [dictionaryMode, setDictionaryMode] = usePersistentState(
-    STORAGE_KEYS.dictionaryMode,
-    initialAppState.dictionaryMode,
-  );
   const [wordbookStage, setWordbookStage] = useState<WordbookStage>("wordbook");
   const [preferredWordId, setPreferredWordId] = useState<string | null>(null);
   const searchAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -106,16 +102,16 @@ function App() {
     emptySearchSuggestions,
     isSearchResultSaved,
     aiExampleStatus,
-    isAiMeaningLoading,
+    definitionTranslationDialog,
     aiGeneratedExamples,
     handleChangeSearchQuery,
     handleSearchSubmit,
     handleSaveSearchResult,
     handleGenerateAiExample,
-    handleRequestVisibleMeaningTranslations,
+    handleRequestDefinitionTranslation,
+    closeDefinitionTranslation,
     clearSearchHistory,
   } = useDictionarySearch({
-    dictionaryMode,
     initialHistory: initialAppState.history,
     words,
     setWords,
@@ -274,7 +270,6 @@ function App() {
                 setWordbookStage(stage);
               }}
               currentWord={currentWord}
-              dictionaryMode={dictionaryMode}
               showMeaning={showMeaning}
               isPronouncingWord={
                 currentWord !== null &&
@@ -299,11 +294,9 @@ function App() {
               searchResult={searchResult}
               searchHistory={searchHistory}
               emptySuggestions={emptySearchSuggestions}
-              dictionaryMode={dictionaryMode}
-              onSelectDictionaryMode={setDictionaryMode}
               isSaved={isSearchResultSaved}
               aiExampleStatus={aiExampleStatus}
-              isAiMeaningLoading={isAiMeaningLoading}
+              definitionTranslationDialog={definitionTranslationDialog}
               aiGeneratedExamples={aiGeneratedExamples}
               isPronouncingResult={
                 searchResult !== null &&
@@ -312,7 +305,8 @@ function App() {
               onSaveResult={handleSaveSearchResult}
               onSpeakResult={playPronunciation}
               onGenerateAiExample={handleGenerateAiExample}
-              onRequestVisibleMeanings={handleRequestVisibleMeaningTranslations}
+              onRequestDefinitionTranslation={handleRequestDefinitionTranslation}
+              onCloseDefinitionTranslation={closeDefinitionTranslation}
               onSelectHistory={handleSearchSubmit}
               onClearHistory={clearSearchHistory}
             />
@@ -321,9 +315,7 @@ function App() {
           {activeScreen === "settings" ? (
             <SettingsScreen
               themeMode={themeMode}
-              dictionaryMode={dictionaryMode}
               onSelectThemeMode={setThemeMode}
-              onSelectDictionaryMode={setDictionaryMode}
             />
           ) : null}
         </main>

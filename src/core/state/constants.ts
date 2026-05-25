@@ -11,18 +11,16 @@ export const STORAGE_KEYS: StorageKeys = {
   history: "vocachip.history",
   studyEvents: "vocachip.study-events",
   theme: "vocachip.theme",
-  dictionaryMode: "vocachip.dictionary-mode",
 };
 
 export const STORAGE_VERSION_KEY = "vocachip.storage-version";
-export const APP_STORAGE_VERSION = "2026-04-28.apps-in-toss-smart-message";
+export const APP_STORAGE_VERSION = "2026-05-25.translation-on-demand";
 
 export const LEGACY_STORAGE_KEYS: StorageKeys = {
   words: "vocahip.words",
   history: "vocahip.history",
   studyEvents: "vocahip.study-events",
   theme: "vocahip.theme",
-  dictionaryMode: "vocahip.dictionary-mode",
 };
 
 export const screenMeta: Record<ScreenKey, ScreenMeta> = {

@@ -18,12 +18,14 @@ function createWordId(word: string) {
   return `${fallbackSlug}-${Date.now()}`;
 }
 
-function hasKoreanText(value: string | undefined) {
-  return value !== undefined && /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(value);
+function hasKoreanText(value: string | null | undefined) {
+  return (
+    value !== null && value !== undefined && /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(value)
+  );
 }
 
-function toConciseMeaning(value: string | undefined) {
-  if (value === undefined) {
+function toConciseMeaning(value: string | null | undefined) {
+  if (value === null || value === undefined) {
     return null;
   }
 
@@ -68,8 +70,7 @@ export function createVocabularyEntryFromSearchResult(
     meaning: displayMeaning,
     definition: firstItem?.meaning ?? existingWord?.definition ?? result.word,
     usageTip:
-      existingWord?.usageTip ??
-      "사전에서 불러온 정의를 먼저 익혀 보세요.",
+      existingWord?.usageTip ?? "사전에서 불러온 정의를 먼저 익혀 보세요.",
     saved: true,
     status: existingWord?.status ?? "memorize",
     reviewIntervalDays:

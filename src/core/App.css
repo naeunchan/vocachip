@@ -2308,6 +2308,44 @@
 	min-width: 0;
 }
 
+.search-definition-meaning-group {
+	display: grid;
+	gap: 7px;
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.search-definition-primary-meaning {
+	display: block;
+}
+
+.search-definition-submeaning-list {
+	display: grid;
+	gap: 7px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.search-definition-submeaning-list li {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr);
+	gap: 8px;
+	align-items: start;
+	color: var(--text-primary);
+	font-size: var(--definition-copy-font-size, 15px);
+	font-weight: var(--definition-copy-font-weight, 700);
+	line-height: var(--definition-copy-line-height, 1.42);
+}
+
+.search-definition-submeaning-marker {
+	color: var(--grey500);
+	font-size: 12px;
+	font-weight: 800;
+	line-height: var(--definition-copy-line-height, 1.42);
+	text-align: right;
+}
+
 .search-definition-translate-button {
 	appearance: none;
 	display: inline-flex;
@@ -3969,7 +4007,8 @@ input:focus-visible {
 :root[data-theme="dark"] .search-result-button,
 :root[data-theme="dark"] .search-section-chip,
 :root[data-theme="dark"] .search-summary-item strong,
-:root[data-theme="dark"] .search-definition-copy strong {
+:root[data-theme="dark"] .search-definition-copy strong,
+:root[data-theme="dark"] .search-definition-submeaning-text {
 	color: var(--text-primary);
 }
 
@@ -4096,6 +4135,7 @@ input:focus-visible {
 
 :root[data-theme="dark"] .search-result-title-row h2,
 :root[data-theme="dark"] .search-definition-copy strong,
+:root[data-theme="dark"] .search-definition-submeaning-text,
 :root[data-theme="dark"] .wordbook-current-card strong,
 :root[data-theme="dark"] .wordbook-meaning-panel strong {
 	color: var(--study-text-strong);
@@ -4113,6 +4153,7 @@ input:focus-visible {
 :root[data-theme="dark"] .search-result-summary-copy,
 :root[data-theme="dark"] .search-section-chip span,
 :root[data-theme="dark"] .search-definition-index,
+:root[data-theme="dark"] .search-definition-submeaning-marker,
 :root[data-theme="dark"] .wordbook-meaning-panel__tip-copy {
 	color: var(--study-text-muted);
 }

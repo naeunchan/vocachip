@@ -125,6 +125,25 @@ function countDefinitions(sections: DictionarySearchResult["sections"]) {
 	return sections.reduce((totalCount, section) => totalCount + section.items.length, 0);
 }
 
+function getDefinitionDisplayMeanings(item: DictionarySearchDefinition) {
+	const subMeanings = item.subMeanings?.map((meaning) => meaning.trim()).filter((meaning) => meaning.length > 0) ?? [];
+
+	return subMeanings.length > 0 ? subMeanings : [item.meaning.trim()].filter((meaning) => meaning.length > 0);
+}
+
+function getSubMeaningMarker(index: number) {
+	const alphabetLength = 26;
+	let remainingIndex = index;
+	let marker = "";
+
+	do {
+		marker = String.fromCharCode(97 + (remainingIndex % alphabetLength)) + marker;
+		remainingIndex = Math.floor(remainingIndex / alphabetLength) - 1;
+	} while (remainingIndex >= 0);
+
+	return marker;
+}
+
 function createDefinitionResetKey(result: DictionarySearchResult | null) {
 	if (result === null) {
 		return "empty";
@@ -496,13 +515,27 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 												const isPendingTranslation = isSameDefinitionTranslationTarget(pendingDefinitionTranslationTarget, section.sourceSectionIndex, item.sourceItemIndex);
 												const isTranslationLoading = isPendingTranslation || (definitionTranslationDialog?.status === "loading" && definitionTranslationDialog.sectionIndex === section.sourceSectionIndex && definitionTranslationDialog.itemIndex === item.sourceItemIndex);
 												const hasTranslatedMeaning = (item.translatedMeaning?.trim().length ?? 0) > 0;
+												const displayMeanings = getDefinitionDisplayMeanings(item);
 
 												return (
 													<div key={`${section.label}-${index + 1}`} className="search-definition-item">
 														<div className="search-definition-index">{index + 1}</div>
 														<div className="search-definition-copy">
 															<div className="search-definition-copy__header">
-																<strong>{item.meaning}</strong>
+																<div className="search-definition-meaning-group">
+																	{displayMeanings.length > 1 ? (
+																		<ol className="search-definition-submeaning-list" aria-label={`${section.label} ${index + 1}번 세부 뜻`}>
+																			{displayMeanings.map((meaning, meaningIndex) => (
+																				<li key={`${meaningIndex}-${meaning}`}>
+																					<span className="search-definition-submeaning-marker">{getSubMeaningMarker(meaningIndex)}.</span>
+																					<span className="search-definition-submeaning-text">{meaning}</span>
+																				</li>
+																			))}
+																		</ol>
+																	) : (
+																		<strong className="search-definition-primary-meaning">{displayMeanings[0]}</strong>
+																	)}
+																</div>
 																<button className="search-definition-translate-button" type="button" aria-label={`${section.label} ${index + 1}번 뜻 한글 번역 보기`} aria-busy={isTranslationLoading} onClick={() => handleRequestDefinitionTranslation(section.sourceSectionIndex, item.sourceItemIndex)} disabled={isTranslationLoading}>
 																	{isTranslationLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
 																	<span>{isTranslationLoading ? "번역 중" : hasTranslatedMeaning ? "번역 보기" : "번역"}</span>

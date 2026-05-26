@@ -1,6 +1,7 @@
 export interface DictionarySearchDefinition {
   meaning: string;
   translatedMeaning: string | null;
+  subMeanings?: string[];
 }
 
 export interface DictionarySearchSection {

@@ -11,7 +11,7 @@ interface SearchResultCacheEntry {
 }
 
 interface SearchResultCacheState {
-  version: 3;
+  version: 4;
   entries: Record<string, SearchResultCacheEntry>;
 }
 
@@ -21,7 +21,7 @@ export interface CachedDictionarySearchResult {
   definitionKey: string;
 }
 
-const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v3";
+const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v4";
 const SEARCH_RESULT_CACHE_MAX_ENTRIES = 50;
 const SEARCH_RESULT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
@@ -146,7 +146,7 @@ export function hasKoreanMeaningsThroughCount(
 
 function createEmptyCacheState(): SearchResultCacheState {
   return {
-    version: 3,
+    version: 4,
     entries: {},
   };
 }
@@ -169,7 +169,7 @@ function readCacheState() {
 
     const parsedCache = getRecord(JSON.parse(rawCache));
 
-    if (parsedCache?.version !== 3 || getRecord(parsedCache.entries) === null) {
+    if (parsedCache?.version !== 4 || getRecord(parsedCache.entries) === null) {
       return createEmptyCacheState();
     }
 
@@ -231,7 +231,7 @@ function writePrunedCacheState(cacheState: SearchResultCacheState) {
   const prunedEntries = pruneCacheEntries(freshEntries);
 
   writeCacheState({
-    version: 3,
+    version: 4,
     entries: Object.fromEntries(
       prunedEntries.map((entry) => [entry.query, entry]),
     ),

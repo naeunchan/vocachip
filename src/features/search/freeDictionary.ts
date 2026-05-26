@@ -47,6 +47,8 @@ interface BuildSectionsResult {
   hasMoreDefinitions: boolean;
 }
 
+type DefinitionCandidate = string | string[];
+
 function getDictionaryEndpoint() {
   return (
     import.meta.env.VITE_DICTIONARY_ENDPOINT?.trim() ||
@@ -444,14 +446,17 @@ function getDetailedDefinitions(
   }
 
   return groups
-    .map((group) => group.definitions.join("; "))
-    .filter((definition) => definition.length > 0);
+    .map((group) => group.definitions)
+    .filter((definitions) => definitions.length > 0);
 }
 
 function createDefinitionItem(
-  definition: string,
+  definition: DefinitionCandidate,
 ): DictionarySearchDefinition | null {
-  const meaning = cleanDefinitionText(definition);
+  const subMeanings = (Array.isArray(definition) ? definition : [definition])
+    .map((item) => cleanDefinitionText(item))
+    .filter((item) => item.length > 0);
+  const meaning = subMeanings.join("; ");
 
   if (meaning.length === 0) {
     return null;
@@ -460,6 +465,7 @@ function createDefinitionItem(
   return {
     meaning,
     translatedMeaning: null,
+    subMeanings,
   };
 }
 
@@ -504,7 +510,7 @@ function collectDefinitionTextValues(value: unknown, definitions: string[]) {
 function getDefinitions(
   entry: MerriamWebsterEntry,
   maxDefinitionCount?: number,
-) {
+): DefinitionCandidate[] {
   const detailedDefinitions = getDetailedDefinitions(entry, maxDefinitionCount);
 
   if (detailedDefinitions.length > 0) {

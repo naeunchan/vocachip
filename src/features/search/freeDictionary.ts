@@ -2,6 +2,7 @@ import type {
   DictionarySearchDefinition,
   DictionarySearchResult,
   DictionarySearchSection,
+  DictionarySearchSubMeaning,
 } from "./types";
 
 const defaultDictionaryEndpoint =
@@ -38,7 +39,7 @@ type MerriamWebsterResponseItem = MerriamWebsterEntry | string;
 
 interface DefinitionGroup {
   senseNumber: string;
-  definitions: string[];
+  definitions: DictionarySearchSubMeaning[];
   seenDefinitionKeys: Set<string>;
 }
 
@@ -47,7 +48,9 @@ interface BuildSectionsResult {
   hasMoreDefinitions: boolean;
 }
 
-type DefinitionCandidate = string | string[];
+type DefinitionCandidate =
+  | DictionarySearchSubMeaning
+  | DictionarySearchSubMeaning[];
 
 function getDictionaryEndpoint() {
   return (
@@ -185,6 +188,22 @@ function cleanDefinitionText(value: string) {
     .trim();
 }
 
+function createDefinitionDetail(
+  value: string,
+): DictionarySearchSubMeaning | null {
+  const meaning = cleanDefinitionText(value);
+
+  if (meaning.length === 0) {
+    return null;
+  }
+
+  return {
+    meaning,
+    examples: [],
+    notes: [],
+  };
+}
+
 function getTopSenseNumber(value: string | null) {
   return value?.match(/\d+/)?.[0] ?? null;
 }
@@ -232,14 +251,88 @@ function shouldStopBeforeDefinitionGroup(
   );
 }
 
-function addDefinitionToGroup(group: DefinitionGroup, definition: string) {
-  const normalizedDefinition = cleanDefinitionText(definition);
+function addUniqueCleanText(values: string[], value: string) {
+  const normalizedValue = cleanDefinitionText(value);
 
-  if (normalizedDefinition.length === 0) {
+  if (normalizedValue.length === 0) {
     return;
   }
 
-  const definitionKey = normalizeDefinitionKey(normalizedDefinition);
+  const valueKey = normalizeDefinitionKey(normalizedValue);
+
+  if (values.some((item) => normalizeDefinitionKey(item) === valueKey)) {
+    return;
+  }
+
+  values.push(normalizedValue);
+}
+
+function normalizeDefinitionDetail(
+  definition: DictionarySearchSubMeaning,
+): DictionarySearchSubMeaning | null {
+  const normalizedDefinition = createDefinitionDetail(definition.meaning);
+
+  if (normalizedDefinition === null) {
+    return null;
+  }
+
+  for (const example of definition.examples) {
+    const text = cleanDefinitionText(example.text);
+
+    if (text.length === 0) {
+      continue;
+    }
+
+    const source = example.source?.trim()
+      ? cleanMerriamWebsterText(example.source)
+      : null;
+
+    if (
+      normalizedDefinition.examples.some(
+        (item) =>
+          normalizeDefinitionKey(item.text) === normalizeDefinitionKey(text),
+      )
+    ) {
+      continue;
+    }
+
+    normalizedDefinition.examples.push({
+      text,
+      source: source === "" ? null : source,
+    });
+  }
+
+  for (const note of definition.notes) {
+    addUniqueCleanText(normalizedDefinition.notes, note);
+  }
+
+  return normalizedDefinition;
+}
+
+function addDefinitionToGroup(
+  group: DefinitionGroup,
+  definition: DictionarySearchSubMeaning,
+) {
+  const normalizedDefinition = normalizeDefinitionDetail(definition);
+
+  if (normalizedDefinition === null) {
+    return;
+  }
+
+  const definitionKey = normalizeDefinitionKey(normalizedDefinition.meaning);
+
+  if (definitionKey === "such as") {
+    const previousDefinition = group.definitions.at(-1);
+
+    if (previousDefinition !== undefined) {
+      addUniqueCleanText(
+        previousDefinition.notes,
+        normalizedDefinition.meaning,
+      );
+    }
+
+    return;
+  }
 
   if (group.seenDefinitionKeys.has(definitionKey)) {
     return;
@@ -249,40 +342,163 @@ function addDefinitionToGroup(group: DefinitionGroup, definition: string) {
   group.definitions.push(normalizedDefinition);
 }
 
-function collectDefinitionTextsFromDt(value: unknown, definitions: string[]) {
+function createExampleSource(value: unknown) {
+  const attribution = getRecord(value);
+
+  if (attribution === null) {
+    return null;
+  }
+
+  const sourceParts = ["auth", "source", "subsource"]
+    .map((key) => getStringField(attribution, key))
+    .filter((item): item is string => item !== null)
+    .map((item) => cleanMerriamWebsterText(item))
+    .filter((item) => item.length > 0);
+
+  return sourceParts.length > 0 ? sourceParts.join(", ") : null;
+}
+
+function collectExamplesFromVis(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    const example = getRecord(item);
+    const text = getStringField(example, "t");
+
+    if (text === null) {
+      return [];
+    }
+
+    const normalizedText = cleanDefinitionText(text);
+
+    if (normalizedText.length === 0) {
+      return [];
+    }
+
+    return [
+      {
+        text: normalizedText,
+        source: createExampleSource(example?.aq),
+      },
+    ];
+  });
+}
+
+function appendExamplesToList(
+  currentExamples: DictionarySearchSubMeaning["examples"],
+  examples: DictionarySearchSubMeaning["examples"],
+) {
+  for (const example of examples) {
+    if (
+      currentExamples.some(
+        (item) =>
+          normalizeDefinitionKey(item.text) ===
+          normalizeDefinitionKey(example.text),
+      )
+    ) {
+      continue;
+    }
+
+    currentExamples.push(example);
+  }
+}
+
+function appendExamples(
+  definition: DictionarySearchSubMeaning,
+  examples: DictionarySearchSubMeaning["examples"],
+) {
+  appendExamplesToList(definition.examples, examples);
+}
+
+function collectUsageNoteContent(
+  value: unknown,
+  content: Pick<DictionarySearchSubMeaning, "examples" | "notes">,
+) {
   if (!Array.isArray(value)) {
     return;
   }
 
   for (const item of value) {
-    if (
-      Array.isArray(item) &&
-      item[0] === "text" &&
-      typeof item[1] === "string"
-    ) {
-      definitions.push(item[1]);
+    if (!Array.isArray(item)) {
+      continue;
     }
+
+    if (item[0] === "text" && typeof item[1] === "string") {
+      addUniqueCleanText(content.notes, item[1]);
+      continue;
+    }
+
+    if (item[0] === "vis") {
+      appendExamplesToList(content.examples, collectExamplesFromVis(item[1]));
+      continue;
+    }
+
+    collectUsageNoteContent(item, content);
   }
 }
 
-function collectSenseDefinitionTexts(sense: Record<string, unknown>) {
-  const definitions: string[] = [];
+function collectDefinitionDetailsFromDt(value: unknown) {
+  const definitions: DictionarySearchSubMeaning[] = [];
+
+  if (!Array.isArray(value)) {
+    return definitions;
+  }
+
+  let currentDefinition: DictionarySearchSubMeaning | null = null;
+
+  for (const item of value) {
+    if (!Array.isArray(item)) {
+      continue;
+    }
+
+    if (item[0] === "text" && typeof item[1] === "string") {
+      const definition = createDefinitionDetail(item[1]);
+
+      if (definition !== null) {
+        definitions.push(definition);
+        currentDefinition = definition;
+      }
+
+      continue;
+    }
+
+    if (item[0] === "vis" && currentDefinition !== null) {
+      appendExamples(currentDefinition, collectExamplesFromVis(item[1]));
+      continue;
+    }
+
+    if (item[0] === "uns" && currentDefinition !== null) {
+      collectUsageNoteContent(item[1], currentDefinition);
+    }
+  }
+
+  return definitions;
+}
+
+function collectSenseDefinitionDetails(sense: Record<string, unknown>) {
+  const definitions: DictionarySearchSubMeaning[] = [];
   const sdsense = getRecord(sense.sdsense);
   const supplementalLabel = getStringField(sdsense, "sd");
 
-  collectDefinitionTextsFromDt(sense.dt, definitions);
+  definitions.push(...collectDefinitionDetailsFromDt(sense.dt));
 
   if (sdsense !== null) {
-    const supplementalDefinitions: string[] = [];
+    const normalizedSupplementalLabel =
+      supplementalLabel === null
+        ? null
+        : cleanDefinitionText(supplementalLabel);
 
-    collectDefinitionTextsFromDt(sdsense.dt, supplementalDefinitions);
-
-    for (const definition of supplementalDefinitions) {
-      definitions.push(
-        supplementalLabel === null
-          ? definition
-          : `${supplementalLabel}: ${definition}`,
-      );
+    for (const definition of collectDefinitionDetailsFromDt(sdsense.dt)) {
+      definitions.push({
+        ...definition,
+        meaning:
+          normalizedSupplementalLabel === null ||
+          normalizedSupplementalLabel.length === 0
+            ? definition.meaning
+            : `${normalizedSupplementalLabel}: ${definition.meaning}`,
+      });
     }
   }
 
@@ -325,7 +541,7 @@ function addSenseDefinitions(
 
   const group = getOrCreateDefinitionGroup(groups, nextSenseNumber);
 
-  for (const definition of collectSenseDefinitionTexts(senseRecord)) {
+  for (const definition of collectSenseDefinitionDetails(senseRecord)) {
     addDefinitionToGroup(group, definition);
   }
 
@@ -453,9 +669,12 @@ function getDetailedDefinitions(
 function createDefinitionItem(
   definition: DefinitionCandidate,
 ): DictionarySearchDefinition | null {
-  const subMeanings = (Array.isArray(definition) ? definition : [definition])
-    .map((item) => cleanDefinitionText(item))
-    .filter((item) => item.length > 0);
+  const subMeaningDetails = (
+    Array.isArray(definition) ? definition : [definition]
+  )
+    .map((item) => normalizeDefinitionDetail(item))
+    .filter((item): item is DictionarySearchSubMeaning => item !== null);
+  const subMeanings = subMeaningDetails.map((item) => item.meaning);
   const meaning = subMeanings.join("; ");
 
   if (meaning.length === 0) {
@@ -466,6 +685,7 @@ function createDefinitionItem(
     meaning,
     translatedMeaning: null,
     subMeanings,
+    subMeaningDetails,
   };
 }
 
@@ -517,7 +737,13 @@ function getDefinitions(
     return detailedDefinitions;
   }
 
-  const shortDefinitions = (entry.shortdef ?? []).slice(0, maxDefinitionCount);
+  const shortDefinitions = (entry.shortdef ?? [])
+    .slice(0, maxDefinitionCount)
+    .map((definition) => createDefinitionDetail(definition))
+    .filter(
+      (definition): definition is DictionarySearchSubMeaning =>
+        definition !== null,
+    );
 
   if (shortDefinitions.length > 0) {
     return shortDefinitions;
@@ -527,7 +753,13 @@ function getDefinitions(
 
   collectDefinitionTextValues(entry.def, definitions);
 
-  return definitions.slice(0, maxDefinitionCount);
+  return definitions
+    .slice(0, maxDefinitionCount)
+    .map((definition) => createDefinitionDetail(definition))
+    .filter(
+      (definition): definition is DictionarySearchSubMeaning =>
+        definition !== null,
+    );
 }
 
 function buildSections(

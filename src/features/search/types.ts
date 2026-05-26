@@ -1,7 +1,19 @@
+export interface DictionarySearchExample {
+  text: string;
+  source: string | null;
+}
+
+export interface DictionarySearchSubMeaning {
+  meaning: string;
+  examples: DictionarySearchExample[];
+  notes: string[];
+}
+
 export interface DictionarySearchDefinition {
   meaning: string;
   translatedMeaning: string | null;
   subMeanings?: string[];
+  subMeaningDetails?: DictionarySearchSubMeaning[];
 }
 
 export interface DictionarySearchSection {

@@ -1,12 +1,10 @@
 import { SegmentedControl } from "@toss/tds-mobile";
 
-import type { DictionaryMode, ThemeMode } from "../../core/state/types";
+import type { ThemeMode } from "../../core/state/types";
 
 interface SettingsScreenProps {
   themeMode: ThemeMode;
-  dictionaryMode: DictionaryMode;
   onSelectThemeMode: (mode: ThemeMode) => void;
-  onSelectDictionaryMode: (mode: DictionaryMode) => void;
 }
 
 function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
@@ -120,49 +118,16 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
 
 export function SettingsScreen({
   themeMode,
-  dictionaryMode,
   onSelectThemeMode,
-  onSelectDictionaryMode,
 }: SettingsScreenProps) {
   const themeItems = [
     { key: "system" as const, label: "시스템" },
     { key: "light" as const, label: "라이트" },
     { key: "dark" as const, label: "다크" },
   ];
-  const dictionaryModeItems = [
-    { key: "ko-en" as const, label: "한영" },
-    { key: "en-en" as const, label: "영영" },
-  ];
 
   return (
     <>
-      <section className="content-card settings-panel-card">
-        <div className="settings-panel-header">
-          <h3>사전 표시 방식</h3>
-        </div>
-
-        <SegmentedControl
-          size="large"
-          value={dictionaryMode}
-          className="dictionary-mode-segmented toss-blue-segmented"
-          aria-label="사전 표시 방식 선택"
-          onChange={(value) => onSelectDictionaryMode(value as DictionaryMode)}
-        >
-          {dictionaryModeItems.map((item) => (
-            <SegmentedControl.Item
-              key={item.key}
-              value={item.key}
-              aria-label={`사전 표시 방식 ${item.label}`}
-            >
-              {item.label}
-            </SegmentedControl.Item>
-          ))}
-        </SegmentedControl>
-        <p className="settings-helper-text">
-          검색 결과와 단어장에서 뜻을 어떤 기준으로 보여줄지 정해요.
-        </p>
-      </section>
-
       <section className="content-card settings-panel-card settings-theme-card">
         <div className="settings-panel-header">
           <h3>화면 모드</h3>

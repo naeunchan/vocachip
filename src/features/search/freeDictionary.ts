@@ -4,25 +4,8 @@ import type {
   DictionarySearchSection,
 } from "./types";
 
-const maxRelatedWords = 8;
-const relatedWordTimeoutMs = 2200;
-const relatedWordCache = new Map<string, string[]>();
 const defaultDictionaryEndpoint =
   "https://vocationary.onrender.com/api/dictionary/search";
-
-interface RelatedWordQueryConfig {
-  parameter: "rel_syn" | "rel_trg" | "rel_spc" | "rel_gen" | "ml";
-  max: number;
-  weight: number;
-}
-
-const relatedWordQueryConfigs: RelatedWordQueryConfig[] = [
-  { parameter: "rel_syn", max: 6, weight: 5 },
-  { parameter: "rel_trg", max: 5, weight: 4 },
-  { parameter: "rel_spc", max: 4, weight: 3 },
-  { parameter: "rel_gen", max: 4, weight: 2 },
-  { parameter: "ml", max: 6, weight: 1 },
-];
 
 interface MerriamWebsterSound {
   audio?: string;
@@ -53,16 +36,10 @@ interface MerriamWebsterEntry {
 
 type MerriamWebsterResponseItem = MerriamWebsterEntry | string;
 
-interface DatamuseWord {
-  word?: string;
-  score?: number;
-}
-
-interface RankedRelatedWord {
-  term: string;
-  sourceWeight: number;
-  bestScore: number;
-  bestPosition: number;
+interface DefinitionGroup {
+  senseNumber: string;
+  definitions: string[];
+  seenDefinitionKeys: Set<string>;
 }
 
 function getDictionaryEndpoint() {
@@ -181,50 +158,221 @@ function normalizeDefinitionKey(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function normalizeRelatedTerm(value: string) {
-  return cleanMerriamWebsterText(value).trim().replace(/\s+/g, " ");
+function getRecord(value: unknown) {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
-function isValidRelatedTerm(term: string, query: string) {
-  return (
-    term.length > 0 &&
-    term.length <= 24 &&
-    term.toLowerCase() !== query.toLowerCase() &&
-    term.split(" ").length <= 2 &&
-    /^[a-zA-Z][a-zA-Z' -]*$/.test(term)
+function getStringField(value: unknown, key: string) {
+  const record = getRecord(value);
+  const fieldValue = record?.[key];
+
+  return typeof fieldValue === "string" ? fieldValue : null;
+}
+
+function cleanDefinitionText(value: string) {
+  return cleanMerriamWebsterText(value)
+    .replace(/^:\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getTopSenseNumber(value: string | null) {
+  return value?.match(/\d+/)?.[0] ?? null;
+}
+
+function getOrCreateDefinitionGroup(
+  groups: DefinitionGroup[],
+  senseNumber: string,
+) {
+  const existingGroup = groups.find(
+    (group) => group.senseNumber === senseNumber,
   );
+
+  if (existingGroup !== undefined) {
+    return existingGroup;
+  }
+
+  const nextGroup: DefinitionGroup = {
+    senseNumber,
+    definitions: [],
+    seenDefinitionKeys: new Set(),
+  };
+
+  groups.push(nextGroup);
+
+  return nextGroup;
 }
 
-function collectUniqueRelatedTerms(terms: string[], query: string) {
-  const uniqueTerms: string[] = [];
-  const seenTerms = new Set<string>();
+function addDefinitionToGroup(group: DefinitionGroup, definition: string) {
+  const normalizedDefinition = cleanDefinitionText(definition);
 
-  for (const term of terms) {
-    const normalizedTerm = normalizeRelatedTerm(term);
-    const relatedTermKey = normalizedTerm.toLowerCase();
+  if (normalizedDefinition.length === 0) {
+    return;
+  }
 
+  const definitionKey = normalizeDefinitionKey(normalizedDefinition);
+
+  if (group.seenDefinitionKeys.has(definitionKey)) {
+    return;
+  }
+
+  group.seenDefinitionKeys.add(definitionKey);
+  group.definitions.push(normalizedDefinition);
+}
+
+function collectDefinitionTextsFromDt(value: unknown, definitions: string[]) {
+  if (!Array.isArray(value)) {
+    return;
+  }
+
+  for (const item of value) {
     if (
-      !isValidRelatedTerm(normalizedTerm, query) ||
-      seenTerms.has(relatedTermKey)
+      Array.isArray(item) &&
+      item[0] === "text" &&
+      typeof item[1] === "string"
     ) {
-      continue;
+      definitions.push(item[1]);
     }
+  }
+}
 
-    seenTerms.add(relatedTermKey);
-    uniqueTerms.push(normalizedTerm);
+function collectSenseDefinitionTexts(sense: Record<string, unknown>) {
+  const definitions: string[] = [];
+  const sdsense = getRecord(sense.sdsense);
+  const supplementalLabel = getStringField(sdsense, "sd");
 
-    if (uniqueTerms.length >= maxRelatedWords) {
-      break;
+  collectDefinitionTextsFromDt(sense.dt, definitions);
+
+  if (sdsense !== null) {
+    const supplementalDefinitions: string[] = [];
+
+    collectDefinitionTextsFromDt(sdsense.dt, supplementalDefinitions);
+
+    for (const definition of supplementalDefinitions) {
+      definitions.push(
+        supplementalLabel === null
+          ? definition
+          : `${supplementalLabel}: ${definition}`,
+      );
     }
   }
 
-  return uniqueTerms;
+  return definitions;
+}
+
+function addSenseDefinitions(
+  groups: DefinitionGroup[],
+  sense: unknown,
+  activeSenseNumber: string | null,
+) {
+  const senseRecord = getRecord(sense);
+
+  if (senseRecord === null) {
+    return activeSenseNumber;
+  }
+
+  const explicitSenseNumber = getTopSenseNumber(getStringField(sense, "sn"));
+  const nextSenseNumber = explicitSenseNumber ?? activeSenseNumber;
+
+  if (nextSenseNumber === null) {
+    return activeSenseNumber;
+  }
+
+  const group = getOrCreateDefinitionGroup(groups, nextSenseNumber);
+
+  for (const definition of collectSenseDefinitionTexts(senseRecord)) {
+    addDefinitionToGroup(group, definition);
+  }
+
+  return nextSenseNumber;
+}
+
+function collectDefinitionGroupsFromSseq(
+  value: unknown,
+  groups: DefinitionGroup[],
+  activeSenseNumber: string | null,
+) {
+  if (!Array.isArray(value)) {
+    return activeSenseNumber;
+  }
+
+  let currentSenseNumber = activeSenseNumber;
+  let pendingSenseNumber: string | null = null;
+
+  for (const item of value) {
+    if (!Array.isArray(item)) {
+      continue;
+    }
+
+    const [type, payload] = item;
+
+    if (type === "sen") {
+      pendingSenseNumber = getTopSenseNumber(getStringField(payload, "sn"));
+      currentSenseNumber = pendingSenseNumber ?? currentSenseNumber;
+      continue;
+    }
+
+    if (type === "sense") {
+      currentSenseNumber = addSenseDefinitions(
+        groups,
+        payload,
+        pendingSenseNumber ?? currentSenseNumber,
+      );
+      pendingSenseNumber = null;
+      continue;
+    }
+
+    if (type === "bs") {
+      currentSenseNumber = addSenseDefinitions(
+        groups,
+        getRecord(payload)?.sense,
+        pendingSenseNumber ?? currentSenseNumber,
+      );
+      pendingSenseNumber = null;
+      continue;
+    }
+
+    if (type === "pseq") {
+      currentSenseNumber = collectDefinitionGroupsFromSseq(
+        payload,
+        groups,
+        pendingSenseNumber ?? currentSenseNumber,
+      );
+      pendingSenseNumber = null;
+      continue;
+    }
+
+    currentSenseNumber = collectDefinitionGroupsFromSseq(
+      item,
+      groups,
+      pendingSenseNumber ?? currentSenseNumber,
+    );
+    pendingSenseNumber = null;
+  }
+
+  return currentSenseNumber;
+}
+
+function getDetailedDefinitions(entry: MerriamWebsterEntry) {
+  const groups: DefinitionGroup[] = [];
+
+  for (const definitionBlock of entry.def ?? []) {
+    const sseq = getRecord(definitionBlock)?.sseq;
+
+    collectDefinitionGroupsFromSseq(sseq, groups, null);
+  }
+
+  return groups
+    .map((group) => group.definitions.join("; "))
+    .filter((definition) => definition.length > 0);
 }
 
 function createDefinitionItem(
   definition: string,
 ): DictionarySearchDefinition | null {
-  const meaning = cleanMerriamWebsterText(definition);
+  const meaning = cleanDefinitionText(definition);
 
   if (meaning.length === 0) {
     return null;
@@ -274,6 +422,12 @@ function collectDefinitionTextValues(value: unknown, definitions: string[]) {
 }
 
 function getDefinitions(entry: MerriamWebsterEntry) {
+  const detailedDefinitions = getDetailedDefinitions(entry);
+
+  if (detailedDefinitions.length > 0) {
+    return detailedDefinitions;
+  }
+
   const shortDefinitions = entry.shortdef ?? [];
 
   if (shortDefinitions.length > 0) {
@@ -327,139 +481,6 @@ function buildSections(entries: MerriamWebsterEntry[]) {
   return [...sectionMap.values()].filter((section) => section.items.length > 0);
 }
 
-function buildInlineRelatedWords(
-  entries: MerriamWebsterEntry[],
-  query: string,
-) {
-  return collectUniqueRelatedTerms(
-    entries.flatMap((entry) => entry.meta?.stems ?? []),
-    query,
-  );
-}
-
-async function fetchWithTimeout(
-  url: string,
-  timeoutMs: number,
-  signal?: AbortSignal,
-) {
-  const timeoutController = new AbortController();
-  const timeoutId = window.setTimeout(
-    () => timeoutController.abort(),
-    timeoutMs,
-  );
-  const abortTimeoutRequest = () => timeoutController.abort();
-
-  signal?.addEventListener("abort", abortTimeoutRequest, { once: true });
-
-  try {
-    return await fetch(url, { signal: timeoutController.signal });
-  } finally {
-    window.clearTimeout(timeoutId);
-    signal?.removeEventListener("abort", abortTimeoutRequest);
-  }
-}
-
-async function fetchRelatedWords(query: string, signal?: AbortSignal) {
-  const normalizedQuery = normalizeRelatedTerm(query);
-  const cacheKey = normalizedQuery.toLowerCase();
-  const cachedRelatedWords = relatedWordCache.get(cacheKey);
-
-  if (cachedRelatedWords !== undefined) {
-    return cachedRelatedWords;
-  }
-
-  try {
-    const rankedWordMap = new Map<string, RankedRelatedWord>();
-
-    await Promise.all(
-      relatedWordQueryConfigs.map(async (config) => {
-        try {
-          const params = new URLSearchParams();
-          params.set(config.parameter, normalizedQuery);
-          params.set("max", String(config.max));
-
-          const response = await fetchWithTimeout(
-            `https://api.datamuse.com/words?${params.toString()}`,
-            relatedWordTimeoutMs,
-            signal,
-          );
-
-          if (!response.ok) {
-            return;
-          }
-
-          const words = (await response.json()) as DatamuseWord[];
-
-          words.forEach((item, index) => {
-            const term = normalizeRelatedTerm(item.word ?? "");
-
-            if (!isValidRelatedTerm(term, query)) {
-              return;
-            }
-
-            const termKey = term.toLowerCase();
-            const existingTerm = rankedWordMap.get(termKey);
-
-            if (existingTerm !== undefined) {
-              existingTerm.sourceWeight += config.weight;
-              existingTerm.bestScore = Math.max(
-                existingTerm.bestScore,
-                item.score ?? 0,
-              );
-              existingTerm.bestPosition = Math.min(
-                existingTerm.bestPosition,
-                index,
-              );
-              return;
-            }
-
-            rankedWordMap.set(termKey, {
-              term,
-              sourceWeight: config.weight,
-              bestScore: item.score ?? 0,
-              bestPosition: index,
-            });
-          });
-        } catch {
-          return;
-        }
-      }),
-    );
-
-    const rankedRelatedWords = [...rankedWordMap.values()]
-      .sort((left, right) => {
-        if (left.sourceWeight !== right.sourceWeight) {
-          return right.sourceWeight - left.sourceWeight;
-        }
-
-        if (left.bestScore !== right.bestScore) {
-          return right.bestScore - left.bestScore;
-        }
-
-        if (left.bestPosition !== right.bestPosition) {
-          return left.bestPosition - right.bestPosition;
-        }
-
-        if (left.term.split(" ").length !== right.term.split(" ").length) {
-          return left.term.split(" ").length - right.term.split(" ").length;
-        }
-
-        return left.term.length - right.term.length;
-      })
-      .map((item) => item.term);
-
-    const result = collectUniqueRelatedTerms(rankedRelatedWords, query);
-
-    if (!signal?.aborted) {
-      relatedWordCache.set(cacheKey, result);
-    }
-
-    return result;
-  } catch {
-    return [];
-  }
-}
-
 export async function fetchDictionarySearchResult(
   query: string,
   signal?: AbortSignal,
@@ -483,28 +504,17 @@ export async function fetchDictionarySearchResult(
     ? payload.filter(isMerriamWebsterEntry)
     : [];
   const sections = buildSections(entries);
-  const inlineRelatedWords = buildInlineRelatedWords(entries, query);
   const dictionaryWord = pickWord(entries, query);
 
   if (entries.length === 0 || sections.length === 0) {
     return null;
   }
 
-  const relatedWordsPromise =
-    inlineRelatedWords.length >= maxRelatedWords
-      ? Promise.resolve<string[]>([])
-      : fetchRelatedWords(dictionaryWord, signal);
-
-  const relatedWords = collectUniqueRelatedTerms(
-    [...inlineRelatedWords, ...(await relatedWordsPromise)],
-    query,
-  );
-
   return {
     word: dictionaryWord,
     phonetic: pickPhonetic(entries),
     audioUrl: pickAudioUrl(entries),
     sections,
-    relatedWords,
+    relatedWords: [],
   };
 }

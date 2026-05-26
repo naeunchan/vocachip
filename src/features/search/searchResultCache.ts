@@ -11,7 +11,7 @@ interface SearchResultCacheEntry {
 }
 
 interface SearchResultCacheState {
-  version: 1;
+  version: 2;
   entries: Record<string, SearchResultCacheEntry>;
 }
 
@@ -21,7 +21,7 @@ export interface CachedDictionarySearchResult {
   definitionKey: string;
 }
 
-const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v1";
+const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v2";
 const SEARCH_RESULT_CACHE_MAX_ENTRIES = 50;
 const SEARCH_RESULT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
@@ -45,7 +45,7 @@ export function createDictionarySearchDefinitionKey(
 function cloneSearchResult(result: DictionarySearchResult) {
   return {
     ...result,
-    relatedWords: [...result.relatedWords],
+    relatedWords: [],
     sections: result.sections.map((section) => ({
       ...section,
       items: section.items.map((item) => ({ ...item })),
@@ -56,7 +56,7 @@ function cloneSearchResult(result: DictionarySearchResult) {
 function createEnglishSearchResult(result: DictionarySearchResult) {
   return {
     ...result,
-    relatedWords: [...result.relatedWords],
+    relatedWords: [],
     sections: result.sections.map((section) => ({
       ...section,
       items: section.items.map((item) => ({
@@ -64,6 +64,42 @@ function createEnglishSearchResult(result: DictionarySearchResult) {
         translatedMeaning: null,
       })),
     })),
+  };
+}
+
+function mergeKoreanSearchResult(
+  result: DictionarySearchResult,
+  existingResult: DictionarySearchResult | null,
+) {
+  if (existingResult === null) {
+    return cloneSearchResult(result);
+  }
+
+  return {
+    ...result,
+    relatedWords: [],
+    sections: result.sections.map((section, sectionIndex) => {
+      const existingSection = existingResult.sections[sectionIndex];
+
+      return {
+        ...section,
+        items: section.items.map((item, itemIndex) => {
+          if (hasKoreanMeaning(item.translatedMeaning)) {
+            return { ...item };
+          }
+
+          const existingMeaning =
+            existingSection?.items[itemIndex]?.translatedMeaning;
+
+          return {
+            ...item,
+            translatedMeaning: hasKoreanMeaning(existingMeaning)
+              ? existingMeaning
+              : item.translatedMeaning,
+          };
+        }),
+      };
+    }),
   };
 }
 
@@ -107,7 +143,7 @@ export function hasKoreanMeaningsThroughCount(
 
 function createEmptyCacheState(): SearchResultCacheState {
   return {
-    version: 1,
+    version: 2,
     entries: {},
   };
 }
@@ -128,7 +164,7 @@ function readCacheState() {
 
     const parsedCache = getRecord(JSON.parse(rawCache));
 
-    if (parsedCache?.version !== 1 || getRecord(parsedCache.entries) === null) {
+    if (parsedCache?.version !== 2 || getRecord(parsedCache.entries) === null) {
       return createEmptyCacheState();
     }
 
@@ -190,7 +226,7 @@ function writePrunedCacheState(cacheState: SearchResultCacheState) {
   const prunedEntries = pruneCacheEntries(freshEntries);
 
   writeCacheState({
-    version: 1,
+    version: 2,
     entries: Object.fromEntries(
       prunedEntries.map((entry) => [entry.query, entry]),
     ),
@@ -269,6 +305,14 @@ export function cacheKoreanDictionarySearchResult(
   const wordKey = normalizeCacheKey(result.word);
   const definitionKey = createDictionarySearchDefinitionKey(result);
   const existingEntry = cacheState.entries[queryKey] ?? cacheState.entries[wordKey];
+  const existingKoreanResult =
+    existingEntry?.definitionKey === definitionKey
+      ? existingEntry.koreanResult
+      : null;
+  const mergedKoreanResult = mergeKoreanSearchResult(
+    result,
+    existingKoreanResult,
+  );
   const now = Date.now();
   const entry: SearchResultCacheEntry = {
     query: queryKey,
@@ -278,7 +322,7 @@ export function cacheKoreanDictionarySearchResult(
       existingEntry?.definitionKey === definitionKey
         ? cloneSearchResult(existingEntry.englishResult)
         : createEnglishSearchResult(result),
-    koreanResult: cloneSearchResult(result),
+    koreanResult: mergedKoreanResult,
     updatedAt: existingEntry?.updatedAt ?? now,
     koreanUpdatedAt: now,
   };

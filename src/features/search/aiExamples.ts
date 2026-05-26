@@ -1,4 +1,3 @@
-import type { DictionaryMode } from "../../core/state/types";
 import type {
   AiGeneratedExample,
   DictionarySearchResult,
@@ -9,7 +8,6 @@ interface AiExampleRequest {
   partOfSpeech: string;
   meaning: string;
   definition: string;
-  dictionaryMode: DictionaryMode;
   sectionIndex: number;
   itemIndex: number;
 }
@@ -44,16 +42,12 @@ function getStringField(value: unknown, keys: string[]) {
 
 export function createAiExampleRequests(
   result: DictionarySearchResult,
-  dictionaryMode: DictionaryMode,
 ): AiExampleRequest[] {
   return result.sections.flatMap((section, sectionIndex) =>
     section.items.flatMap((item, itemIndex) => {
       const definition = item.meaning.trim();
       const translatedMeaning = item.translatedMeaning?.trim() ?? "";
-      const meaning =
-        dictionaryMode === "ko-en" && translatedMeaning.length > 0
-          ? translatedMeaning
-          : definition;
+      const meaning = translatedMeaning.length > 0 ? translatedMeaning : definition;
 
       if (definition.length === 0 || meaning.length === 0) {
         return [];
@@ -64,7 +58,6 @@ export function createAiExampleRequests(
         partOfSpeech: section.label.toLowerCase(),
         meaning,
         definition,
-        dictionaryMode,
         sectionIndex,
         itemIndex,
       };

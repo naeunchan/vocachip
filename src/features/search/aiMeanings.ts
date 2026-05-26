@@ -9,7 +9,6 @@ interface AiMeaningRequestItem {
 
 interface AiMeaningRequest {
   word: string;
-  dictionaryMode: "ko-en";
   targetLanguage: "ko";
   instruction: string;
   items: AiMeaningRequestItem[];
@@ -274,7 +273,6 @@ function createAiMeaningRequest(
 ): AiMeaningRequest {
   return {
     word: result.word,
-    dictionaryMode: "ko-en",
     targetLanguage: "ko",
     instruction:
       "각 definition을 한국어 사전 뜻처럼 자연스럽고 짧게 다듬어 주세요. 영어 원문은 넣지 말고 JSON { meanings: [{ id, meaning }] }로만 응답하세요.",
@@ -404,10 +402,63 @@ export async function naturalizeDictionarySearchResultMeanings(
 
     return {
       ...result,
-      relatedWords: [...result.relatedWords],
+      relatedWords: [],
       sections,
     };
   } catch {
     return result;
   }
+}
+
+export async function naturalizeDictionarySearchDefinition(
+  result: DictionarySearchResult,
+  sectionIndex: number,
+  itemIndex: number,
+  signal: AbortSignal,
+): Promise<DictionarySearchResult> {
+  const section = result.sections[sectionIndex];
+  const item = section?.items[itemIndex];
+
+  if (section === undefined || item === undefined) {
+    return result;
+  }
+
+  if (hasKoreanMeaning(item.translatedMeaning)) {
+    return result;
+  }
+
+  const requestItem: AiMeaningRequestItem = {
+    id: createMeaningItemId(sectionIndex, itemIndex),
+    partOfSpeech: section.label.toLowerCase(),
+    definition: item.meaning,
+    currentMeaning: item.translatedMeaning?.trim() || null,
+  };
+  const meanings = await fetchAiMeaningsInBatches(result, [requestItem], signal);
+  const translatedMeaning = meanings.get(requestItem.id);
+
+  if (translatedMeaning === undefined) {
+    return result;
+  }
+
+  return {
+    ...result,
+    relatedWords: [],
+    sections: result.sections.map((currentSection, currentSectionIndex) => {
+      if (currentSectionIndex !== sectionIndex) {
+        return currentSection;
+      }
+
+      return {
+        ...currentSection,
+        items: currentSection.items.map((currentItem, currentItemIndex) =>
+          currentItemIndex === itemIndex
+            ? {
+                ...currentItem,
+                translatedMeaning,
+              }
+            : currentItem,
+        ),
+      };
+    }),
+  };
 }

@@ -86,6 +86,9 @@ const port = parsePort(process.env.PORT ?? process.env.AI_API_PORT, 8787);
 const host = resolveHost();
 const healthCheckPaths = new Set(["/", "/health", "/healthz"]);
 const dictionaryApiBaseUrl = "https://www.dictionaryapi.com/api/v3/references";
+const dictionaryCacheTtlMs = 24 * 60 * 60 * 1000;
+const dictionaryCacheMaxEntries = 500;
+const dictionaryResponseCache = new Map();
 
 function getDictionaryApiKey() {
   return process.env.DICTIONARY_API_KEY?.trim() ?? "";
@@ -95,6 +98,47 @@ function getDictionaryApiReference() {
   const reference = process.env.DICTIONARY_API_REFERENCE?.trim() || "collegiate";
 
   return /^[a-z0-9-]+$/i.test(reference) ? reference : "collegiate";
+}
+
+function createDictionaryCacheKey(reference, word) {
+  return `${reference}:${word.trim().replace(/\s+/g, " ").toLowerCase()}`;
+}
+
+function getCachedDictionaryPayload(cacheKey) {
+  const cachedEntry = dictionaryResponseCache.get(cacheKey);
+
+  if (cachedEntry === undefined) {
+    return null;
+  }
+
+  if (Date.now() - cachedEntry.updatedAt > dictionaryCacheTtlMs) {
+    dictionaryResponseCache.delete(cacheKey);
+    return null;
+  }
+
+  return cachedEntry.payload;
+}
+
+function pruneDictionaryCache() {
+  if (dictionaryResponseCache.size <= dictionaryCacheMaxEntries) {
+    return;
+  }
+
+  const entriesByAge = [...dictionaryResponseCache.entries()].sort(
+    (left, right) => left[1].updatedAt - right[1].updatedAt,
+  );
+  const deleteCount = dictionaryResponseCache.size - dictionaryCacheMaxEntries;
+
+  entriesByAge.slice(0, deleteCount).forEach(([cacheKey]) => {
+    dictionaryResponseCache.delete(cacheKey);
+  });
+}
+
+function setDictionaryCacheHeaders(response) {
+  response.setHeader(
+    "Cache-Control",
+    "public, max-age=86400, stale-while-revalidate=604800",
+  );
 }
 
 async function handleAiRequest(request, response, routeHandler) {
@@ -154,6 +198,15 @@ async function handleDictionaryRequest(request, response, url) {
   }
 
   const reference = getDictionaryApiReference();
+  const cacheKey = createDictionaryCacheKey(reference, word);
+  const cachedPayload = getCachedDictionaryPayload(cacheKey);
+
+  if (cachedPayload !== null) {
+    setDictionaryCacheHeaders(response);
+    sendJson(response, 200, cachedPayload);
+    return;
+  }
+
   const upstreamUrl = new URL(
     `${dictionaryApiBaseUrl}/${reference}/json/${encodeURIComponent(word)}`,
   );
@@ -170,6 +223,12 @@ async function handleDictionaryRequest(request, response, url) {
 
     const payload = await upstreamResponse.json();
 
+    dictionaryResponseCache.set(cacheKey, {
+      payload,
+      updatedAt: Date.now(),
+    });
+    pruneDictionaryCache();
+    setDictionaryCacheHeaders(response);
     sendJson(response, 200, payload);
   } catch {
     sendJson(response, 502, { error: "Dictionary API request failed" });

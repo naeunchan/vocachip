@@ -14,12 +14,17 @@ import {
   fetchAiGeneratedExample,
 } from "../features/search/aiExamples";
 import { naturalizeDictionarySearchDefinition } from "../features/search/aiMeanings";
+import {
+  DEFINITION_RENDER_BATCH_SIZE,
+  INITIAL_VISIBLE_DEFINITION_COUNT,
+} from "../features/search/displayConfig";
 import { fetchDictionarySearchResult } from "../features/search/freeDictionary";
 import {
   cacheEnglishDictionarySearchResult,
   cacheKoreanDictionarySearchResult,
   createDictionarySearchDefinitionKey,
   getCachedDictionarySearchResult,
+  hasAnyKoreanMeanings,
 } from "../features/search/searchResultCache";
 import type {
   AiExampleStatus,
@@ -58,10 +63,13 @@ export function useDictionarySearch({
     useState<AiExampleStatus>("idle");
   const [definitionTranslationDialog, setDefinitionTranslationDialog] =
     useState<DefinitionTranslationDialog | null>(null);
+  const [isLoadingMoreDefinitions, setIsLoadingMoreDefinitions] =
+    useState(false);
   const [aiGeneratedExamples, setAiGeneratedExamples] = useState<
     AiGeneratedExample[]
   >([]);
   const searchAbortControllerRef = useRef<AbortController | null>(null);
+  const definitionLoadAbortControllerRef = useRef<AbortController | null>(null);
   const aiExampleAbortControllerRef = useRef<AbortController | null>(null);
   const aiMeaningAbortControllerRef = useRef<AbortController | null>(null);
   const searchResultRef = useRef<DictionarySearchResult | null>(null);
@@ -94,6 +102,7 @@ export function useDictionarySearch({
   useEffect(() => {
     return () => {
       searchAbortControllerRef.current?.abort();
+      definitionLoadAbortControllerRef.current?.abort();
       aiExampleAbortControllerRef.current?.abort();
       aiMeaningAbortControllerRef.current?.abort();
     };
@@ -130,6 +139,45 @@ export function useDictionarySearch({
     [setSearchHistory, syncSavedWordFromSearchResult],
   );
 
+  function countDefinitions(result: DictionarySearchResult) {
+    return result.sections.reduce(
+      (definitionCount, section) => definitionCount + section.items.length,
+      0,
+    );
+  }
+
+  function mergeExistingDefinitionData(
+    nextResult: DictionarySearchResult,
+    currentResult: DictionarySearchResult,
+  ): DictionarySearchResult {
+    return {
+      ...nextResult,
+      relatedWords: [],
+      sections: nextResult.sections.map((section, sectionIndex) => {
+        const currentSection = currentResult.sections[sectionIndex];
+
+        return {
+          ...section,
+          items: section.items.map((item, itemIndex) => {
+            const currentItem = currentSection?.items[itemIndex];
+
+            if (
+              currentItem?.meaning === item.meaning &&
+              currentItem.translatedMeaning !== null
+            ) {
+              return {
+                ...item,
+                translatedMeaning: currentItem.translatedMeaning,
+              };
+            }
+
+            return item;
+          }),
+        };
+      }),
+    };
+  }
+
   function handleChangeSearchQuery(nextQuery: string) {
     setSearchQuery(nextQuery);
 
@@ -138,6 +186,7 @@ export function useDictionarySearch({
     }
 
     searchAbortControllerRef.current?.abort();
+    definitionLoadAbortControllerRef.current?.abort();
     aiExampleAbortControllerRef.current?.abort();
     aiMeaningAbortControllerRef.current?.abort();
     setSearchStatus("idle");
@@ -145,6 +194,7 @@ export function useDictionarySearch({
     setSearchSaveFeedback(null);
     setAiExampleStatus("idle");
     setDefinitionTranslationDialog(null);
+    setIsLoadingMoreDefinitions(false);
     setAiGeneratedExamples([]);
   }
 
@@ -158,6 +208,7 @@ export function useDictionarySearch({
     setSearchQuery(trimmedQuery);
 
     searchAbortControllerRef.current?.abort();
+    definitionLoadAbortControllerRef.current?.abort();
     aiExampleAbortControllerRef.current?.abort();
     aiMeaningAbortControllerRef.current?.abort();
 
@@ -168,6 +219,7 @@ export function useDictionarySearch({
     setSearchSaveFeedback(null);
     setAiExampleStatus("idle");
     setDefinitionTranslationDialog(null);
+    setIsLoadingMoreDefinitions(false);
     setAiGeneratedExamples([]);
 
     if (cachedSearchResult !== null) {
@@ -186,6 +238,7 @@ export function useDictionarySearch({
       const nextResult = await fetchDictionarySearchResult(
         trimmedQuery,
         nextAbortController.signal,
+        INITIAL_VISIBLE_DEFINITION_COUNT,
       );
 
       if (nextAbortController.signal.aborted) {
@@ -206,6 +259,61 @@ export function useDictionarySearch({
 
       setSearchResult(null);
       setSearchStatus("error");
+    }
+  }
+
+  async function handleLoadMoreDefinitions() {
+    const currentResult = searchResultRef.current;
+
+    if (
+      currentResult === null ||
+      !currentResult.hasMoreDefinitions ||
+      isLoadingMoreDefinitions
+    ) {
+      return;
+    }
+
+    definitionLoadAbortControllerRef.current?.abort();
+
+    const nextAbortController = new AbortController();
+    const nextDefinitionCount =
+      countDefinitions(currentResult) + DEFINITION_RENDER_BATCH_SIZE;
+
+    definitionLoadAbortControllerRef.current = nextAbortController;
+    setIsLoadingMoreDefinitions(true);
+
+    try {
+      const nextResult = await fetchDictionarySearchResult(
+        currentResult.word,
+        nextAbortController.signal,
+        nextDefinitionCount,
+      );
+
+      if (nextAbortController.signal.aborted || nextResult === null) {
+        return;
+      }
+
+      const mergedResult = mergeExistingDefinitionData(
+        nextResult,
+        currentResult,
+      );
+
+      cacheEnglishDictionarySearchResult(currentResult.word, mergedResult);
+
+      if (hasAnyKoreanMeanings(mergedResult)) {
+        cacheKoreanDictionarySearchResult(currentResult.word, mergedResult);
+      }
+
+      syncSavedWordFromSearchResult(mergedResult);
+      setSearchResult(mergedResult);
+    } catch {
+      if (nextAbortController.signal.aborted) {
+        return;
+      }
+    } finally {
+      if (!nextAbortController.signal.aborted) {
+        setIsLoadingMoreDefinitions(false);
+      }
     }
   }
 
@@ -475,11 +583,13 @@ export function useDictionarySearch({
     isSearchResultSaved,
     searchSaveFeedback,
     aiExampleStatus,
+    isLoadingMoreDefinitions,
     definitionTranslationDialog,
     aiGeneratedExamples,
     handleChangeSearchQuery,
     handleSearchSubmit,
     handleSaveSearchResult,
+    handleLoadMoreDefinitions,
     handleGenerateAiExample,
     handleRequestDefinitionTranslation,
     closeDefinitionTranslation,

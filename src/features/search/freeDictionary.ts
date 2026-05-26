@@ -42,6 +42,11 @@ interface DefinitionGroup {
   seenDefinitionKeys: Set<string>;
 }
 
+interface BuildSectionsResult {
+  sections: DictionarySearchSection[];
+  hasMoreDefinitions: boolean;
+}
+
 function getDictionaryEndpoint() {
   return (
     import.meta.env.VITE_DICTIONARY_ENDPOINT?.trim() ||
@@ -205,6 +210,26 @@ function getOrCreateDefinitionGroup(
   return nextGroup;
 }
 
+function countDefinitionGroups(groups: DefinitionGroup[]) {
+  return groups.filter((group) => group.definitions.length > 0).length;
+}
+
+function hasDefinitionGroup(groups: DefinitionGroup[], senseNumber: string) {
+  return groups.some((group) => group.senseNumber === senseNumber);
+}
+
+function shouldStopBeforeDefinitionGroup(
+  groups: DefinitionGroup[],
+  senseNumber: string,
+  maxDefinitionCount?: number,
+) {
+  return (
+    maxDefinitionCount !== undefined &&
+    !hasDefinitionGroup(groups, senseNumber) &&
+    countDefinitionGroups(groups) >= maxDefinitionCount
+  );
+}
+
 function addDefinitionToGroup(group: DefinitionGroup, definition: string) {
   const normalizedDefinition = cleanDefinitionText(definition);
 
@@ -266,18 +291,34 @@ function addSenseDefinitions(
   groups: DefinitionGroup[],
   sense: unknown,
   activeSenseNumber: string | null,
+  maxDefinitionCount?: number,
 ) {
   const senseRecord = getRecord(sense);
 
   if (senseRecord === null) {
-    return activeSenseNumber;
+    return {
+      activeSenseNumber,
+      isLimitReached: false,
+    };
   }
 
   const explicitSenseNumber = getTopSenseNumber(getStringField(sense, "sn"));
   const nextSenseNumber = explicitSenseNumber ?? activeSenseNumber;
 
   if (nextSenseNumber === null) {
-    return activeSenseNumber;
+    return {
+      activeSenseNumber,
+      isLimitReached: false,
+    };
+  }
+
+  if (
+    shouldStopBeforeDefinitionGroup(groups, nextSenseNumber, maxDefinitionCount)
+  ) {
+    return {
+      activeSenseNumber: nextSenseNumber,
+      isLimitReached: true,
+    };
   }
 
   const group = getOrCreateDefinitionGroup(groups, nextSenseNumber);
@@ -286,13 +327,17 @@ function addSenseDefinitions(
     addDefinitionToGroup(group, definition);
   }
 
-  return nextSenseNumber;
+  return {
+    activeSenseNumber: nextSenseNumber,
+    isLimitReached: false,
+  };
 }
 
 function collectDefinitionGroupsFromSseq(
   value: unknown,
   groups: DefinitionGroup[],
   activeSenseNumber: string | null,
+  maxDefinitionCount?: number,
 ) {
   if (!Array.isArray(value)) {
     return activeSenseNumber;
@@ -315,22 +360,38 @@ function collectDefinitionGroupsFromSseq(
     }
 
     if (type === "sense") {
-      currentSenseNumber = addSenseDefinitions(
+      const result = addSenseDefinitions(
         groups,
         payload,
         pendingSenseNumber ?? currentSenseNumber,
+        maxDefinitionCount,
       );
+
+      currentSenseNumber = result.activeSenseNumber;
       pendingSenseNumber = null;
+
+      if (result.isLimitReached) {
+        return currentSenseNumber;
+      }
+
       continue;
     }
 
     if (type === "bs") {
-      currentSenseNumber = addSenseDefinitions(
+      const result = addSenseDefinitions(
         groups,
         getRecord(payload)?.sense,
         pendingSenseNumber ?? currentSenseNumber,
+        maxDefinitionCount,
       );
+
+      currentSenseNumber = result.activeSenseNumber;
       pendingSenseNumber = null;
+
+      if (result.isLimitReached) {
+        return currentSenseNumber;
+      }
+
       continue;
     }
 
@@ -339,8 +400,14 @@ function collectDefinitionGroupsFromSseq(
         payload,
         groups,
         pendingSenseNumber ?? currentSenseNumber,
+        maxDefinitionCount,
       );
       pendingSenseNumber = null;
+
+      if (countDefinitionGroups(groups) >= (maxDefinitionCount ?? Infinity)) {
+        return currentSenseNumber;
+      }
+
       continue;
     }
 
@@ -348,20 +415,32 @@ function collectDefinitionGroupsFromSseq(
       item,
       groups,
       pendingSenseNumber ?? currentSenseNumber,
+      maxDefinitionCount,
     );
     pendingSenseNumber = null;
+
+    if (countDefinitionGroups(groups) >= (maxDefinitionCount ?? Infinity)) {
+      return currentSenseNumber;
+    }
   }
 
   return currentSenseNumber;
 }
 
-function getDetailedDefinitions(entry: MerriamWebsterEntry) {
+function getDetailedDefinitions(
+  entry: MerriamWebsterEntry,
+  maxDefinitionCount?: number,
+) {
   const groups: DefinitionGroup[] = [];
 
   for (const definitionBlock of entry.def ?? []) {
     const sseq = getRecord(definitionBlock)?.sseq;
 
-    collectDefinitionGroupsFromSseq(sseq, groups, null);
+    collectDefinitionGroupsFromSseq(sseq, groups, null, maxDefinitionCount);
+
+    if (countDefinitionGroups(groups) >= (maxDefinitionCount ?? Infinity)) {
+      break;
+    }
   }
 
   return groups
@@ -392,11 +471,12 @@ function addUniqueDefinition(
   const definitionKey = normalizeDefinitionKey(item.meaning);
 
   if (seenKeys.has(definitionKey)) {
-    return;
+    return false;
   }
 
   seenKeys.add(definitionKey);
   section.items.push(item);
+  return true;
 }
 
 function collectDefinitionTextValues(value: unknown, definitions: string[]) {
@@ -421,14 +501,17 @@ function collectDefinitionTextValues(value: unknown, definitions: string[]) {
   }
 }
 
-function getDefinitions(entry: MerriamWebsterEntry) {
-  const detailedDefinitions = getDetailedDefinitions(entry);
+function getDefinitions(
+  entry: MerriamWebsterEntry,
+  maxDefinitionCount?: number,
+) {
+  const detailedDefinitions = getDetailedDefinitions(entry, maxDefinitionCount);
 
   if (detailedDefinitions.length > 0) {
     return detailedDefinitions;
   }
 
-  const shortDefinitions = entry.shortdef ?? [];
+  const shortDefinitions = (entry.shortdef ?? []).slice(0, maxDefinitionCount);
 
   if (shortDefinitions.length > 0) {
     return shortDefinitions;
@@ -438,12 +521,17 @@ function getDefinitions(entry: MerriamWebsterEntry) {
 
   collectDefinitionTextValues(entry.def, definitions);
 
-  return definitions;
+  return definitions.slice(0, maxDefinitionCount);
 }
 
-function buildSections(entries: MerriamWebsterEntry[]) {
+function buildSections(
+  entries: MerriamWebsterEntry[],
+  maxDefinitionCount?: number,
+): BuildSectionsResult {
   const sectionMap = new Map<string, DictionarySearchSection>();
   const sectionDefinitionKeyMap = new Map<string, Set<string>>();
+  let definitionCount = 0;
+  let hasMoreDefinitions = false;
 
   for (const entry of entries) {
     const label = cleanMerriamWebsterText(entry.fl ?? "definition");
@@ -469,25 +557,54 @@ function buildSections(entries: MerriamWebsterEntry[]) {
       continue;
     }
 
-    for (const definition of getDefinitions(entry)) {
+    const remainingDefinitionCount =
+      maxDefinitionCount === undefined
+        ? undefined
+        : Math.max(0, maxDefinitionCount - definitionCount) + 1;
+
+    for (const definition of getDefinitions(entry, remainingDefinitionCount)) {
       const item = createDefinitionItem(definition);
 
       if (item !== null) {
-        addUniqueDefinition(currentSection, seenKeys, item);
+        if (
+          maxDefinitionCount !== undefined &&
+          definitionCount >= maxDefinitionCount
+        ) {
+          hasMoreDefinitions = true;
+          break;
+        }
+
+        if (addUniqueDefinition(currentSection, seenKeys, item)) {
+          definitionCount += 1;
+        }
       }
+    }
+
+    if (hasMoreDefinitions) {
+      break;
     }
   }
 
-  return [...sectionMap.values()].filter((section) => section.items.length > 0);
+  return {
+    sections: [...sectionMap.values()].filter(
+      (section) => section.items.length > 0,
+    ),
+    hasMoreDefinitions,
+  };
 }
 
 export async function fetchDictionarySearchResult(
   query: string,
   signal?: AbortSignal,
+  maxDefinitionCount?: number,
 ): Promise<DictionarySearchResult | null> {
   const endpointUrl = createDictionaryEndpointUrl();
 
   endpointUrl.searchParams.set("word", query);
+
+  if (maxDefinitionCount !== undefined) {
+    endpointUrl.searchParams.set("limit", String(maxDefinitionCount));
+  }
 
   const response = await fetch(endpointUrl.toString(), { signal });
 
@@ -503,7 +620,10 @@ export async function fetchDictionarySearchResult(
   const entries = Array.isArray(payload)
     ? payload.filter(isMerriamWebsterEntry)
     : [];
-  const sections = buildSections(entries);
+  const { sections, hasMoreDefinitions } = buildSections(
+    entries,
+    maxDefinitionCount,
+  );
   const dictionaryWord = pickWord(entries, query);
 
   if (entries.length === 0 || sections.length === 0) {
@@ -516,5 +636,6 @@ export async function fetchDictionarySearchResult(
     audioUrl: pickAudioUrl(entries),
     sections,
     relatedWords: [],
+    hasMoreDefinitions,
   };
 }

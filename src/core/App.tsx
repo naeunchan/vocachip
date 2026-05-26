@@ -102,11 +102,13 @@ function App() {
     emptySearchSuggestions,
     isSearchResultSaved,
     aiExampleStatus,
+    isLoadingMoreDefinitions,
     definitionTranslationDialog,
     aiGeneratedExamples,
     handleChangeSearchQuery,
     handleSearchSubmit,
     handleSaveSearchResult,
+    handleLoadMoreDefinitions,
     handleGenerateAiExample,
     handleRequestDefinitionTranslation,
     closeDefinitionTranslation,
@@ -296,6 +298,7 @@ function App() {
               emptySuggestions={emptySearchSuggestions}
               isSaved={isSearchResultSaved}
               aiExampleStatus={aiExampleStatus}
+              isLoadingMoreDefinitions={isLoadingMoreDefinitions}
               definitionTranslationDialog={definitionTranslationDialog}
               aiGeneratedExamples={aiGeneratedExamples}
               isPronouncingResult={
@@ -304,8 +307,11 @@ function App() {
               }
               onSaveResult={handleSaveSearchResult}
               onSpeakResult={playPronunciation}
+              onLoadMoreDefinitions={handleLoadMoreDefinitions}
               onGenerateAiExample={handleGenerateAiExample}
-              onRequestDefinitionTranslation={handleRequestDefinitionTranslation}
+              onRequestDefinitionTranslation={
+                handleRequestDefinitionTranslation
+              }
               onCloseDefinitionTranslation={closeDefinitionTranslation}
               onSelectHistory={handleSearchSubmit}
               onClearHistory={clearSearchHistory}

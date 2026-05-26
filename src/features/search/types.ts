@@ -14,6 +14,7 @@ export interface DictionarySearchResult {
   audioUrl: string | null;
   sections: DictionarySearchSection[];
   relatedWords: string[];
+  hasMoreDefinitions: boolean;
 }
 
 export type SearchStatus = "idle" | "loading" | "success" | "empty" | "error";

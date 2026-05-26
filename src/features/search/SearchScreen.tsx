@@ -20,10 +20,12 @@ interface SearchScreenProps {
 	isSaved: boolean;
 	isPronouncingResult: boolean;
 	aiExampleStatus: AiExampleStatus;
+	isLoadingMoreDefinitions: boolean;
 	definitionTranslationDialog: DefinitionTranslationDialog | null;
 	aiGeneratedExamples: AiGeneratedExample[];
 	onSaveResult: () => void;
 	onSpeakResult: (word: string, audioUrl?: string | null) => void;
+	onLoadMoreDefinitions: () => void;
 	onGenerateAiExample: () => void;
 	onRequestDefinitionTranslation: (sectionIndex: number, itemIndex: number) => void;
 	onCloseDefinitionTranslation: () => void;
@@ -123,18 +125,12 @@ function countDefinitions(sections: DictionarySearchResult["sections"]) {
 	return sections.reduce((totalCount, section) => totalCount + section.items.length, 0);
 }
 
-function createDefinitionRenderKey(result: DictionarySearchResult | null) {
+function createDefinitionResetKey(result: DictionarySearchResult | null) {
 	if (result === null) {
 		return "empty";
 	}
 
-	return [
-		result.word.toLowerCase(),
-		...result.sections.flatMap((section) => [
-			section.label.toLowerCase(),
-			...section.items.map((item) => item.meaning),
-		]),
-	].join("\u001f");
+	return result.word.toLowerCase();
 }
 
 function getVisibleSearchSections(sections: DictionarySearchResult["sections"], visibleDefinitionCount: number): VisibleSearchSection[] {
@@ -194,13 +190,7 @@ function SearchDictionarySkeleton() {
 
 function SearchDictionarySpinnerOverlay({ isVisible, label }: { isVisible: boolean; label: string }) {
 	return (
-		<div
-			className="search-ai-meaning-overlay"
-			role={isVisible ? "status" : undefined}
-			aria-label={isVisible ? label : undefined}
-			aria-live={isVisible ? "polite" : undefined}
-			aria-hidden={!isVisible}
-		>
+		<div className="search-ai-meaning-overlay" role={isVisible ? "status" : undefined} aria-label={isVisible ? label : undefined} aria-live={isVisible ? "polite" : undefined} aria-hidden={!isVisible}>
 			<div className="search-ai-meaning-popover">
 				<span className="search-toss-spinner" aria-hidden="true" />
 			</div>
@@ -208,45 +198,27 @@ function SearchDictionarySpinnerOverlay({ isVisible, label }: { isVisible: boole
 	);
 }
 
-export function SearchScreen({
-	searchQuery,
-	onChangeSearchQuery,
-	onSubmitSearch,
-	searchStatus,
-	searchResult,
-	searchHistory,
-	emptySuggestions,
-	isSaved,
-	isPronouncingResult,
-	aiExampleStatus,
-	definitionTranslationDialog,
-	aiGeneratedExamples,
-	onSaveResult,
-	onSpeakResult,
-	onGenerateAiExample,
-	onRequestDefinitionTranslation,
-	onCloseDefinitionTranslation,
-	onSelectHistory,
-	onClearHistory,
-}: SearchScreenProps) {
+export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch, searchStatus, searchResult, searchHistory, emptySuggestions, isSaved, isPronouncingResult, aiExampleStatus, isLoadingMoreDefinitions, definitionTranslationDialog, aiGeneratedExamples, onSaveResult, onSpeakResult, onLoadMoreDefinitions, onGenerateAiExample, onRequestDefinitionTranslation, onCloseDefinitionTranslation, onSelectHistory, onClearHistory }: SearchScreenProps) {
 	const [isClearHistoryDialogOpen, setIsClearHistoryDialogOpen] = useState(false);
 	const [visibleDefinitionCount, setVisibleDefinitionCount] = useState(INITIAL_VISIBLE_DEFINITION_COUNT);
-	const [pendingDefinitionTranslationTarget, setPendingDefinitionTranslationTarget] =
-		useState<DefinitionTranslationTarget | null>(null);
+	const [pendingDefinitionTranslationTarget, setPendingDefinitionTranslationTarget] = useState<DefinitionTranslationTarget | null>(null);
 	const queuedDefinitionTranslationFrameRef = useRef<number | null>(null);
 	const queuedDefinitionTranslationTimeoutRef = useRef<number | null>(null);
 	const historyItems = searchHistory;
 	const searchDisplaySections = searchResult === null ? [] : searchResult.sections;
 	const totalDefinitionCount = countDefinitions(searchDisplaySections);
 	const visibleSearchDisplaySections = getVisibleSearchSections(searchDisplaySections, visibleDefinitionCount);
-	const hasHiddenDefinitions = visibleDefinitionCount < totalDefinitionCount;
+	const hasLoadedHiddenDefinitions = visibleDefinitionCount < totalDefinitionCount;
+	const hasRemoteHiddenDefinitions = searchResult?.hasMoreDefinitions ?? false;
+	const hasHiddenDefinitions = hasLoadedHiddenDefinitions || hasRemoteHiddenDefinitions;
 	const visibleDefinitionDisplayCount = Math.min(visibleDefinitionCount, totalDefinitionCount);
-	const definitionRenderKey = createDefinitionRenderKey(searchResult);
+	const definitionResetKey = createDefinitionResetKey(searchResult);
 	const hasSearchActivity = searchStatus !== "idle";
 	const isGeneratingAiExample = aiExampleStatus === "loading";
 	const isSearchLoading = searchStatus === "loading";
 	const areAiExamplesVisible = aiExampleStatus === "success" && aiGeneratedExamples.length > 0;
 	const aiExampleButtonLabel = isGeneratingAiExample ? "AI 예문 생성 중" : areAiExamplesVisible ? "AI 예문 숨기기" : "AI 예문 보기";
+	const definitionCountLabel = hasRemoteHiddenDefinitions ? `${visibleDefinitionDisplayCount}+` : `${visibleDefinitionDisplayCount} / ${totalDefinitionCount}`;
 	const pendingDefinitionTranslationDialog =
 		pendingDefinitionTranslationTarget === null || searchResult === null
 			? null
@@ -268,8 +240,7 @@ export function SearchScreen({
 						status: "loading" as const,
 					};
 				})();
-	const activeDefinitionTranslationDialog =
-		definitionTranslationDialog ?? pendingDefinitionTranslationDialog;
+	const activeDefinitionTranslationDialog = definitionTranslationDialog ?? pendingDefinitionTranslationDialog;
 
 	useEffect(() => {
 		if (searchStatus !== "loading") {
@@ -289,7 +260,7 @@ export function SearchScreen({
 		setVisibleDefinitionCount(INITIAL_VISIBLE_DEFINITION_COUNT);
 		setPendingDefinitionTranslationTarget(null);
 		clearQueuedDefinitionTranslation();
-	}, [definitionRenderKey]);
+	}, [definitionResetKey]);
 
 	useEffect(() => {
 		if (definitionTranslationDialog !== null) {
@@ -309,9 +280,19 @@ export function SearchScreen({
 	}
 
 	function handleShowMoreDefinitions() {
+		if (isLoadingMoreDefinitions) {
+			return;
+		}
+
 		const nextVisibleDefinitionCount = Math.min(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE, totalDefinitionCount);
 
-		setVisibleDefinitionCount(nextVisibleDefinitionCount);
+		if (hasLoadedHiddenDefinitions) {
+			setVisibleDefinitionCount(nextVisibleDefinitionCount);
+			return;
+		}
+
+		setVisibleDefinitionCount(visibleDefinitionCount + DEFINITION_RENDER_BATCH_SIZE);
+		onLoadMoreDefinitions();
 	}
 
 	function getAiExample(sectionIndex: number, itemIndex: number) {
@@ -330,18 +311,11 @@ export function SearchScreen({
 		}
 	}
 
-	function isSameDefinitionTranslationTarget(
-		target: DefinitionTranslationTarget | null,
-		sectionIndex: number,
-		itemIndex: number,
-	) {
+	function isSameDefinitionTranslationTarget(target: DefinitionTranslationTarget | null, sectionIndex: number, itemIndex: number) {
 		return target?.sectionIndex === sectionIndex && target.itemIndex === itemIndex;
 	}
 
-	function handleRequestDefinitionTranslation(
-		sectionIndex: number,
-		itemIndex: number,
-	) {
+	function handleRequestDefinitionTranslation(sectionIndex: number, itemIndex: number) {
 		clearQueuedDefinitionTranslation();
 		setPendingDefinitionTranslationTarget({ sectionIndex, itemIndex });
 
@@ -373,20 +347,7 @@ export function SearchScreen({
 				>
 					<div className={`search-compose-query-row ${hasSearchActivity ? "search-compose-query-row--active" : ""}`}>
 						<div className={`search-compose-field ${hasSearchActivity ? "search-compose-field--active" : ""}`}>
-							<input
-								id="search-word-input"
-								className={`search-compose-input ${hasSearchActivity ? "search-compose-input--active" : ""} ${searchQuery.length > 0 ? "search-compose-input--has-clear" : ""}`}
-								value={searchQuery}
-								onChange={(event) => onChangeSearchQuery(event.target.value)}
-								placeholder="검색할 단어를 입력하세요"
-								aria-label="영어 단어 검색"
-								required
-								autoCapitalize="none"
-								autoCorrect="off"
-								autoComplete="off"
-								spellCheck={false}
-								inputMode="search"
-							/>
+							<input id="search-word-input" className={`search-compose-input ${hasSearchActivity ? "search-compose-input--active" : ""} ${searchQuery.length > 0 ? "search-compose-input--has-clear" : ""}`} value={searchQuery} onChange={(event) => onChangeSearchQuery(event.target.value)} placeholder="검색할 단어를 입력하세요" aria-label="영어 단어 검색" required autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} inputMode="search" />
 							<span className="search-compose-field-actions">
 								{searchQuery.length > 0 ? (
 									<button className="search-clear-button" type="button" aria-label="검색어 지우기" onClick={() => onChangeSearchQuery("")}>
@@ -478,9 +439,7 @@ export function SearchScreen({
 			) : null}
 
 			{searchStatus === "success" && searchResult !== null ? (
-				<article
-					className="search-detail-card search-dictionary-card search-dictionary-card--compact-search"
-				>
+				<article className="search-detail-card search-dictionary-card search-dictionary-card--compact-search">
 					<div className="search-dictionary-card__content">
 						<div className="search-result-hero">
 							<div className="search-result-lockup">
@@ -494,37 +453,17 @@ export function SearchScreen({
 										) : null}
 									</div>
 									<div className="search-result-actions search-result-title-actions">
-										<button
-											className={`subtle-button search-result-button search-result-icon-button search-result-ai-button ${areAiExamplesVisible ? "active" : ""} ${isSaved ? "search-result-ai-button--saved-result" : ""}`}
-											type="button"
-											aria-label={aiExampleButtonLabel}
-											aria-busy={isGeneratingAiExample}
-											aria-pressed={areAiExamplesVisible}
-											onClick={onGenerateAiExample}
-											disabled={isGeneratingAiExample}
-										>
+										<button className={`subtle-button search-result-button search-result-icon-button search-result-ai-button ${areAiExamplesVisible ? "active" : ""} ${isSaved ? "search-result-ai-button--saved-result" : ""}`} type="button" aria-label={aiExampleButtonLabel} aria-busy={isGeneratingAiExample} aria-pressed={areAiExamplesVisible} onClick={onGenerateAiExample} disabled={isGeneratingAiExample}>
 											<SearchIcon icon="ai" />
 										</button>
-										<button
-											className={`subtle-button search-result-button search-result-icon-button ${isSaved ? "active" : ""}`}
-											type="button"
-											aria-label={isSaved ? "단어장 저장됨" : "단어장에 저장"}
-											onClick={onSaveResult}
-											disabled={isSaved}
-										>
+										<button className={`subtle-button search-result-button search-result-icon-button ${isSaved ? "active" : ""}`} type="button" aria-label={isSaved ? "단어장 저장됨" : "단어장에 저장"} onClick={onSaveResult} disabled={isSaved}>
 											<SearchIcon icon="bookmark" />
 										</button>
 									</div>
 								</div>
 								<div className="search-result-meta-line">
 									{searchResult.phonetic ? <p className="search-result-phonetic">{searchResult.phonetic}</p> : null}
-									<button
-										className={`subtle-button search-result-button search-result-pronunciation-button ${isPronouncingResult ? "active" : ""}`}
-										type="button"
-										aria-label="발음 재생"
-										aria-pressed={isPronouncingResult}
-										onClick={() => onSpeakResult(searchResult.word, searchResult.audioUrl)}
-									>
+									<button className={`subtle-button search-result-button search-result-pronunciation-button ${isPronouncingResult ? "active" : ""}`} type="button" aria-label="발음 재생" aria-pressed={isPronouncingResult} onClick={() => onSpeakResult(searchResult.word, searchResult.audioUrl)}>
 										<SearchIcon icon="sound" />
 									</button>
 								</div>
@@ -538,12 +477,7 @@ export function SearchScreen({
 						) : null}
 
 						<div className={`search-definition-region ${isGeneratingAiExample ? "search-definition-region--loading" : ""}`}>
-							<div
-								className="search-ai-example-loading-popover"
-								role={isGeneratingAiExample ? "status" : undefined}
-								aria-live={isGeneratingAiExample ? "polite" : undefined}
-								aria-hidden={!isGeneratingAiExample}
-							>
+							<div className="search-ai-example-loading-popover" role={isGeneratingAiExample ? "status" : undefined} aria-live={isGeneratingAiExample ? "polite" : undefined} aria-hidden={!isGeneratingAiExample}>
 								<Loader size="medium" type="primary" label="AI 예문을 만들고 있어요" style={AI_EXAMPLE_LOADER_STYLE} />
 							</div>
 
@@ -559,16 +493,8 @@ export function SearchScreen({
 										<div className="search-definition-item-list">
 											{section.items.map((item, index) => {
 												const aiExample = getAiExample(section.sourceSectionIndex, item.sourceItemIndex);
-												const isPendingTranslation = isSameDefinitionTranslationTarget(
-													pendingDefinitionTranslationTarget,
-													section.sourceSectionIndex,
-													item.sourceItemIndex,
-												);
-												const isTranslationLoading =
-													isPendingTranslation ||
-													(definitionTranslationDialog?.status === "loading" &&
-														definitionTranslationDialog.sectionIndex === section.sourceSectionIndex &&
-														definitionTranslationDialog.itemIndex === item.sourceItemIndex);
+												const isPendingTranslation = isSameDefinitionTranslationTarget(pendingDefinitionTranslationTarget, section.sourceSectionIndex, item.sourceItemIndex);
+												const isTranslationLoading = isPendingTranslation || (definitionTranslationDialog?.status === "loading" && definitionTranslationDialog.sectionIndex === section.sourceSectionIndex && definitionTranslationDialog.itemIndex === item.sourceItemIndex);
 												const hasTranslatedMeaning = (item.translatedMeaning?.trim().length ?? 0) > 0;
 
 												return (
@@ -577,14 +503,7 @@ export function SearchScreen({
 														<div className="search-definition-copy">
 															<div className="search-definition-copy__header">
 																<strong>{item.meaning}</strong>
-																<button
-																	className="search-definition-translate-button"
-																	type="button"
-																	aria-label={`${section.label} ${index + 1}번 뜻 한글 번역 보기`}
-																	aria-busy={isTranslationLoading}
-																	onClick={() => handleRequestDefinitionTranslation(section.sourceSectionIndex, item.sourceItemIndex)}
-																	disabled={isTranslationLoading}
-																>
+																<button className="search-definition-translate-button" type="button" aria-label={`${section.label} ${index + 1}번 뜻 한글 번역 보기`} aria-busy={isTranslationLoading} onClick={() => handleRequestDefinitionTranslation(section.sourceSectionIndex, item.sourceItemIndex)} disabled={isTranslationLoading}>
 																	{isTranslationLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
 																	<span>{isTranslationLoading ? "번역 중" : hasTranslatedMeaning ? "번역 보기" : "번역"}</span>
 																</button>
@@ -598,9 +517,10 @@ export function SearchScreen({
 									</section>
 								))}
 								{hasHiddenDefinitions ? (
-									<button className="search-definition-more-button" type="button" onClick={handleShowMoreDefinitions}>
-										<span>뜻 더 보기</span>
-										<span>{visibleDefinitionDisplayCount} / {totalDefinitionCount}</span>
+									<button className="search-definition-more-button" type="button" onClick={handleShowMoreDefinitions} disabled={isLoadingMoreDefinitions} aria-busy={isLoadingMoreDefinitions}>
+										<span>{isLoadingMoreDefinitions ? "뜻 불러오는 중" : "뜻 더 보기"}</span>
+										{isLoadingMoreDefinitions ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
+										<span>{definitionCountLabel}</span>
 									</button>
 								) : null}
 							</div>
@@ -623,7 +543,9 @@ export function SearchScreen({
 						<div className="search-translation-modal__header">
 							<div>
 								<h3 id="search-translation-title">한글 번역</h3>
-								<p>{activeDefinitionTranslationDialog.word} · {activeDefinitionTranslationDialog.partOfSpeech}</p>
+								<p>
+									{activeDefinitionTranslationDialog.word} · {activeDefinitionTranslationDialog.partOfSpeech}
+								</p>
 							</div>
 							<button className="search-translation-modal__close" type="button" aria-label="번역 닫기" onClick={handleCloseDefinitionTranslation}>
 								<SearchIcon icon="clear" />
@@ -637,23 +559,12 @@ export function SearchScreen({
 									<span className="search-translation-modal__loader-label">번역하고 있어요</span>
 								</div>
 							) : null}
-							{activeDefinitionTranslationDialog.status === "success" ? (
-								<strong className="search-translation-modal__meaning">{activeDefinitionTranslationDialog.translatedMeaning}</strong>
-							) : null}
-							{activeDefinitionTranslationDialog.status === "error" ? (
-								<p className="search-translation-modal__error">번역을 만들 수 없어요. 잠시 후 다시 시도해 주세요.</p>
-							) : null}
+							{activeDefinitionTranslationDialog.status === "success" ? <strong className="search-translation-modal__meaning">{activeDefinitionTranslationDialog.translatedMeaning}</strong> : null}
+							{activeDefinitionTranslationDialog.status === "error" ? <p className="search-translation-modal__error">번역을 만들 수 없어요. 잠시 후 다시 시도해 주세요.</p> : null}
 						</div>
 						<div className="modal-actions search-translation-modal__actions">
 							{activeDefinitionTranslationDialog.status === "error" ? (
-								<Button
-									className="modal-action-button"
-									onClick={() => handleRequestDefinitionTranslation(activeDefinitionTranslationDialog.sectionIndex, activeDefinitionTranslationDialog.itemIndex)}
-									size="large"
-									variant="weak"
-									color="dark"
-									type="button"
-								>
+								<Button className="modal-action-button" onClick={() => handleRequestDefinitionTranslation(activeDefinitionTranslationDialog.sectionIndex, activeDefinitionTranslationDialog.itemIndex)} size="large" variant="weak" color="dark" type="button">
 									다시 시도
 								</Button>
 							) : null}

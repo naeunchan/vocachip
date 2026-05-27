@@ -2342,7 +2342,7 @@
 	display: grid;
 	grid-template-columns: 22px minmax(0, 1fr);
 	gap: 8px;
-	align-items: start;
+	align-items: baseline;
 	color: var(--text-primary);
 	font-size: var(--definition-copy-font-size, 15px);
 	font-weight: var(--definition-copy-font-weight, 700);
@@ -2351,8 +2351,8 @@
 
 .search-definition-submeaning-marker {
 	color: var(--grey500);
-	font-size: 12px;
-	font-weight: 800;
+	font-size: var(--definition-copy-font-size, 15px);
+	font-weight: var(--definition-copy-font-weight, 700);
 	line-height: var(--definition-copy-line-height, 1.42);
 	text-align: right;
 }

@@ -2308,6 +2308,90 @@
 	min-width: 0;
 }
 
+.search-definition-meaning-group {
+	display: grid;
+	gap: 7px;
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.search-definition-primary-meaning {
+	display: block;
+}
+
+.search-definition-single-meaning {
+	display: grid;
+	gap: 8px;
+}
+
+.search-definition-submeaning-list {
+	display: grid;
+	gap: 12px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.search-definition-submeaning-list li {
+	display: grid;
+	gap: 7px;
+	align-items: start;
+}
+
+.search-definition-submeaning-main {
+	display: grid;
+	grid-template-columns: 22px minmax(0, 1fr);
+	gap: 8px;
+	align-items: start;
+	color: var(--text-primary);
+	font-size: var(--definition-copy-font-size, 15px);
+	font-weight: var(--definition-copy-font-weight, 700);
+	line-height: var(--definition-copy-line-height, 1.42);
+}
+
+.search-definition-submeaning-marker {
+	color: var(--grey500);
+	font-size: 12px;
+	font-weight: 800;
+	line-height: var(--definition-copy-line-height, 1.42);
+	text-align: right;
+}
+
+.search-definition-evidence-list {
+	display: grid;
+	gap: 7px;
+	margin-left: 30px;
+	padding-left: 12px;
+	border-left: 2px solid rgba(170, 185, 204, 0.42);
+}
+
+.search-definition-example,
+.search-definition-note {
+	margin: 0;
+	color: var(--text-secondary);
+	font-size: 14px;
+	font-weight: 500;
+	line-height: 1.5;
+}
+
+.search-definition-example-source {
+	display: block;
+	margin-top: 2px;
+	color: var(--grey500);
+}
+
+.search-definition-note {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 5px;
+	color: var(--text-primary);
+	font-weight: 650;
+}
+
+.search-definition-note span:first-child {
+	color: var(--grey500);
+}
+
 .search-definition-translate-button {
 	appearance: none;
 	display: inline-flex;
@@ -3969,7 +4053,8 @@ input:focus-visible {
 :root[data-theme="dark"] .search-result-button,
 :root[data-theme="dark"] .search-section-chip,
 :root[data-theme="dark"] .search-summary-item strong,
-:root[data-theme="dark"] .search-definition-copy strong {
+:root[data-theme="dark"] .search-definition-copy strong,
+:root[data-theme="dark"] .search-definition-submeaning-text {
 	color: var(--text-primary);
 }
 
@@ -4050,6 +4135,18 @@ input:focus-visible {
 	background: var(--accent-soft);
 }
 
+:root[data-theme="dark"] .search-definition-evidence-list {
+	border-color: rgba(132, 150, 178, 0.36);
+}
+
+:root[data-theme="dark"] .search-definition-example {
+	color: var(--study-text-emphasis);
+}
+
+:root[data-theme="dark"] .search-definition-note {
+	color: var(--study-text-strong);
+}
+
 :root[data-theme="dark"] .search-definition-more-button {
 	border-color: var(--search-ai-button-border);
 	color: var(--search-ai-button-color);
@@ -4096,6 +4193,7 @@ input:focus-visible {
 
 :root[data-theme="dark"] .search-result-title-row h2,
 :root[data-theme="dark"] .search-definition-copy strong,
+:root[data-theme="dark"] .search-definition-submeaning-text,
 :root[data-theme="dark"] .wordbook-current-card strong,
 :root[data-theme="dark"] .wordbook-meaning-panel strong {
 	color: var(--study-text-strong);
@@ -4113,6 +4211,9 @@ input:focus-visible {
 :root[data-theme="dark"] .search-result-summary-copy,
 :root[data-theme="dark"] .search-section-chip span,
 :root[data-theme="dark"] .search-definition-index,
+:root[data-theme="dark"] .search-definition-submeaning-marker,
+:root[data-theme="dark"] .search-definition-example-source,
+:root[data-theme="dark"] .search-definition-note span:first-child,
 :root[data-theme="dark"] .wordbook-meaning-panel__tip-copy {
 	color: var(--study-text-muted);
 }

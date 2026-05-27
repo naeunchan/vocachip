@@ -11,7 +11,7 @@ interface SearchResultCacheEntry {
 }
 
 interface SearchResultCacheState {
-  version: 2;
+  version: 5;
   entries: Record<string, SearchResultCacheEntry>;
 }
 
@@ -21,7 +21,7 @@ export interface CachedDictionarySearchResult {
   definitionKey: string;
 }
 
-const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v2";
+const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v5";
 const SEARCH_RESULT_CACHE_MAX_ENTRIES = 50;
 const SEARCH_RESULT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
@@ -46,6 +46,7 @@ function cloneSearchResult(result: DictionarySearchResult) {
   return {
     ...result,
     relatedWords: [],
+    hasMoreDefinitions: result.hasMoreDefinitions ?? false,
     sections: result.sections.map((section) => ({
       ...section,
       items: section.items.map((item) => ({ ...item })),
@@ -104,7 +105,9 @@ function mergeKoreanSearchResult(
 }
 
 function hasKoreanMeaning(value: string | null | undefined) {
-  return value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value);
+  return (
+    value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value)
+  );
 }
 
 function getDefinitionItems(result: DictionarySearchResult) {
@@ -143,7 +146,7 @@ export function hasKoreanMeaningsThroughCount(
 
 function createEmptyCacheState(): SearchResultCacheState {
   return {
-    version: 2,
+    version: 5,
     entries: {},
   };
 }
@@ -156,7 +159,9 @@ function getRecord(value: unknown) {
 
 function readCacheState() {
   try {
-    const rawCache = window.localStorage.getItem(SEARCH_RESULT_CACHE_STORAGE_KEY);
+    const rawCache = window.localStorage.getItem(
+      SEARCH_RESULT_CACHE_STORAGE_KEY,
+    );
 
     if (rawCache === null) {
       return createEmptyCacheState();
@@ -164,7 +169,7 @@ function readCacheState() {
 
     const parsedCache = getRecord(JSON.parse(rawCache));
 
-    if (parsedCache?.version !== 2 || getRecord(parsedCache.entries) === null) {
+    if (parsedCache?.version !== 5 || getRecord(parsedCache.entries) === null) {
       return createEmptyCacheState();
     }
 
@@ -226,7 +231,7 @@ function writePrunedCacheState(cacheState: SearchResultCacheState) {
   const prunedEntries = pruneCacheEntries(freshEntries);
 
   writeCacheState({
-    version: 2,
+    version: 5,
     entries: Object.fromEntries(
       prunedEntries.map((entry) => [entry.query, entry]),
     ),
@@ -268,7 +273,8 @@ export function cacheEnglishDictionarySearchResult(
   const queryKey = normalizeCacheKey(query);
   const wordKey = normalizeCacheKey(result.word);
   const definitionKey = createDictionarySearchDefinitionKey(result);
-  const existingEntry = cacheState.entries[queryKey] ?? cacheState.entries[wordKey];
+  const existingEntry =
+    cacheState.entries[queryKey] ?? cacheState.entries[wordKey];
   const shouldKeepKoreanResult =
     existingEntry?.definitionKey === definitionKey &&
     existingEntry.koreanResult !== null &&
@@ -304,7 +310,8 @@ export function cacheKoreanDictionarySearchResult(
   const queryKey = normalizeCacheKey(query);
   const wordKey = normalizeCacheKey(result.word);
   const definitionKey = createDictionarySearchDefinitionKey(result);
-  const existingEntry = cacheState.entries[queryKey] ?? cacheState.entries[wordKey];
+  const existingEntry =
+    cacheState.entries[queryKey] ?? cacheState.entries[wordKey];
   const existingKoreanResult =
     existingEntry?.definitionKey === definitionKey
       ? existingEntry.koreanResult

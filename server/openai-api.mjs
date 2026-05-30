@@ -2,7 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 
-import { readJsonBody, sendJson, setCorsHeaders } from "../api/ai/_http.js";
+import {
+  readJsonBody,
+  rejectDisallowedCorsRequest,
+  sendJson,
+  setCorsHeaders,
+} from "../api/ai/_http.js";
 import {
   createExample,
   createNaturalMeanings,
@@ -91,6 +96,26 @@ const dictionaryCacheTtlMs = 24 * 60 * 60 * 1000;
 const dictionaryCacheMaxEntries = 500;
 const dictionaryResponseLimitMax = 96;
 const dictionaryResponseCache = new Map();
+const rateLimitBuckets = new Map();
+
+function parsePositiveInteger(value, fallback) {
+  const number = Number.parseInt(value ?? "", 10);
+
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+const rateLimitWindowMs = parsePositiveInteger(
+  process.env.API_RATE_LIMIT_WINDOW_MS,
+  60 * 1000,
+);
+const aiRateLimitMax = parsePositiveInteger(
+  process.env.AI_RATE_LIMIT_MAX,
+  30,
+);
+const dictionaryRateLimitMax = parsePositiveInteger(
+  process.env.DICTIONARY_RATE_LIMIT_MAX,
+  120,
+);
 
 function getDictionaryApiKey() {
   return process.env.DICTIONARY_API_KEY?.trim() ?? "";
@@ -424,8 +449,107 @@ function createDictionaryResponsePayload(payload, word, responseLimit) {
   );
 }
 
+function getClientIp(request) {
+  const forwardedFor = request.headers["x-forwarded-for"];
+
+  if (typeof forwardedFor === "string" && forwardedFor.trim().length > 0) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  const realIp = request.headers["x-real-ip"];
+
+  if (typeof realIp === "string" && realIp.trim().length > 0) {
+    return realIp.trim();
+  }
+
+  return request.socket.remoteAddress ?? "unknown";
+}
+
+function getRateLimitMax(routeType) {
+  return routeType === "dictionary" ? dictionaryRateLimitMax : aiRateLimitMax;
+}
+
+function checkRateLimit(request, routeType) {
+  const now = Date.now();
+  const maxRequests = getRateLimitMax(routeType);
+  const bucketKey = `${routeType}:${getClientIp(request)}`;
+  const currentTimestamps = rateLimitBuckets.get(bucketKey) ?? [];
+  const activeTimestamps = currentTimestamps.filter(
+    (timestamp) => now - timestamp < rateLimitWindowMs,
+  );
+
+  if (activeTimestamps.length >= maxRequests) {
+    rateLimitBuckets.set(bucketKey, activeTimestamps);
+
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.max(
+        1,
+        Math.ceil((rateLimitWindowMs - (now - activeTimestamps[0])) / 1000),
+      ),
+    };
+  }
+
+  activeTimestamps.push(now);
+  rateLimitBuckets.set(bucketKey, activeTimestamps);
+
+  return {
+    allowed: true,
+    retryAfterSeconds: 0,
+  };
+}
+
+function pruneRateLimitBuckets() {
+  const now = Date.now();
+
+  for (const [bucketKey, timestamps] of rateLimitBuckets) {
+    const activeTimestamps = timestamps.filter(
+      (timestamp) => now - timestamp < rateLimitWindowMs,
+    );
+
+    if (activeTimestamps.length === 0) {
+      rateLimitBuckets.delete(bucketKey);
+    } else {
+      rateLimitBuckets.set(bucketKey, activeTimestamps);
+    }
+  }
+}
+
+function rejectRateLimitedRequest(request, response, routeType) {
+  const rateLimit = checkRateLimit(request, routeType);
+
+  if (rateLimit.allowed) {
+    return false;
+  }
+
+  response.setHeader("Retry-After", String(rateLimit.retryAfterSeconds));
+  sendJson(response, 429, { error: "Too many requests" });
+  return true;
+}
+
+function logRequest(request, response, url, startedAt) {
+  const durationMs = Date.now() - startedAt;
+  const logEntry = {
+    level: response.statusCode >= 500 ? "error" : "info",
+    event: "api_request",
+    method: request.method,
+    path: url.pathname,
+    status: response.statusCode,
+    durationMs,
+    ip: getClientIp(request),
+    origin: request.headers.origin ?? null,
+    userAgent: request.headers["user-agent"] ?? null,
+  };
+
+  console.info(JSON.stringify(logEntry));
+}
+
 async function handleAiRequest(request, response, routeHandler) {
-  setCorsHeaders(response);
+  if (rejectDisallowedCorsRequest(request, response)) {
+    return;
+  }
+
+  setCorsHeaders(response, request);
 
   if (request.method === "OPTIONS") {
     response.statusCode = 204;
@@ -435,6 +559,10 @@ async function handleAiRequest(request, response, routeHandler) {
 
   if (request.method !== "POST") {
     sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  if (rejectRateLimitedRequest(request, response, "ai")) {
     return;
   }
 
@@ -451,7 +579,11 @@ async function handleAiRequest(request, response, routeHandler) {
 }
 
 async function handleDictionaryRequest(request, response, url) {
-  setCorsHeaders(response);
+  if (rejectDisallowedCorsRequest(request, response)) {
+    return;
+  }
+
+  setCorsHeaders(response, request);
 
   if (request.method === "OPTIONS") {
     response.statusCode = 204;
@@ -461,6 +593,10 @@ async function handleDictionaryRequest(request, response, url) {
 
   if (request.method !== "GET") {
     sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  if (rejectRateLimitedRequest(request, response, "dictionary")) {
     return;
   }
 
@@ -530,8 +666,13 @@ async function handleDictionaryRequest(request, response, url) {
 }
 
 const server = createServer((request, response) => {
+  const startedAt = Date.now();
   const baseUrl = `http://${request.headers.host ?? "127.0.0.1"}`;
   const url = new URL(request.url ?? "/", baseUrl);
+
+  response.on("finish", () => {
+    logRequest(request, response, url, startedAt);
+  });
 
   if (request.method === "GET" && healthCheckPaths.has(url.pathname)) {
     sendJson(response, 200, { ok: true, service: "vocachip-ai-api" });
@@ -555,6 +696,8 @@ const server = createServer((request, response) => {
 
   sendJson(response, 404, { error: "Not found" });
 });
+
+setInterval(pruneRateLimitBuckets, rateLimitWindowMs).unref();
 
 server.listen(port, host, () => {
   console.log(`AI API server listening on http://${host}:${port}`);

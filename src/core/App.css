@@ -176,6 +176,33 @@
 	line-height: 1.55;
 }
 
+.settings-info-list {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+}
+
+.settings-info-list p,
+.settings-status-text {
+	margin: 0;
+	color: var(--text-secondary);
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.settings-action-button {
+	width: 100%;
+}
+
+.settings-status-text {
+	color: var(--accent-strong);
+	font-weight: 700;
+}
+
+.settings-status-text--error {
+	color: var(--danger);
+}
+
 .settings-mode-button {
 	appearance: none;
 	display: inline-flex;

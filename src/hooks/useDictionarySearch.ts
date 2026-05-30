@@ -30,6 +30,7 @@ import type {
   AiExampleStatus,
   AiGeneratedExample,
   DefinitionTranslationDialog,
+  DictionarySearchDefinition,
   DictionarySearchResult,
   SearchStatus,
 } from "../features/search/types";
@@ -160,14 +161,23 @@ export function useDictionarySearch({
           ...section,
           items: section.items.map((item, itemIndex) => {
             const currentItem = currentSection?.items[itemIndex];
+            const currentTranslatedSubMeanings =
+              currentItem?.translatedSubMeanings;
+            const hasCurrentTranslatedSubMeaning =
+              currentTranslatedSubMeanings?.some(
+                (meaning) => meaning !== null && meaning.trim().length > 0,
+              ) ?? false;
 
             if (
               currentItem?.meaning === item.meaning &&
-              currentItem.translatedMeaning !== null
+              (currentItem.translatedMeaning !== null ||
+                hasCurrentTranslatedSubMeaning)
             ) {
               return {
                 ...item,
                 translatedMeaning: currentItem.translatedMeaning,
+                translatedSubMeanings:
+                  currentTranslatedSubMeanings ?? item.translatedSubMeanings,
               };
             }
 
@@ -360,12 +370,74 @@ export function useDictionarySearch({
     setDefinitionTranslationDialog(null);
   }
 
+  function normalizeDefinitionSubMeaningIndex(
+    subMeaningIndex?: number | null,
+  ) {
+    return typeof subMeaningIndex === "number" && subMeaningIndex >= 0
+      ? subMeaningIndex
+      : null;
+  }
+
+  function getDefinitionText(
+    item: DictionarySearchDefinition,
+    subMeaningIndex: number | null,
+  ) {
+    if (subMeaningIndex === null) {
+      return item.meaning;
+    }
+
+    return (
+      item.subMeaningDetails?.[subMeaningIndex]?.meaning?.trim() ||
+      item.subMeanings?.[subMeaningIndex]?.trim() ||
+      item.meaning
+    );
+  }
+
+  function getDefinitionTranslation(
+    item: DictionarySearchDefinition | undefined,
+    subMeaningIndex: number | null,
+  ) {
+    if (item === undefined) {
+      return null;
+    }
+
+    if (subMeaningIndex !== null) {
+      return item.translatedSubMeanings?.[subMeaningIndex]?.trim() || null;
+    }
+
+    return item.translatedMeaning?.trim() || null;
+  }
+
+  function createTranslatedSubMeanings(
+    item: DictionarySearchDefinition,
+    subMeaningIndex: number,
+    translatedMeaning: string,
+  ) {
+    const subMeaningCount = Math.max(
+      item.subMeaningDetails?.length ?? 0,
+      item.subMeanings?.length ?? 0,
+      item.translatedSubMeanings?.length ?? 0,
+      subMeaningIndex + 1,
+    );
+    const translatedSubMeanings = Array.from(
+      { length: subMeaningCount },
+      (_, index) => item.translatedSubMeanings?.[index] ?? null,
+    );
+
+    translatedSubMeanings[subMeaningIndex] = translatedMeaning;
+
+    return translatedSubMeanings;
+  }
+
   function getCachedDefinitionTranslation(
     result: DictionarySearchResult,
     sectionIndex: number,
     itemIndex: number,
+    subMeaningIndex?: number | null,
   ) {
     const cachedSearchResult = getCachedDictionarySearchResult(result.word);
+    const normalizedSubMeaningIndex =
+      normalizeDefinitionSubMeaningIndex(subMeaningIndex);
 
     if (
       cachedSearchResult?.definitionKey !==
@@ -375,10 +447,9 @@ export function useDictionarySearch({
       return null;
     }
 
-    return (
-      cachedSearchResult.koreanResult.sections[sectionIndex]?.items[
-        itemIndex
-      ]?.translatedMeaning?.trim() || null
+    return getDefinitionTranslation(
+      cachedSearchResult.koreanResult.sections[sectionIndex]?.items[itemIndex],
+      normalizedSubMeaningIndex,
     );
   }
 
@@ -387,7 +458,11 @@ export function useDictionarySearch({
     sectionIndex: number,
     itemIndex: number,
     translatedMeaning: string,
+    subMeaningIndex?: number | null,
   ): DictionarySearchResult {
+    const normalizedSubMeaningIndex =
+      normalizeDefinitionSubMeaningIndex(subMeaningIndex);
+
     return {
       ...result,
       relatedWords: [],
@@ -400,10 +475,19 @@ export function useDictionarySearch({
           ...section,
           items: section.items.map((item, currentItemIndex) =>
             currentItemIndex === itemIndex
-              ? {
-                  ...item,
-                  translatedMeaning,
-                }
+              ? normalizedSubMeaningIndex === null
+                ? {
+                    ...item,
+                    translatedMeaning,
+                  }
+                : {
+                    ...item,
+                    translatedSubMeanings: createTranslatedSubMeanings(
+                      item,
+                      normalizedSubMeaningIndex,
+                      translatedMeaning,
+                    ),
+                  }
               : item,
           ),
         };
@@ -414,18 +498,27 @@ export function useDictionarySearch({
   async function handleRequestDefinitionTranslation(
     sectionIndex: number,
     itemIndex: number,
+    subMeaningIndex?: number | null,
   ) {
     const currentResult = searchResultRef.current;
     const section = currentResult?.sections[sectionIndex];
     const item = section?.items[itemIndex];
+    const normalizedSubMeaningIndex =
+      normalizeDefinitionSubMeaningIndex(subMeaningIndex);
 
     if (currentResult === null || section === undefined || item === undefined) {
       return;
     }
 
+    const definition = getDefinitionText(item, normalizedSubMeaningIndex);
     const cachedTranslatedMeaning =
-      item.translatedMeaning?.trim() ||
-      getCachedDefinitionTranslation(currentResult, sectionIndex, itemIndex);
+      getDefinitionTranslation(item, normalizedSubMeaningIndex) ||
+      getCachedDefinitionTranslation(
+        currentResult,
+        sectionIndex,
+        itemIndex,
+        normalizedSubMeaningIndex,
+      );
 
     if (cachedTranslatedMeaning !== null) {
       const nextResult = mergeTranslatedDefinition(
@@ -433,6 +526,7 @@ export function useDictionarySearch({
         sectionIndex,
         itemIndex,
         cachedTranslatedMeaning,
+        normalizedSubMeaningIndex,
       );
 
       cacheKoreanDictionarySearchResult(currentResult.word, nextResult);
@@ -441,10 +535,11 @@ export function useDictionarySearch({
       setDefinitionTranslationDialog({
         word: currentResult.word,
         partOfSpeech: section.label,
-        definition: item.meaning,
+        definition,
         translatedMeaning: cachedTranslatedMeaning,
         sectionIndex,
         itemIndex,
+        subMeaningIndex: normalizedSubMeaningIndex,
         status: "success",
       });
       return;
@@ -458,10 +553,11 @@ export function useDictionarySearch({
     setDefinitionTranslationDialog({
       word: currentResult.word,
       partOfSpeech: section.label,
-      definition: item.meaning,
+      definition,
       translatedMeaning: null,
       sectionIndex,
       itemIndex,
+      subMeaningIndex: normalizedSubMeaningIndex,
       status: "loading",
     });
 
@@ -471,6 +567,7 @@ export function useDictionarySearch({
         sectionIndex,
         itemIndex,
         nextAbortController.signal,
+        normalizedSubMeaningIndex,
       );
 
       if (nextAbortController.signal.aborted) {
@@ -478,18 +575,20 @@ export function useDictionarySearch({
       }
 
       const translatedMeaning =
-        nextResult.sections[sectionIndex]?.items[
-          itemIndex
-        ]?.translatedMeaning?.trim() ?? "";
+        getDefinitionTranslation(
+          nextResult.sections[sectionIndex]?.items[itemIndex],
+          normalizedSubMeaningIndex,
+        ) ?? "";
 
       if (translatedMeaning.length === 0) {
         setDefinitionTranslationDialog({
           word: currentResult.word,
           partOfSpeech: section.label,
-          definition: item.meaning,
+          definition,
           translatedMeaning: null,
           sectionIndex,
           itemIndex,
+          subMeaningIndex: normalizedSubMeaningIndex,
           status: "error",
         });
         return;
@@ -501,10 +600,11 @@ export function useDictionarySearch({
       setDefinitionTranslationDialog({
         word: currentResult.word,
         partOfSpeech: section.label,
-        definition: item.meaning,
+        definition,
         translatedMeaning,
         sectionIndex,
         itemIndex,
+        subMeaningIndex: normalizedSubMeaningIndex,
         status: "success",
       });
     } catch {
@@ -512,10 +612,11 @@ export function useDictionarySearch({
         setDefinitionTranslationDialog({
           word: currentResult.word,
           partOfSpeech: section.label,
-          definition: item.meaning,
+          definition,
           translatedMeaning: null,
           sectionIndex,
           itemIndex,
+          subMeaningIndex: normalizedSubMeaningIndex,
           status: "error",
         });
       }

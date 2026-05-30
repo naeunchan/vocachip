@@ -28,12 +28,61 @@ function getAiMeaningEndpoint() {
   );
 }
 
-function createMeaningItemId(sectionIndex: number, itemIndex: number) {
-  return `${sectionIndex}:${itemIndex}`;
+function createMeaningItemId(
+  sectionIndex: number,
+  itemIndex: number,
+  subMeaningIndex?: number | null,
+) {
+  return subMeaningIndex === null || subMeaningIndex === undefined
+    ? `${sectionIndex}:${itemIndex}`
+    : `${sectionIndex}:${itemIndex}:${subMeaningIndex}`;
 }
 
 function hasKoreanMeaning(value: string | null | undefined) {
   return value !== null && value !== undefined && KOREAN_TEXT_PATTERN.test(value);
+}
+
+function getSubMeaningDefinition(
+  item: DictionarySearchResult["sections"][number]["items"][number],
+  subMeaningIndex: number,
+) {
+  return (
+    item.subMeaningDetails?.[subMeaningIndex]?.meaning?.trim() ||
+    item.subMeanings?.[subMeaningIndex]?.trim() ||
+    item.meaning
+  );
+}
+
+function getTranslatedMeaning(
+  item: DictionarySearchResult["sections"][number]["items"][number],
+  subMeaningIndex: number | null,
+) {
+  if (subMeaningIndex !== null) {
+    return item.translatedSubMeanings?.[subMeaningIndex]?.trim() || null;
+  }
+
+  return item.translatedMeaning?.trim() || null;
+}
+
+function createTranslatedSubMeanings(
+  item: DictionarySearchResult["sections"][number]["items"][number],
+  subMeaningIndex: number,
+  translatedMeaning: string,
+) {
+  const subMeaningCount = Math.max(
+    item.subMeaningDetails?.length ?? 0,
+    item.subMeanings?.length ?? 0,
+    item.translatedSubMeanings?.length ?? 0,
+    subMeaningIndex + 1,
+  );
+  const translatedSubMeanings = Array.from(
+    { length: subMeaningCount },
+    (_, index) => item.translatedSubMeanings?.[index] ?? null,
+  );
+
+  translatedSubMeanings[subMeaningIndex] = translatedMeaning;
+
+  return translatedSubMeanings;
 }
 
 function chunkItems<T>(items: T[], size: number) {
@@ -415,23 +464,32 @@ export async function naturalizeDictionarySearchDefinition(
   sectionIndex: number,
   itemIndex: number,
   signal: AbortSignal,
+  subMeaningIndex: number | null = null,
 ): Promise<DictionarySearchResult> {
   const section = result.sections[sectionIndex];
   const item = section?.items[itemIndex];
+  const normalizedSubMeaningIndex =
+    typeof subMeaningIndex === "number" && subMeaningIndex >= 0
+      ? subMeaningIndex
+      : null;
 
   if (section === undefined || item === undefined) {
     return result;
   }
 
-  if (hasKoreanMeaning(item.translatedMeaning)) {
+  if (hasKoreanMeaning(getTranslatedMeaning(item, normalizedSubMeaningIndex))) {
     return result;
   }
 
+  const definition =
+    normalizedSubMeaningIndex === null
+      ? item.meaning
+      : getSubMeaningDefinition(item, normalizedSubMeaningIndex);
   const requestItem: AiMeaningRequestItem = {
-    id: createMeaningItemId(sectionIndex, itemIndex),
+    id: createMeaningItemId(sectionIndex, itemIndex, normalizedSubMeaningIndex),
     partOfSpeech: section.label.toLowerCase(),
-    definition: item.meaning,
-    currentMeaning: item.translatedMeaning?.trim() || null,
+    definition,
+    currentMeaning: getTranslatedMeaning(item, normalizedSubMeaningIndex),
   };
   const meanings = await fetchAiMeaningsInBatches(result, [requestItem], signal);
   const translatedMeaning = meanings.get(requestItem.id);
@@ -452,10 +510,19 @@ export async function naturalizeDictionarySearchDefinition(
         ...currentSection,
         items: currentSection.items.map((currentItem, currentItemIndex) =>
           currentItemIndex === itemIndex
-            ? {
-                ...currentItem,
-                translatedMeaning,
-              }
+            ? normalizedSubMeaningIndex === null
+              ? {
+                  ...currentItem,
+                  translatedMeaning,
+                }
+              : {
+                  ...currentItem,
+                  translatedSubMeanings: createTranslatedSubMeanings(
+                    currentItem,
+                    normalizedSubMeaningIndex,
+                    translatedMeaning,
+                  ),
+                }
             : currentItem,
         ),
       };

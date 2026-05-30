@@ -1,4 +1,4 @@
-import type { DictionarySearchResult } from "./types";
+import type { DictionarySearchDefinition, DictionarySearchResult } from "./types";
 
 interface SearchResultCacheEntry {
   query: string;
@@ -11,7 +11,7 @@ interface SearchResultCacheEntry {
 }
 
 interface SearchResultCacheState {
-  version: 5;
+  version: 8;
   entries: Record<string, SearchResultCacheEntry>;
 }
 
@@ -21,7 +21,8 @@ export interface CachedDictionarySearchResult {
   definitionKey: string;
 }
 
-const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v5";
+const SEARCH_RESULT_CACHE_STORAGE_KEY = "vocachip.search-result-cache.v8";
+const SEARCH_RESULT_CACHE_STORAGE_KEY_PREFIX = "vocachip.search-result-cache.";
 const SEARCH_RESULT_CACHE_MAX_ENTRIES = 50;
 const SEARCH_RESULT_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const KOREAN_TEXT_PATTERN = /[ㄱ-ㅎㅏ-ㅣ가-힣]/;
@@ -49,9 +50,31 @@ function cloneSearchResult(result: DictionarySearchResult) {
     hasMoreDefinitions: result.hasMoreDefinitions ?? false,
     sections: result.sections.map((section) => ({
       ...section,
-      items: section.items.map((item) => ({ ...item })),
+      items: section.items.map((item) => ({
+        ...item,
+        translatedSubMeanings:
+          item.translatedSubMeanings === undefined
+            ? undefined
+            : [...item.translatedSubMeanings],
+      })),
     })),
   };
+}
+
+function getSubMeaningTranslationCount(item: DictionarySearchDefinition) {
+  return Math.max(
+    item.subMeaningDetails?.length ?? 0,
+    item.subMeanings?.length ?? 0,
+    item.translatedSubMeanings?.length ?? 0,
+  );
+}
+
+function createEmptyTranslatedSubMeanings(item: DictionarySearchDefinition) {
+  const subMeaningCount = getSubMeaningTranslationCount(item);
+
+  return subMeaningCount > 0
+    ? Array.from({ length: subMeaningCount }, () => null as string | null)
+    : undefined;
 }
 
 function createEnglishSearchResult(result: DictionarySearchResult) {
@@ -63,9 +86,36 @@ function createEnglishSearchResult(result: DictionarySearchResult) {
       items: section.items.map((item) => ({
         ...item,
         translatedMeaning: null,
+        translatedSubMeanings: createEmptyTranslatedSubMeanings(item),
       })),
     })),
   };
+}
+
+function mergeTranslatedSubMeanings(
+  item: DictionarySearchDefinition,
+  existingItem: DictionarySearchDefinition | undefined,
+) {
+  const subMeaningCount = Math.max(
+    getSubMeaningTranslationCount(item),
+    existingItem === undefined ? 0 : getSubMeaningTranslationCount(existingItem),
+  );
+
+  if (subMeaningCount === 0) {
+    return item.translatedSubMeanings;
+  }
+
+  return Array.from({ length: subMeaningCount }, (_, index) => {
+    const itemMeaning = item.translatedSubMeanings?.[index];
+
+    if (hasKoreanMeaning(itemMeaning)) {
+      return itemMeaning;
+    }
+
+    const existingMeaning = existingItem?.translatedSubMeanings?.[index];
+
+    return hasKoreanMeaning(existingMeaning) ? existingMeaning : itemMeaning ?? null;
+  });
 }
 
 function mergeKoreanSearchResult(
@@ -85,18 +135,29 @@ function mergeKoreanSearchResult(
       return {
         ...section,
         items: section.items.map((item, itemIndex) => {
+          const existingItem = existingSection?.items[itemIndex];
+
           if (hasKoreanMeaning(item.translatedMeaning)) {
-            return { ...item };
+            return {
+              ...item,
+              translatedSubMeanings: mergeTranslatedSubMeanings(
+                item,
+                existingItem,
+              ),
+            };
           }
 
-          const existingMeaning =
-            existingSection?.items[itemIndex]?.translatedMeaning;
+          const existingMeaning = existingItem?.translatedMeaning;
 
           return {
             ...item,
             translatedMeaning: hasKoreanMeaning(existingMeaning)
               ? existingMeaning
               : item.translatedMeaning,
+            translatedSubMeanings: mergeTranslatedSubMeanings(
+              item,
+              existingItem,
+            ),
           };
         }),
       };
@@ -114,10 +175,28 @@ function getDefinitionItems(result: DictionarySearchResult) {
   return result.sections.flatMap((section) => section.items);
 }
 
-export function hasAnyKoreanMeanings(result: DictionarySearchResult) {
-  return getDefinitionItems(result).some((item) =>
-    hasKoreanMeaning(item.translatedMeaning),
+function hasAnyItemKoreanMeaning(item: DictionarySearchDefinition) {
+  return (
+    hasKoreanMeaning(item.translatedMeaning) ||
+    (item.translatedSubMeanings?.some((meaning) => hasKoreanMeaning(meaning)) ??
+      false)
   );
+}
+
+function hasCompleteItemKoreanMeaning(item: DictionarySearchDefinition) {
+  const subMeaningCount = getSubMeaningTranslationCount(item);
+
+  if (subMeaningCount === 0) {
+    return hasKoreanMeaning(item.translatedMeaning);
+  }
+
+  return Array.from({ length: subMeaningCount }).every((_, index) =>
+    hasKoreanMeaning(item.translatedSubMeanings?.[index]),
+  );
+}
+
+export function hasAnyKoreanMeanings(result: DictionarySearchResult) {
+  return getDefinitionItems(result).some(hasAnyItemKoreanMeaning);
 }
 
 export function hasCompleteKoreanMeanings(result: DictionarySearchResult) {
@@ -125,7 +204,7 @@ export function hasCompleteKoreanMeanings(result: DictionarySearchResult) {
 
   return (
     items.length > 0 &&
-    items.every((item) => hasKoreanMeaning(item.translatedMeaning))
+    items.every((item) => hasCompleteItemKoreanMeaning(item))
   );
 }
 
@@ -140,13 +219,13 @@ export function hasKoreanMeaningsThroughCount(
 
   return (
     items.length > 0 &&
-    items.every((item) => hasKoreanMeaning(item.translatedMeaning))
+    items.every((item) => hasCompleteItemKoreanMeaning(item))
   );
 }
 
 function createEmptyCacheState(): SearchResultCacheState {
   return {
-    version: 5,
+    version: 8,
     entries: {},
   };
 }
@@ -169,7 +248,7 @@ function readCacheState() {
 
     const parsedCache = getRecord(JSON.parse(rawCache));
 
-    if (parsedCache?.version !== 5 || getRecord(parsedCache.entries) === null) {
+    if (parsedCache?.version !== 8 || getRecord(parsedCache.entries) === null) {
       return createEmptyCacheState();
     }
 
@@ -231,7 +310,7 @@ function writePrunedCacheState(cacheState: SearchResultCacheState) {
   const prunedEntries = pruneCacheEntries(freshEntries);
 
   writeCacheState({
-    version: 5,
+    version: 8,
     entries: Object.fromEntries(
       prunedEntries.map((entry) => [entry.query, entry]),
     ),
@@ -336,4 +415,22 @@ export function cacheKoreanDictionarySearchResult(
 
   saveCacheEntryForKeys(cacheState, entry, [queryKey, wordKey]);
   writePrunedCacheState(cacheState);
+}
+
+export function clearDictionarySearchResultCache() {
+  try {
+    const cacheKeys = Array.from(
+      { length: window.localStorage.length },
+      (_, index) => window.localStorage.key(index),
+    ).filter(
+      (key): key is string =>
+        key !== null && key.startsWith(SEARCH_RESULT_CACHE_STORAGE_KEY_PREFIX),
+    );
+
+    for (const cacheKey of cacheKeys) {
+      window.localStorage.removeItem(cacheKey);
+    }
+  } catch {
+    return;
+  }
 }

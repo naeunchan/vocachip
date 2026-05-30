@@ -27,7 +27,7 @@ interface SearchScreenProps {
 	onSpeakResult: (word: string, audioUrl?: string | null) => void;
 	onLoadMoreDefinitions: () => void;
 	onGenerateAiExample: () => void;
-	onRequestDefinitionTranslation: (sectionIndex: number, itemIndex: number) => void;
+	onRequestDefinitionTranslation: (sectionIndex: number, itemIndex: number, subMeaningIndex?: number | null) => void;
 	onCloseDefinitionTranslation: () => void;
 	onSelectHistory: (query: string) => void;
 	onClearHistory: () => void;
@@ -46,11 +46,14 @@ interface VisibleSearchSection {
 interface DefinitionTranslationTarget {
 	sectionIndex: number;
 	itemIndex: number;
+	subMeaningIndex: number | null;
 }
 
-type DefinitionDisplayDetail = DictionarySearchSubMeaning;
+type DefinitionDisplayDetail = DictionarySearchSubMeaning & {
+	sourceSubMeaningIndex: number | null;
+};
 
-function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "bookmark" | "clock" | "warning" | "trash" }) {
+function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "bookmark" | "clock" | "warning" | "trash" | "translate" }) {
 	if (icon === "clear") {
 		return (
 			<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -107,6 +110,16 @@ function SearchIcon({ icon }: { icon: "clear" | "submit" | "sound" | "ai" | "boo
 		);
 	}
 
+	if (icon === "translate") {
+		return (
+			<span className="search-translate-icon" aria-hidden="true">
+				<span>A</span>
+				<span className="search-translate-icon__divider">/</span>
+				<span>가</span>
+			</span>
+		);
+	}
+
 	if (icon === "submit") {
 		return (
 			<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -127,7 +140,7 @@ function countDefinitions(sections: DictionarySearchResult["sections"]) {
 	return sections.reduce((totalCount, section) => totalCount + section.items.length, 0);
 }
 
-function createDefinitionDisplayDetail(meaning: string): DefinitionDisplayDetail | null {
+function createDefinitionDisplayDetail(meaning: string, sourceSubMeaningIndex: number | null): DefinitionDisplayDetail | null {
 	const normalizedMeaning = meaning.trim();
 
 	if (normalizedMeaning.length === 0) {
@@ -138,14 +151,15 @@ function createDefinitionDisplayDetail(meaning: string): DefinitionDisplayDetail
 		meaning: normalizedMeaning,
 		examples: [],
 		notes: [],
+		sourceSubMeaningIndex,
 	};
 }
 
 function getDefinitionDisplayDetails(item: DictionarySearchDefinition): DefinitionDisplayDetail[] {
 	const detailItems =
 		item.subMeaningDetails
-			?.map((detail) => {
-				const normalizedDetail = createDefinitionDisplayDetail(detail.meaning);
+			?.map((detail, detailIndex) => {
+				const normalizedDetail = createDefinitionDisplayDetail(detail.meaning, detailIndex);
 
 				if (normalizedDetail === null) {
 					return null;
@@ -153,8 +167,6 @@ function getDefinitionDisplayDetails(item: DictionarySearchDefinition): Definiti
 
 				return {
 					...normalizedDetail,
-					examples: (detail.examples ?? []).filter((example) => example.text.trim().length > 0),
-					notes: (detail.notes ?? []).map((note) => note.trim()).filter((note) => note.length > 0),
 				};
 			})
 			.filter((detail): detail is DefinitionDisplayDetail => detail !== null) ?? [];
@@ -163,9 +175,9 @@ function getDefinitionDisplayDetails(item: DictionarySearchDefinition): Definiti
 		return detailItems;
 	}
 
-	const subMeanings = item.subMeanings?.map((meaning) => createDefinitionDisplayDetail(meaning)).filter((detail): detail is DefinitionDisplayDetail => detail !== null) ?? [];
+	const subMeanings = item.subMeanings?.map((meaning, meaningIndex) => createDefinitionDisplayDetail(meaning, meaningIndex)).filter((detail): detail is DefinitionDisplayDetail => detail !== null) ?? [];
 
-	return subMeanings.length > 0 ? subMeanings : [createDefinitionDisplayDetail(item.meaning)].filter((detail): detail is DefinitionDisplayDetail => detail !== null);
+	return subMeanings.length > 0 ? subMeanings : [createDefinitionDisplayDetail(item.meaning, null)].filter((detail): detail is DefinitionDisplayDetail => detail !== null);
 }
 
 function getSubMeaningMarker(index: number) {
@@ -187,6 +199,22 @@ function createDefinitionResetKey(result: DictionarySearchResult | null) {
 	}
 
 	return result.word.toLowerCase();
+}
+
+function normalizeDefinitionSubMeaningIndex(subMeaningIndex?: number | null) {
+	return typeof subMeaningIndex === "number" && subMeaningIndex >= 0 ? subMeaningIndex : null;
+}
+
+function getDefinitionText(item: DictionarySearchDefinition, subMeaningIndex: number | null) {
+	if (subMeaningIndex === null) {
+		return item.meaning;
+	}
+
+	return item.subMeaningDetails?.[subMeaningIndex]?.meaning?.trim() || item.subMeanings?.[subMeaningIndex]?.trim() || item.meaning;
+}
+
+function getTranslatedDefinitionMeaning(item: DictionarySearchDefinition, subMeaningIndex: number | null) {
+	return subMeaningIndex === null ? item.translatedMeaning?.trim() ?? "" : item.translatedSubMeanings?.[subMeaningIndex]?.trim() ?? "";
 }
 
 function getVisibleSearchSections(sections: DictionarySearchResult["sections"], visibleDefinitionCount: number): VisibleSearchSection[] {
@@ -254,29 +282,6 @@ function SearchDictionarySpinnerOverlay({ isVisible, label }: { isVisible: boole
 	);
 }
 
-function DefinitionEvidenceList({ detail }: { detail: DefinitionDisplayDetail }) {
-	if (detail.examples.length === 0 && detail.notes.length === 0) {
-		return null;
-	}
-
-	return (
-		<div className="search-definition-evidence-list">
-			{detail.examples.map((example, index) => (
-				<p className="search-definition-example" key={`${index}-${example.text}`}>
-					<span>{example.text}</span>
-					{example.source ? <span className="search-definition-example-source">- {example.source}</span> : null}
-				</p>
-			))}
-			{detail.notes.map((note) => (
-				<p className="search-definition-note" key={note}>
-					<span aria-hidden="true">→</span>
-					<span>{note}</span>
-				</p>
-			))}
-		</div>
-	);
-}
-
 export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch, searchStatus, searchResult, searchHistory, emptySuggestions, isSaved, isPronouncingResult, aiExampleStatus, isLoadingMoreDefinitions, definitionTranslationDialog, aiGeneratedExamples, onSaveResult, onSpeakResult, onLoadMoreDefinitions, onGenerateAiExample, onRequestDefinitionTranslation, onCloseDefinitionTranslation, onSelectHistory, onClearHistory }: SearchScreenProps) {
 	const [isClearHistoryDialogOpen, setIsClearHistoryDialogOpen] = useState(false);
 	const [visibleDefinitionCount, setVisibleDefinitionCount] = useState(INITIAL_VISIBLE_DEFINITION_COUNT);
@@ -309,13 +314,16 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 						return null;
 					}
 
+					const subMeaningIndex = normalizeDefinitionSubMeaningIndex(pendingDefinitionTranslationTarget.subMeaningIndex);
+
 					return {
 						word: searchResult.word,
 						partOfSpeech: section.label,
-						definition: item.meaning,
+						definition: getDefinitionText(item, subMeaningIndex),
 						translatedMeaning: null,
 						sectionIndex: pendingDefinitionTranslationTarget.sectionIndex,
 						itemIndex: pendingDefinitionTranslationTarget.itemIndex,
+						subMeaningIndex,
 						status: "loading" as const,
 					};
 				})();
@@ -390,19 +398,23 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 		}
 	}
 
-	function isSameDefinitionTranslationTarget(target: DefinitionTranslationTarget | null, sectionIndex: number, itemIndex: number) {
-		return target?.sectionIndex === sectionIndex && target.itemIndex === itemIndex;
+	function isSameDefinitionTranslationTarget(target: DefinitionTranslationTarget | null, sectionIndex: number, itemIndex: number, subMeaningIndex?: number | null) {
+		const normalizedSubMeaningIndex = normalizeDefinitionSubMeaningIndex(subMeaningIndex);
+
+		return target?.sectionIndex === sectionIndex && target.itemIndex === itemIndex && target.subMeaningIndex === normalizedSubMeaningIndex;
 	}
 
-	function handleRequestDefinitionTranslation(sectionIndex: number, itemIndex: number) {
+	function handleRequestDefinitionTranslation(sectionIndex: number, itemIndex: number, subMeaningIndex?: number | null) {
+		const normalizedSubMeaningIndex = normalizeDefinitionSubMeaningIndex(subMeaningIndex);
+
 		clearQueuedDefinitionTranslation();
-		setPendingDefinitionTranslationTarget({ sectionIndex, itemIndex });
+		setPendingDefinitionTranslationTarget({ sectionIndex, itemIndex, subMeaningIndex: normalizedSubMeaningIndex });
 
 		queuedDefinitionTranslationFrameRef.current = window.requestAnimationFrame(() => {
 			queuedDefinitionTranslationFrameRef.current = null;
 			queuedDefinitionTranslationTimeoutRef.current = window.setTimeout(() => {
 				queuedDefinitionTranslationTimeoutRef.current = null;
-				onRequestDefinitionTranslation(sectionIndex, itemIndex);
+				onRequestDefinitionTranslation(sectionIndex, itemIndex, normalizedSubMeaningIndex);
 			}, 0);
 		});
 	}
@@ -411,6 +423,22 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 		clearQueuedDefinitionTranslation();
 		setPendingDefinitionTranslationTarget(null);
 		onCloseDefinitionTranslation();
+	}
+
+	function renderDefinitionTranslateButton(sectionLabel: string, displayItemIndex: number, sectionIndex: number, item: VisibleSearchDefinition, subMeaningIndex: number | null, showsSubMeaningLabel = false) {
+		const normalizedSubMeaningIndex = normalizeDefinitionSubMeaningIndex(subMeaningIndex);
+		const isPendingTranslation = isSameDefinitionTranslationTarget(pendingDefinitionTranslationTarget, sectionIndex, item.sourceItemIndex, normalizedSubMeaningIndex);
+		const isDialogTranslationLoading = definitionTranslationDialog?.status === "loading" && definitionTranslationDialog.sectionIndex === sectionIndex && definitionTranslationDialog.itemIndex === item.sourceItemIndex && normalizeDefinitionSubMeaningIndex(definitionTranslationDialog.subMeaningIndex) === normalizedSubMeaningIndex;
+		const isTranslationLoading = isPendingTranslation || isDialogTranslationLoading;
+		const hasTranslatedMeaning = getTranslatedDefinitionMeaning(item, normalizedSubMeaningIndex).length > 0;
+		const subMeaningLabel = normalizedSubMeaningIndex === null || !showsSubMeaningLabel ? "" : ` ${getSubMeaningMarker(normalizedSubMeaningIndex)}번 세부`;
+
+		return (
+			<button className={`search-definition-translate-button ${hasTranslatedMeaning ? "active" : ""}`} type="button" aria-label={`${sectionLabel} ${displayItemIndex + 1}번${subMeaningLabel} 뜻 한글 번역 보기`} title="한글 번역 보기" aria-busy={isTranslationLoading} onClick={() => handleRequestDefinitionTranslation(sectionIndex, item.sourceItemIndex, normalizedSubMeaningIndex)} disabled={isTranslationLoading}>
+				{isTranslationLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : <SearchIcon icon="translate" />}
+				<span className="sr-only">{isTranslationLoading ? "번역 중" : hasTranslatedMeaning ? "번역 보기" : "번역"}</span>
+			</button>
+		);
 	}
 
 	return (
@@ -572,9 +600,6 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 										<div className="search-definition-item-list">
 											{section.items.map((item, index) => {
 												const aiExample = getAiExample(section.sourceSectionIndex, item.sourceItemIndex);
-												const isPendingTranslation = isSameDefinitionTranslationTarget(pendingDefinitionTranslationTarget, section.sourceSectionIndex, item.sourceItemIndex);
-												const isTranslationLoading = isPendingTranslation || (definitionTranslationDialog?.status === "loading" && definitionTranslationDialog.sectionIndex === section.sourceSectionIndex && definitionTranslationDialog.itemIndex === item.sourceItemIndex);
-												const hasTranslatedMeaning = (item.translatedMeaning?.trim().length ?? 0) > 0;
 												const displayDetails = getDefinitionDisplayDetails(item);
 												const primaryDisplayDetail = displayDetails[0] ?? null;
 
@@ -588,27 +613,28 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 																		<ol className="search-definition-submeaning-list" aria-label={`${section.label} ${index + 1}번 세부 뜻`}>
 																			{displayDetails.map((detail, meaningIndex) => (
 																				<li key={`${meaningIndex}-${detail.meaning}`}>
-																					<div className="search-definition-submeaning-main">
-																						<span className="search-definition-submeaning-marker">{getSubMeaningMarker(meaningIndex)}.</span>
-																						<span className="search-definition-submeaning-text">{detail.meaning}</span>
+																					<div className="search-definition-submeaning-row">
+																						<div className="search-definition-submeaning-main">
+																							<span className="search-definition-submeaning-marker">{getSubMeaningMarker(meaningIndex)}.</span>
+																							<span className="search-definition-submeaning-text">{detail.meaning}</span>
+																						</div>
+																						{renderDefinitionTranslateButton(section.label, index, section.sourceSectionIndex, item, detail.sourceSubMeaningIndex, true)}
 																					</div>
-																					<DefinitionEvidenceList detail={detail} />
 																				</li>
 																			))}
 																		</ol>
 																	) : primaryDisplayDetail !== null ? (
 																		<div className="search-definition-single-meaning">
 																			<strong className="search-definition-primary-meaning">{primaryDisplayDetail.meaning}</strong>
-																			<DefinitionEvidenceList detail={primaryDisplayDetail} />
+																			{renderDefinitionTranslateButton(section.label, index, section.sourceSectionIndex, item, primaryDisplayDetail.sourceSubMeaningIndex)}
 																		</div>
 																	) : (
-																		<strong className="search-definition-primary-meaning">{item.meaning}</strong>
+																		<div className="search-definition-single-meaning">
+																			<strong className="search-definition-primary-meaning">{item.meaning}</strong>
+																			{renderDefinitionTranslateButton(section.label, index, section.sourceSectionIndex, item, null)}
+																		</div>
 																	)}
 																</div>
-																<button className="search-definition-translate-button" type="button" aria-label={`${section.label} ${index + 1}번 뜻 한글 번역 보기`} aria-busy={isTranslationLoading} onClick={() => handleRequestDefinitionTranslation(section.sourceSectionIndex, item.sourceItemIndex)} disabled={isTranslationLoading}>
-																	{isTranslationLoading ? <span className="search-definition-more-spinner" aria-hidden="true" /> : null}
-																	<span>{isTranslationLoading ? "번역 중" : hasTranslatedMeaning ? "번역 보기" : "번역"}</span>
-																</button>
 															</div>
 															{areAiExamplesVisible && aiExample !== null ? <p className="search-definition-ai-example">{aiExample.sentence}</p> : null}
 														</div>
@@ -666,7 +692,7 @@ export function SearchScreen({ searchQuery, onChangeSearchQuery, onSubmitSearch,
 						</div>
 						<div className="modal-actions search-translation-modal__actions">
 							{activeDefinitionTranslationDialog.status === "error" ? (
-								<Button className="modal-action-button" onClick={() => handleRequestDefinitionTranslation(activeDefinitionTranslationDialog.sectionIndex, activeDefinitionTranslationDialog.itemIndex)} size="large" variant="weak" color="dark" type="button">
+								<Button className="modal-action-button" onClick={() => handleRequestDefinitionTranslation(activeDefinitionTranslationDialog.sectionIndex, activeDefinitionTranslationDialog.itemIndex, activeDefinitionTranslationDialog.subMeaningIndex)} size="large" variant="weak" color="dark" type="button">
 									다시 시도
 								</Button>
 							) : null}

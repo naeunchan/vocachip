@@ -6,7 +6,12 @@ import "@toss/tds-colors/colors.css";
 import { BRAND_PRIMARY_COLOR } from "./core/config/brand";
 import { AppErrorBoundary } from "./core/AppErrorBoundary.tsx";
 import App from "./core/App.tsx";
+import { clearDictionarySearchResultCache } from "./features/search/searchResultCache";
 import "./index.css";
+
+if (import.meta.env.DEV) {
+  clearDictionarySearchResultCache();
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -9,6 +9,7 @@ import {
   getErrorStatusCode,
   getPublicErrorMessage,
 } from "../api/ai/_openai.js";
+import { parseMerriamWebsterSearchResult } from "./dictionary-parser.mjs";
 
 const loadedEnvKeys = new Set();
 
@@ -413,6 +414,16 @@ function setDictionaryCacheHeaders(response) {
   );
 }
 
+function createDictionaryResponsePayload(payload, word, responseLimit) {
+  return (
+    parseMerriamWebsterSearchResult(
+      payload,
+      word,
+      responseLimit === null ? undefined : responseLimit,
+    ) ?? limitDictionaryPayload(payload, responseLimit)
+  );
+}
+
 async function handleAiRequest(request, response, routeHandler) {
   setCorsHeaders(response);
 
@@ -481,7 +492,7 @@ async function handleDictionaryRequest(request, response, url) {
     sendJson(
       response,
       200,
-      limitDictionaryPayload(cachedPayload, responseLimit),
+      createDictionaryResponsePayload(cachedPayload, word, responseLimit),
     );
     return;
   }
@@ -508,7 +519,11 @@ async function handleDictionaryRequest(request, response, url) {
     });
     pruneDictionaryCache();
     setDictionaryCacheHeaders(response);
-    sendJson(response, 200, limitDictionaryPayload(payload, responseLimit));
+    sendJson(
+      response,
+      200,
+      createDictionaryResponsePayload(payload, word, responseLimit),
+    );
   } catch {
     sendJson(response, 502, { error: "Dictionary API request failed" });
   }

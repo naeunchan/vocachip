@@ -3,15 +3,23 @@ export interface DictionarySearchExample {
   source: string | null;
 }
 
-export interface DictionarySearchSubMeaning {
+export interface DictionarySearchNestedMeaning {
   meaning: string;
   examples: DictionarySearchExample[];
   notes: string[];
 }
 
+export interface DictionarySearchSubMeaning {
+  meaning: string;
+  examples: DictionarySearchExample[];
+  notes: string[];
+  nestedMeanings?: DictionarySearchNestedMeaning[];
+}
+
 export interface DictionarySearchDefinition {
   meaning: string;
   translatedMeaning: string | null;
+  translatedSubMeanings?: Array<string | null>;
   subMeanings?: string[];
   subMeaningDetails?: DictionarySearchSubMeaning[];
 }
@@ -51,5 +59,6 @@ export interface DefinitionTranslationDialog {
   translatedMeaning: string | null;
   sectionIndex: number;
   itemIndex: number;
+  subMeaningIndex?: number | null;
   status: DefinitionTranslationStatus;
 }

@@ -40,13 +40,26 @@ function getStringField(value: unknown, keys: string[]) {
   return null;
 }
 
+function getTranslatedMeaning(
+  item: DictionarySearchResult["sections"][number]["items"][number],
+) {
+  return (
+    item.translatedMeaning?.trim() ||
+    item.translatedSubMeanings?.find(
+      (meaning): meaning is string =>
+        meaning !== null && meaning.trim().length > 0,
+    )?.trim() ||
+    ""
+  );
+}
+
 export function createAiExampleRequests(
   result: DictionarySearchResult,
 ): AiExampleRequest[] {
   return result.sections.flatMap((section, sectionIndex) =>
     section.items.flatMap((item, itemIndex) => {
       const definition = item.meaning.trim();
-      const translatedMeaning = item.translatedMeaning?.trim() ?? "";
+      const translatedMeaning = getTranslatedMeaning(item);
       const meaning = translatedMeaning.length > 0 ? translatedMeaning : definition;
 
       if (definition.length === 0 || meaning.length === 0) {

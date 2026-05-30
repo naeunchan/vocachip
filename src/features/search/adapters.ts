@@ -42,6 +42,17 @@ function toConciseMeaning(value: string | null | undefined) {
   return firstChunk.length > 0 ? firstChunk : normalized;
 }
 
+function getConciseTranslatedMeaning(
+  item: DictionarySearchResult["sections"][number]["items"][number] | undefined,
+) {
+  const translatedSubMeaning =
+    item?.translatedSubMeanings
+      ?.map((meaning) => toConciseMeaning(meaning))
+      .find((meaning): meaning is string => meaning !== null) ?? null;
+
+  return toConciseMeaning(item?.translatedMeaning) ?? translatedSubMeaning;
+}
+
 export function createVocabularyEntryFromSearchResult(
   result: DictionarySearchResult,
   existingWord?: VocabularyEntry,
@@ -49,7 +60,7 @@ export function createVocabularyEntryFromSearchResult(
   const firstSection = result.sections[0];
   const firstItem = firstSection?.items[0];
   const existingMeaning = existingWord?.meaning;
-  const translatedMeaning = toConciseMeaning(firstItem?.translatedMeaning);
+  const translatedMeaning = getConciseTranslatedMeaning(firstItem);
   const displayMeaning =
     existingMeaning !== undefined && hasKoreanText(existingMeaning)
       ? existingMeaning

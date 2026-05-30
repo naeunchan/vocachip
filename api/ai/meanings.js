@@ -1,4 +1,9 @@
-import { readJsonBody, sendJson, setCorsHeaders } from "./_http.js";
+import {
+  readJsonBody,
+  rejectDisallowedCorsRequest,
+  sendJson,
+  setCorsHeaders,
+} from "./_http.js";
 import {
   createNaturalMeanings,
   getErrorStatusCode,
@@ -6,7 +11,11 @@ import {
 } from "./_openai.js";
 
 export default async function handler(request, response) {
-  setCorsHeaders(response);
+  if (rejectDisallowedCorsRequest(request, response)) {
+    return;
+  }
+
+  setCorsHeaders(response, request);
 
   if (request.method === "OPTIONS") {
     response.statusCode = 204;

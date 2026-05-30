@@ -12,6 +12,7 @@
     "start:api": "node server/index.js",
     "build": "ait build",
     "deploy": "ait deploy",
+    "test:search": "node scripts/verify-dictionary-search.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

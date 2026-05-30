@@ -1,10 +1,14 @@
-import { SegmentedControl } from "@toss/tds-mobile";
+import { Button, SegmentedControl } from "@toss/tds-mobile";
 
 import type { ThemeMode } from "../../core/state/types";
 
 interface SettingsScreenProps {
   themeMode: ThemeMode;
   onSelectThemeMode: (mode: ThemeMode) => void;
+  savedWordCount: number;
+  backupStatus: "idle" | "success" | "error";
+  onExportBackup: () => void;
+  onReportIssue: () => void;
 }
 
 function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
@@ -119,6 +123,10 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
 export function SettingsScreen({
   themeMode,
   onSelectThemeMode,
+  savedWordCount,
+  backupStatus,
+  onExportBackup,
+  onReportIssue,
 }: SettingsScreenProps) {
   const themeItems = [
     { key: "system" as const, label: "시스템" },
@@ -153,6 +161,70 @@ export function SettingsScreen({
             </SegmentedControl.Item>
           ))}
         </SegmentedControl>
+      </section>
+
+      <section className="content-card settings-panel-card">
+        <div className="settings-panel-header">
+          <h3>데이터 및 AI 안내</h3>
+        </div>
+        <div className="settings-info-list">
+          <p>
+            검색어와 선택한 뜻은 사전 API와 AI API 처리에 사용될 수 있어요.
+          </p>
+          <p>
+            AI 번역과 예문은 학습 보조용이며, 실제 의미와 다를 수 있어요.
+          </p>
+          <p>
+            단어장과 학습 기록은 이 기기의 브라우저 저장소에 저장돼요.
+          </p>
+        </div>
+      </section>
+
+      <section className="content-card settings-panel-card">
+        <div className="settings-panel-header">
+          <h3>단어장 백업</h3>
+        </div>
+        <p className="settings-helper-text">
+          저장된 단어 {savedWordCount}개를 JSON 파일로 내보낼 수 있어요.
+        </p>
+        <Button
+          className="settings-action-button"
+          size="large"
+          color="dark"
+          type="button"
+          onClick={onExportBackup}
+        >
+          단어장 내보내기
+        </Button>
+        {backupStatus === "success" ? (
+          <p className="settings-status-text" role="status">
+            백업 파일을 만들었어요.
+          </p>
+        ) : null}
+        {backupStatus === "error" ? (
+          <p className="settings-status-text settings-status-text--error" role="alert">
+            백업 파일을 만들 수 없어요.
+          </p>
+        ) : null}
+      </section>
+
+      <section className="content-card settings-panel-card">
+        <div className="settings-panel-header">
+          <h3>오류 제보</h3>
+        </div>
+        <p className="settings-helper-text">
+          검색 결과가 비어 보이거나 번역이 어색하면 현재 단어와 상황을 함께 알려주세요.
+        </p>
+        <Button
+          className="settings-action-button"
+          size="large"
+          variant="weak"
+          color="dark"
+          type="button"
+          onClick={onReportIssue}
+        >
+          오류 제보하기
+        </Button>
       </section>
     </>
   );

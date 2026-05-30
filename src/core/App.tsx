@@ -2,7 +2,7 @@ import { Badge, Text } from "@toss/tds-mobile";
 import { useEffect, useRef, useState } from "react";
 
 import "./App.css";
-import { STORAGE_KEYS } from "./state/constants";
+import { APP_STORAGE_VERSION, STORAGE_KEYS } from "./state/constants";
 import {
   applyManualWordbookStageChange,
   applyRecallFeedbackToWord,
@@ -65,7 +65,7 @@ function App() {
     STORAGE_KEYS.words,
     initialAppState.words,
   );
-  const [, setStudyEvents] = usePersistentState(
+  const [studyEvents, setStudyEvents] = usePersistentState(
     STORAGE_KEYS.studyEvents,
     initialAppState.studyEvents,
   );
@@ -79,6 +79,9 @@ function App() {
   const [activePronunciationWord, setActivePronunciationWord] = useState<
     string | null
   >(null);
+  const [backupStatus, setBackupStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
 
   useDocumentTheme(themeMode);
 
@@ -250,6 +253,67 @@ function App() {
     updateWord(wordId, (word) => resetWordLearningProgress(word));
   }
 
+  function exportBackup() {
+    try {
+      const exportedAt = new Date().toISOString();
+      const payload = {
+        app: "vocachip",
+        storageVersion: APP_STORAGE_VERSION,
+        exportedAt,
+        words,
+        searchHistory,
+        studyEvents,
+        themeMode,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateKey = exportedAt.slice(0, 10);
+
+      link.href = url;
+      link.download = `vocachip-backup-${dateKey}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      setBackupStatus("success");
+    } catch {
+      setBackupStatus("error");
+    }
+  }
+
+  function reportIssue() {
+    const subject = encodeURIComponent("VocaChip 오류 제보");
+    const body = encodeURIComponent(
+      [
+        "문제가 발생한 단어:",
+        "",
+        "발생한 화면:",
+        "",
+        "기대했던 동작:",
+        "",
+        "실제 동작:",
+        "",
+        `앱 저장 버전: ${APP_STORAGE_VERSION}`,
+      ].join("\n"),
+    );
+
+    const feedbackEmail = import.meta.env.VITE_FEEDBACK_EMAIL?.trim();
+
+    if (feedbackEmail) {
+      window.location.href = `mailto:${feedbackEmail}?subject=${subject}&body=${body}`;
+      return;
+    }
+
+    window.open(
+      `https://github.com/naeunchan/vocachip/issues/new?title=${subject}&body=${body}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
+
   return (
     <div
       className={`app-shell ${activeScreen === "wordbook" ? "app-shell--wordbook" : ""}`}
@@ -322,6 +386,10 @@ function App() {
             <SettingsScreen
               themeMode={themeMode}
               onSelectThemeMode={setThemeMode}
+              savedWordCount={savedWords.length}
+              backupStatus={backupStatus}
+              onExportBackup={exportBackup}
+              onReportIssue={reportIssue}
             />
           ) : null}
         </main>

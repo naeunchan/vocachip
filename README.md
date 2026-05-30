@@ -36,7 +36,10 @@ Render에서 Blueprint로 배포하거나 Web Service를 직접 만들 때 아�
   - `OPENAI_MODEL`: `gpt-4.1-mini`
   - `DICTIONARY_API_KEY`: dictionaryapi.com API 키
   - `DICTIONARY_API_REFERENCE`: `collegiate`
-  - `AI_ALLOWED_ORIGIN`: 앱 프론트 주소
+  - `AI_ALLOWED_ORIGIN`: 앱 프론트 주소. 여러 개면 쉼표로 구분
+  - `API_RATE_LIMIT_WINDOW_MS`: rate limit 집계 시간. 기본값 `60000`
+  - `AI_RATE_LIMIT_MAX`: IP별 AI 요청 제한. 기본값 `30`
+  - `DICTIONARY_RATE_LIMIT_MAX`: IP별 사전 요청 제한. 기본값 `120`
 
 Render 배포가 끝나면 발급된 API 주소를 앱 빌드 환경변수에 넣어 주세요.
 
@@ -44,6 +47,21 @@ Render 배포가 끝나면 발급된 API 주소를 앱 빌드 환경변수에 �
 VITE_AI_MEANING_ENDPOINT=https://vocationary.onrender.com/api/ai/meanings
 VITE_AI_EXAMPLE_ENDPOINT=https://vocationary.onrender.com/api/ai/example
 VITE_DICTIONARY_ENDPOINT=https://vocationary.onrender.com/api/dictionary/search
+VITE_FEEDBACK_EMAIL=오류 제보를 받을 이메일
+```
+
+### 검색 API 스모크 테스트
+
+로컬 API 서버 또는 Render API 서버가 핵심 검색어를 정상 처리하는지 확인할 수 있어요.
+
+```bash
+npm run test:search
+```
+
+Render 서버를 대상으로 확인할 때는 아래처럼 실행해요.
+
+```bash
+DICTIONARY_TEST_ENDPOINT=https://vocationary.onrender.com/api/dictionary/search npm run test:search
 ```
 
 ## 배포하기

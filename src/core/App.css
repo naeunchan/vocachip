@@ -203,6 +203,12 @@
 	color: var(--danger);
 }
 
+.settings-policy-summary {
+	padding: 14px;
+	border-radius: 16px;
+	background: var(--surface-muted);
+}
+
 .settings-mode-button {
 	appearance: none;
 	display: inline-flex;
@@ -3644,6 +3650,87 @@
 	justify-content: center;
 }
 
+.privacy-ai-modal-card {
+	display: grid;
+	gap: 16px;
+	max-height: calc(100vh - 48px - env(safe-area-inset-top, 0px));
+	overflow: hidden;
+	border-radius: 24px 24px 18px 18px;
+}
+
+.privacy-ai-modal__header {
+	display: flex;
+	justify-content: space-between;
+	gap: 14px;
+}
+
+.privacy-ai-modal__header h3 {
+	font-size: 20px;
+	line-height: 1.3;
+}
+
+.privacy-ai-modal__header p,
+.privacy-ai-modal__intro,
+.privacy-ai-modal__section h4,
+.privacy-ai-modal__section ul {
+	margin: 0;
+}
+
+.privacy-ai-modal__header p {
+	margin-top: 4px;
+	color: var(--text-secondary);
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.45;
+}
+
+.privacy-ai-modal__intro {
+	color: var(--text-secondary);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.6;
+}
+
+.privacy-ai-modal__sections {
+	display: grid;
+	gap: 14px;
+	max-height: min(58vh, 520px);
+	overflow-y: auto;
+	padding-right: 2px;
+}
+
+.privacy-ai-modal__section {
+	display: grid;
+	gap: 8px;
+	border-radius: 16px;
+	padding: 14px;
+	background: var(--surface-muted);
+}
+
+.privacy-ai-modal__section h4 {
+	color: var(--text-primary);
+	font-size: 14px;
+	line-height: 1.35;
+}
+
+.privacy-ai-modal__section ul {
+	display: grid;
+	gap: 6px;
+	padding-left: 18px;
+	color: var(--text-secondary);
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.privacy-ai-modal__actions {
+	margin-top: 0;
+}
+
+.privacy-ai-modal__actions .modal-action-button {
+	flex: 1 1 0;
+	justify-content: center;
+}
+
 .modal-header {
 	display: flex;
 	justify-content: space-between;
@@ -3760,6 +3847,7 @@ input:focus-visible {
 
 :root[data-theme="dark"] .settings-mode-button,
 :root[data-theme="dark"] .settings-theme-button,
+:root[data-theme="dark"] .settings-policy-summary,
 :root[data-theme="dark"] .wordbook-tabs-card,
 :root[data-theme="dark"] .wordbook-session-stat,
 :root[data-theme="dark"] .wordbook-meaning-panel,
@@ -4180,14 +4268,18 @@ input:focus-visible {
 }
 
 :root[data-theme="dark"] .search-translation-modal__close,
-:root[data-theme="dark"] .search-translation-modal__definition {
+:root[data-theme="dark"] .search-translation-modal__definition,
+:root[data-theme="dark"] .privacy-ai-modal__section {
 	border-color: var(--line-soft);
 	color: var(--study-text-emphasis);
 	background: var(--surface-muted);
 }
 
 :root[data-theme="dark"] .search-translation-modal__header p,
-:root[data-theme="dark"] .search-translation-modal__definition {
+:root[data-theme="dark"] .search-translation-modal__definition,
+:root[data-theme="dark"] .privacy-ai-modal__header p,
+:root[data-theme="dark"] .privacy-ai-modal__intro,
+:root[data-theme="dark"] .privacy-ai-modal__section ul {
 	color: var(--study-text-emphasis);
 }
 

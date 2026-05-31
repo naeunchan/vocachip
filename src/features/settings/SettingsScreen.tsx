@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Button, SegmentedControl } from "@toss/tds-mobile";
 
 import type { ThemeMode } from "../../core/state/types";
@@ -120,6 +122,50 @@ function ThemeModeIcon({ mode }: { mode: ThemeMode }) {
   );
 }
 
+const PRIVACY_AI_NOTICE_SECTIONS = [
+  {
+    title: "처리하는 정보",
+    items: [
+      "사용자가 검색한 단어와 선택한 뜻",
+      "저장한 단어, 검색 기록, 학습 기록",
+      "API 요청 로그의 IP, User-Agent, Origin, 요청 경로, 응답 상태, 처리 시간",
+    ],
+  },
+  {
+    title: "사용 목적",
+    items: [
+      "단어 뜻 검색과 검색 결과 표시",
+      "선택한 뜻의 한글 번역과 AI 예문 생성",
+      "오류 분석, 악용 방지, API 요청 제한 적용",
+      "단어장 백업 파일 생성",
+    ],
+  },
+  {
+    title: "외부 서비스",
+    items: [
+      "Merriam-Webster 사전 API로 단어 뜻을 조회할 수 있어요.",
+      "OpenAI API로 선택한 뜻의 번역과 예문 생성을 요청할 수 있어요.",
+      "Render 서버에서 API 요청을 중계하고 운영 로그를 처리할 수 있어요.",
+    ],
+  },
+  {
+    title: "저장과 삭제",
+    items: [
+      "단어장과 학습 기록은 이 기기의 브라우저 저장소에 저장돼요.",
+      "브라우저 데이터를 삭제하거나 앱의 삭제 기능을 사용하면 저장 데이터가 제거돼요.",
+      "서버 로그 보관 기간과 외부 API의 데이터 처리는 각 운영 정책을 따라요.",
+    ],
+  },
+  {
+    title: "AI 결과 유의사항",
+    items: [
+      "AI 번역과 예문은 학습 참고용이며, 항상 정확하지 않을 수 있어요.",
+      "검색어나 예문 요청에 민감정보를 입력하지 않는 것을 권장해요.",
+      "부정확하거나 어색한 결과는 오류 제보로 알려줄 수 있어요.",
+    ],
+  },
+];
+
 export function SettingsScreen({
   themeMode,
   onSelectThemeMode,
@@ -128,6 +174,7 @@ export function SettingsScreen({
   onExportBackup,
   onReportIssue,
 }: SettingsScreenProps) {
+  const [isPrivacyNoticeOpen, setIsPrivacyNoticeOpen] = useState(false);
   const themeItems = [
     { key: "system" as const, label: "시스템" },
     { key: "light" as const, label: "라이트" },
@@ -167,7 +214,7 @@ export function SettingsScreen({
         <div className="settings-panel-header">
           <h3>데이터 및 AI 안내</h3>
         </div>
-        <div className="settings-info-list">
+        <div className="settings-info-list settings-policy-summary">
           <p>
             검색어와 선택한 뜻은 사전 API와 AI API 처리에 사용될 수 있어요.
           </p>
@@ -178,6 +225,16 @@ export function SettingsScreen({
             단어장과 학습 기록은 이 기기의 브라우저 저장소에 저장돼요.
           </p>
         </div>
+        <Button
+          className="settings-action-button"
+          size="large"
+          variant="weak"
+          color="dark"
+          type="button"
+          onClick={() => setIsPrivacyNoticeOpen(true)}
+        >
+          개인정보 및 AI 안내 보기
+        </Button>
       </section>
 
       <section className="content-card settings-panel-card">
@@ -226,6 +283,60 @@ export function SettingsScreen({
           오류 제보하기
         </Button>
       </section>
+
+      {isPrivacyNoticeOpen ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setIsPrivacyNoticeOpen(false);
+            }
+          }}
+        >
+          <div
+            className="modal-card privacy-ai-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="privacy-ai-notice-title"
+          >
+            <div className="privacy-ai-modal__header">
+              <div>
+                <h3 id="privacy-ai-notice-title">개인정보 및 AI 안내</h3>
+                <p>최종 업데이트: 2026.05.31</p>
+              </div>
+            </div>
+            <p className="privacy-ai-modal__intro">
+              VocaChip은 영어 단어 학습을 돕기 위해 사전 API와 AI API를
+              사용할 수 있어요. 아래 내용은 앱에서 어떤 데이터가 사용되는지와
+              AI 결과를 어떻게 이해해야 하는지 설명해요.
+            </p>
+            <div className="privacy-ai-modal__sections">
+              {PRIVACY_AI_NOTICE_SECTIONS.map((section) => (
+                <section className="privacy-ai-modal__section" key={section.title}>
+                  <h4>{section.title}</h4>
+                  <ul>
+                    {section.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+            <div className="modal-actions privacy-ai-modal__actions">
+              <Button
+                className="modal-action-button"
+                onClick={() => setIsPrivacyNoticeOpen(false)}
+                size="large"
+                color="dark"
+                type="button"
+              >
+                확인했어요
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

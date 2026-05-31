@@ -26,6 +26,13 @@ import { BottomNav } from "../shared/layout/BottomNav";
 import { type VocabularyEntry } from "../entities/vocabulary/mockData";
 import { SearchScreen } from "../features/search/SearchScreen";
 import { SettingsScreen } from "../features/settings/SettingsScreen";
+import {
+  bootstrapRemoteAppState,
+  createRemoteAppState,
+  resolveAnonymousAppUserKey,
+  saveRemoteAppState,
+  type RemoteAppStateStatus,
+} from "../features/sync/remoteAppState";
 import { WordbookScreen } from "../features/wordbook/WordbookScreen";
 
 function TopAdBanner() {
@@ -82,6 +89,12 @@ function App() {
   const [backupStatus, setBackupStatus] = useState<
     "idle" | "success" | "error"
   >("idle");
+  const [remoteSyncStatus, setRemoteSyncStatus] =
+    useState<RemoteAppStateStatus>("idle");
+  const remoteAnonymousKeyRef = useRef<string | null>(null);
+  const hasStartedRemoteBootstrapRef = useRef(false);
+  const hasBootstrappedRemoteStateRef = useRef(false);
+  const skipNextRemoteSaveRef = useRef(false);
 
   useDocumentTheme(themeMode);
 
@@ -116,11 +129,120 @@ function App() {
     handleRequestDefinitionTranslation,
     closeDefinitionTranslation,
     clearSearchHistory,
+    replaceSearchHistory,
   } = useDictionarySearch({
     initialHistory: initialAppState.history,
     words,
     setWords,
   });
+
+  useEffect(() => {
+    if (hasStartedRemoteBootstrapRef.current) {
+      return;
+    }
+
+    hasStartedRemoteBootstrapRef.current = true;
+
+    let isCancelled = false;
+
+    async function bootstrapRemoteState() {
+      setRemoteSyncStatus("loading");
+
+      const anonymousKey = await resolveAnonymousAppUserKey();
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (anonymousKey === null) {
+        setRemoteSyncStatus("local-only");
+        return;
+      }
+
+      try {
+        const localState = createRemoteAppState({
+          words,
+          searchHistory,
+          studyEvents,
+          themeMode,
+        });
+        const { state } = await bootstrapRemoteAppState(
+          anonymousKey,
+          localState,
+        );
+
+        if (isCancelled) {
+          return;
+        }
+
+        remoteAnonymousKeyRef.current = anonymousKey;
+        hasBootstrappedRemoteStateRef.current = true;
+        skipNextRemoteSaveRef.current = true;
+        setWords(state.words);
+        replaceSearchHistory(state.searchHistory);
+        setStudyEvents(state.studyEvents);
+        setThemeMode(state.themeMode);
+        setRemoteSyncStatus("synced");
+      } catch {
+        if (!isCancelled) {
+          setRemoteSyncStatus("error");
+        }
+      }
+    }
+
+    void bootstrapRemoteState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    replaceSearchHistory,
+    searchHistory,
+    setStudyEvents,
+    setThemeMode,
+    setWords,
+    studyEvents,
+    themeMode,
+    words,
+  ]);
+
+  useEffect(() => {
+    if (!hasBootstrappedRemoteStateRef.current) {
+      return;
+    }
+
+    const anonymousKey = remoteAnonymousKeyRef.current;
+
+    if (anonymousKey === null) {
+      return;
+    }
+
+    if (skipNextRemoteSaveRef.current) {
+      skipNextRemoteSaveRef.current = false;
+      return;
+    }
+
+    const remoteState = createRemoteAppState({
+      words,
+      searchHistory,
+      studyEvents,
+      themeMode,
+    });
+    const timeoutId = window.setTimeout(() => {
+      setRemoteSyncStatus("loading");
+      void saveRemoteAppState(anonymousKey, remoteState)
+        .then(() => {
+          setRemoteSyncStatus("synced");
+        })
+        .catch(() => {
+          setRemoteSyncStatus("error");
+        });
+    }, 800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchHistory, studyEvents, themeMode, words]);
 
   useEffect(() => {
     return () => {
@@ -388,6 +510,7 @@ function App() {
               onSelectThemeMode={setThemeMode}
               savedWordCount={savedWords.length}
               backupStatus={backupStatus}
+              remoteSyncStatus={remoteSyncStatus}
               onExportBackup={exportBackup}
               onReportIssue={reportIssue}
             />

@@ -3,12 +3,14 @@ import { useState } from "react";
 import { Button, SegmentedControl } from "@toss/tds-mobile";
 
 import type { ThemeMode } from "../../core/state/types";
+import type { RemoteAppStateStatus } from "../sync/remoteAppState";
 
 interface SettingsScreenProps {
   themeMode: ThemeMode;
   onSelectThemeMode: (mode: ThemeMode) => void;
   savedWordCount: number;
   backupStatus: "idle" | "success" | "error";
+  remoteSyncStatus: RemoteAppStateStatus;
   onExportBackup: () => void;
   onReportIssue: () => void;
 }
@@ -126,6 +128,7 @@ const PRIVACY_AI_NOTICE_SECTIONS = [
   {
     title: "처리하는 정보",
     items: [
+      "앱인토스 사용자 식별키의 해시값",
       "사용자가 검색한 단어와 선택한 뜻",
       "저장한 단어, 검색 기록, 학습 기록",
       "API 요청 로그의 IP, User-Agent, Origin, 요청 경로, 응답 상태, 처리 시간",
@@ -145,14 +148,14 @@ const PRIVACY_AI_NOTICE_SECTIONS = [
     items: [
       "Merriam-Webster 사전 API로 단어 뜻을 조회할 수 있어요.",
       "OpenAI API로 선택한 뜻의 번역과 예문 생성을 요청할 수 있어요.",
-      "Render 서버에서 API 요청을 중계하고 운영 로그를 처리할 수 있어요.",
+      "Render 서버와 PostgreSQL DB에서 단어장 동기화와 운영 로그를 처리할 수 있어요.",
     ],
   },
   {
     title: "저장과 삭제",
     items: [
-      "단어장과 학습 기록은 이 기기의 브라우저 저장소에 저장돼요.",
-      "브라우저 데이터를 삭제하거나 앱의 삭제 기능을 사용하면 저장 데이터가 제거돼요.",
+      "단어장과 학습 기록은 이 기기의 브라우저 저장소와 서버 DB에 저장될 수 있어요.",
+      "브라우저 데이터 삭제 시 이 기기의 캐시는 제거되지만, 서버 동기화 데이터는 남아 있을 수 있어요.",
       "서버 로그 보관 기간과 외부 API의 데이터 처리는 각 운영 정책을 따라요.",
     ],
   },
@@ -166,11 +169,20 @@ const PRIVACY_AI_NOTICE_SECTIONS = [
   },
 ];
 
+const remoteSyncStatusLabels: Record<RemoteAppStateStatus, string> = {
+  idle: "동기화 대기 중",
+  loading: "서버와 동기화 중",
+  synced: "서버 DB와 동기화됨",
+  "local-only": "이 기기에만 저장 중",
+  error: "서버 동기화 실패",
+};
+
 export function SettingsScreen({
   themeMode,
   onSelectThemeMode,
   savedWordCount,
   backupStatus,
+  remoteSyncStatus,
   onExportBackup,
   onReportIssue,
 }: SettingsScreenProps) {
@@ -222,14 +234,20 @@ export function SettingsScreen({
             AI 번역과 예문은 학습 보조용이며, 실제 의미와 다를 수 있어요.
           </p>
           <p>
-            단어장과 학습 기록은 이 기기의 브라우저 저장소에 저장돼요.
+            단어장과 학습 기록은 이 기기와 서버 DB에 동기화될 수 있어요.
           </p>
         </div>
+        <p
+          className={`settings-sync-status settings-sync-status--${remoteSyncStatus}`}
+          role="status"
+        >
+          {remoteSyncStatusLabels[remoteSyncStatus]}
+        </p>
         <Button
-          className="settings-action-button"
+          className="settings-action-button settings-privacy-notice-button"
           size="large"
-          variant="weak"
-          color="dark"
+          variant="fill"
+          color="primary"
           type="button"
           onClick={() => setIsPrivacyNoticeOpen(true)}
         >
@@ -308,8 +326,9 @@ export function SettingsScreen({
             </div>
             <p className="privacy-ai-modal__intro">
               VocaChip은 영어 단어 학습을 돕기 위해 사전 API와 AI API를
-              사용할 수 있어요. 아래 내용은 앱에서 어떤 데이터가 사용되는지와
-              AI 결과를 어떻게 이해해야 하는지 설명해요.
+              사용할 수 있고, 저장한 단어와 학습 기록을 서버 DB와 동기화할 수
+              있어요. 아래 내용은 앱에서 어떤 데이터가 사용되는지와 AI 결과를
+              어떻게 이해해야 하는지 설명해요.
             </p>
             <div className="privacy-ai-modal__sections">
               {PRIVACY_AI_NOTICE_SECTIONS.map((section) => (

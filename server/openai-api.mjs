@@ -14,6 +14,11 @@ import {
   getErrorStatusCode,
   getPublicErrorMessage,
 } from "../api/ai/_openai.js";
+import {
+  bootstrapAppState,
+  isAppStateDatabaseConfigured,
+  saveAppState,
+} from "./app-state-db.mjs";
 import { parseMerriamWebsterSearchResult } from "./dictionary-parser.mjs";
 
 const loadedEnvKeys = new Set();
@@ -114,6 +119,10 @@ const aiRateLimitMax = parsePositiveInteger(
 );
 const dictionaryRateLimitMax = parsePositiveInteger(
   process.env.DICTIONARY_RATE_LIMIT_MAX,
+  120,
+);
+const appStateRateLimitMax = parsePositiveInteger(
+  process.env.APP_STATE_RATE_LIMIT_MAX,
   120,
 );
 
@@ -466,7 +475,15 @@ function getClientIp(request) {
 }
 
 function getRateLimitMax(routeType) {
-  return routeType === "dictionary" ? dictionaryRateLimitMax : aiRateLimitMax;
+  if (routeType === "dictionary") {
+    return dictionaryRateLimitMax;
+  }
+
+  if (routeType === "app-state") {
+    return appStateRateLimitMax;
+  }
+
+  return aiRateLimitMax;
 }
 
 function checkRateLimit(request, routeType) {
@@ -665,6 +682,69 @@ async function handleDictionaryRequest(request, response, url) {
   }
 }
 
+function getAppStateStatusCode(error) {
+  return Number.isInteger(error?.statusCode) ? error.statusCode : 500;
+}
+
+function getAppStatePublicErrorMessage(error) {
+  const statusCode = getAppStateStatusCode(error);
+
+  if (
+    statusCode >= 400 &&
+    statusCode < 500 &&
+    typeof error?.message === "string"
+  ) {
+    return error.message;
+  }
+
+  if (error?.message === "App state database is not configured") {
+    return error.message;
+  }
+
+  return "App state request failed";
+}
+
+async function handleAppStateRequest(request, response, routeHandler) {
+  if (rejectDisallowedCorsRequest(request, response)) {
+    return;
+  }
+
+  setCorsHeaders(response, request);
+
+  if (request.method === "OPTIONS") {
+    response.statusCode = 204;
+    response.end();
+    return;
+  }
+
+  if (request.method !== "POST" && request.method !== "PUT") {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  if (rejectRateLimitedRequest(request, response, "app-state")) {
+    return;
+  }
+
+  if (!isAppStateDatabaseConfigured()) {
+    sendJson(response, 503, {
+      error: "App state database is not configured",
+    });
+    return;
+  }
+
+  try {
+    const body = await readJsonBody(request);
+    const payload = await routeHandler(body);
+
+    sendJson(response, 200, payload);
+  } catch (error) {
+    sendJson(response, getAppStateStatusCode(error), {
+      error: getAppStatePublicErrorMessage(error),
+    });
+  }
+}
+
 const server = createServer((request, response) => {
   const startedAt = Date.now();
   const baseUrl = `http://${request.headers.host ?? "127.0.0.1"}`;
@@ -691,6 +771,16 @@ const server = createServer((request, response) => {
 
   if (url.pathname === "/api/dictionary/search") {
     void handleDictionaryRequest(request, response, url);
+    return;
+  }
+
+  if (url.pathname === "/api/app-state/bootstrap") {
+    void handleAppStateRequest(request, response, bootstrapAppState);
+    return;
+  }
+
+  if (url.pathname === "/api/app-state") {
+    void handleAppStateRequest(request, response, saveAppState);
     return;
   }
 

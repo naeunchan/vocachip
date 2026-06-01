@@ -365,6 +365,13 @@ export function useDictionarySearch({
     setSearchHistory([]);
   }
 
+  const replaceSearchHistory = useCallback(
+    (nextSearchHistory: string[]) => {
+      setSearchHistory(nextSearchHistory);
+    },
+    [setSearchHistory],
+  );
+
   function closeDefinitionTranslation() {
     aiMeaningAbortControllerRef.current?.abort();
     setDefinitionTranslationDialog(null);
@@ -695,5 +702,6 @@ export function useDictionarySearch({
     handleRequestDefinitionTranslation,
     closeDefinitionTranslation,
     clearSearchHistory,
+    replaceSearchHistory,
   };
 }

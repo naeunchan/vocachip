@@ -55,7 +55,10 @@ export function setCorsHeaders(response, request) {
     response.setHeader("Access-Control-Allow-Origin", origin);
   }
 
-  response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, OPTIONS",
+  );
   response.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 

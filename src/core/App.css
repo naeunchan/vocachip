@@ -194,9 +194,63 @@
 	width: 100%;
 }
 
+.settings-privacy-notice-button {
+	--button-background-color: #3182f6 !important;
+	--button-color: #ffffff !important;
+	--button-gradient-color: rgba(27, 100, 218, 1) !important;
+	--button-loader-color: #ffffff !important;
+	--tds-paragraph-color: #ffffff !important;
+
+	border-color: #3182f6 !important;
+	color: #ffffff !important;
+	background: #3182f6 !important;
+}
+
+.settings-privacy-notice-button:hover,
+.settings-privacy-notice-button:focus-visible {
+	--button-background-color: #1b64da !important;
+	--button-gradient-color: rgba(25, 88, 198, 1) !important;
+
+	border-color: #1b64da !important;
+	background: #1b64da !important;
+}
+
+.settings-privacy-notice-button > div:first-child {
+	background-color: var(--button-background-color) !important;
+}
+
+.settings-privacy-notice-button > div:nth-of-type(2) {
+	background-image: radial-gradient(
+		closest-side,
+		var(--button-gradient-color) 0%,
+		rgba(0, 0, 0, 0) 100%
+	) !important;
+}
+
+.settings-privacy-notice-button * {
+	color: inherit;
+}
+
 .settings-status-text {
 	color: var(--accent-strong);
 	font-weight: 700;
+}
+
+.settings-sync-status {
+	margin: 0;
+	border-radius: 999px;
+	padding: 8px 12px;
+	color: var(--accent-strong);
+	font-size: 12px;
+	font-weight: 800;
+	line-height: 1.35;
+	background: rgba(49, 130, 246, 0.1);
+}
+
+.settings-sync-status--local-only,
+.settings-sync-status--error {
+	color: var(--danger);
+	background: rgba(240, 68, 82, 0.08);
 }
 
 .settings-status-text--error {
